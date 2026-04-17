@@ -1,0 +1,19 @@
+# Ignore Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore environemnt variables/secrets
+.env
+
+# Ignore idea/vscode configs
+.vscode/
+.idea/
+
+# Ignore Splunk local data mapping (se decidiamo di montare volumi locali per non perdere log)
+splunk_data/
+dbms_data/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
