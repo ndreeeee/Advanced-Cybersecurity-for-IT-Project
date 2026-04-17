@@ -17,9 +17,8 @@ SPLUNK_USER = "admin"
 SPLUNK_PASS = os.getenv("SPLUNK_PASS", "changeme")
 
 # Query Splunk che andrà a cercare nella Threat Intelligence (dataset honeypot/attack_data)
-# o eventi pregressi che coinvolgono gli IP della nostra sub-net (172.x.x.x)
-# Modificabile per adattarsi a qualsiasi CSV/index caricato
-SEARCH_QUERY = 'search index="main" OR index="honeypot" | stats count by src_ip | search count > 0'
+# I campi del CSV sono: srcstr (IP attaccante), dpt (porta destinazione), cc (paese), proto (protocollo)
+SEARCH_QUERY = 'search source="honeypot.csv" | stats count by srcstr | search count > 5'
 
 print("[PDP] Policy Decision Point Motor Started. Connecting to Splunk REST API...", flush=True)
 
@@ -99,7 +98,7 @@ def verify_logs_via_api(session_key):
         malicious_ips = []
         if "results" in results:
             for row in results["results"]:
-                ip = row.get("src_ip")
+                ip = row.get("srcstr")
                 if ip:
                     malicious_ips.append(ip)
                     

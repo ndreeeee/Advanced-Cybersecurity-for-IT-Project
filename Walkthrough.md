@@ -100,7 +100,7 @@ Non serve impazzire con la riga di comando! Hai due interfacce visive potentissi
 
 ### Splunk Web UI (`http://localhost:8000`)
 - Vai in **Search & Reporting**.
-- Nella barra scrivi: `index="honeypot" src_ip="172.20.0.12"` e vedrai tutti i "crimini" di Bob nel dataset.
+- Nella barra scrivi: `source="honeypot.csv" srcstr="172.20.0.12"` e vedrai tutti i "crimini" di Bob nel dataset.
 
 ---
 
@@ -134,7 +134,7 @@ Le dashboard sono grafici interattivi che Splunk genera dalle query. Sono la par
 1. Vai in **Search & Reporting**
 2. Nella barra scrivi:
    ```
-   index="honeypot" | top limit=10 src_ip
+   source="honeypot.csv" | top limit=10 srcstr
    ```
 3. Premi **Search** (tasto verde)
 4. Sotto i risultati clicca la tab **Visualization**
@@ -145,7 +145,7 @@ Le dashboard sono grafici interattivi che Splunk genera dalle query. Sono la par
 ### Dashboard 2: "Timeline degli Attacchi" (Barra Temporale)
 1. Nuova ricerca:
    ```
-   index="honeypot" src_ip="172.20.0.12" | timechart count by dst_port
+   source="honeypot.csv" srcstr="172.20.0.12" | timechart count by dpt
    ```
 2. Tab **Visualization** → seleziona **Area Chart**
 3. **Save As** → **Existing Dashboard** → seleziona "ZTA Threat Intelligence"
@@ -153,9 +153,17 @@ Le dashboard sono grafici interattivi che Splunk genera dalle query. Sono la par
 ### Dashboard 3: "Porte più Attaccate" (Barre Orizzontali)
 1. Nuova ricerca:
    ```
-   index="honeypot" | top limit=20 dst_port
+   source="honeypot.csv" | top limit=20 dpt
    ```
 2. Tab **Visualization** → seleziona **Bar Chart**
+3. **Save As** → **Existing Dashboard** → seleziona "ZTA Threat Intelligence"
+
+### Dashboard 4: "Attacchi per Paese" (Mappa Mondiale)
+1. Nuova ricerca:
+   ```
+   source="honeypot.csv" | top limit=20 country
+   ```
+2. Tab **Visualization** → seleziona **Pie Chart** o **Bar Chart**
 3. **Save As** → **Existing Dashboard** → seleziona "ZTA Threat Intelligence"
 
 ### Come mostrare la Dashboard all'esame
