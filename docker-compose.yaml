@@ -1,0 +1,153 @@
+version: '3.8'
+
+networks:
+  data-plane:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  
+  control-plane:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+
+services:
+  # ==========================================
+  # CONTROL PLANE SERVICES
+  # ==========================================
+  dbms:
+    image: postgres:16
+    container_name: zta-dbms
+    environment:
+      POSTGRES_USER: zta_admin
+      POSTGRES_PASSWORD: zta_password
+      POSTGRES_DB: zta_policy
+    volumes:
+      - ./components/dbms/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - control-plane
+    ports:
+      - "5432:5432"
+
+  splunk:
+    image: splunk/splunk:latest
+    container_name: zta-splunk
+    environment:
+      SPLUNK_START_ARGS: --accept-license
+      SPLUNK_PASSWORD: Admin123Password!
+    ports:
+      - "8000:8000" # Web UI
+      - "8089:8089" # REST API (per il PDP)
+      - "1514:1514/udp" # Syslog receiver
+    networks:
+      - control-plane
+
+  pdp:
+    build: 
+      context: ./components/pdp
+    container_name: zta-pdp
+    depends_on:
+      - splunk
+      - dbms
+    environment:
+      SPLUNK_HOST: splunk
+      DB_HOST: dbms
+    networks:
+      - control-plane
+
+  # ==========================================
+  # DATA PLANE SERVICES
+  # ==========================================
+  api-server:
+    build:
+      context: ./components/api-server
+    container_name: zta-resource
+    networks:
+      data-plane:
+        ipv4_address: 172.20.0.100
+
+  pep:
+    build:
+      context: ./components/pep
+    container_name: zta-pep
+    depends_on:
+      - api-server
+      - dbms
+    networks:
+      data-plane:
+        ipv4_address: 172.20.0.99
+      control-plane:
+        ipv4_address: 172.21.0.99
+
+  ids:
+    build:
+      context: ./components/ids
+    container_name: zta-ids
+    cap_add:
+      - NET_ADMIN
+    networks:
+      data-plane:
+        ipv4_address: 172.20.0.98
+      control-plane:
+        ipv4_address: 172.21.0.98
+
+  proxy:
+    build:
+      context: ./components/proxy
+    container_name: zta-proxy
+    networks:
+      data-plane:
+        ipv4_address: 172.20.0.97
+      control-plane:
+        ipv4_address: 172.21.0.97
+
+  firewall:
+    build:
+      context: ./components/firewall
+    container_name: zta-firewall
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    networks:
+      data-plane:
+        ipv4_address: 172.20.0.96
+      control-plane:
+        ipv4_address: 172.21.0.96
+
+  # ==========================================
+  # CLIENTS (SIMULATORS)
+  # ==========================================
+  client-alice:
+    build:
+      context: ./components/clients
+    container_name: zta-client-alice
+    environment:
+      CLIENT_NAME: employee-alice
+      CLIENT_ROLE: legit
+    networks:
+      data-plane:
+        ipv4_address: 172.20.0.10
+
+  client-kiosk:
+    build:
+      context: ./components/clients
+    container_name: zta-client-kiosk
+    environment:
+      CLIENT_NAME: branch-kiosk
+      CLIENT_ROLE: kiosk
+    networks:
+      data-plane:
+        ipv4_address: 172.20.0.11
+  
+  client-bob:
+    build:
+      context: ./components/clients
+    container_name: zta-client-bob
+    environment:
+      CLIENT_NAME: employee-bob
+      CLIENT_ROLE: suspect
+    networks:
+      data-plane:
+        ipv4_address: 172.20.0.12
