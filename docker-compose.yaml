@@ -36,7 +36,7 @@ services:
     container_name: zta-splunk
     environment:
       SPLUNK_START_ARGS: --accept-license
-      SPLUNK_PASSWORD: Admin123Password!
+      SPLUNK_PASSWORD: "5#Gkc6Z:h|68 Ndr3j"
     ports:
       - "8000:8000" # Web UI
       - "8089:8089" # REST API (per il PDP)
