@@ -21,9 +21,9 @@ services:
     image: postgres:16
     container_name: zta-dbms
     environment:
-      POSTGRES_USER: zta_admin
-      POSTGRES_PASSWORD: zta_password
-      POSTGRES_DB: zta_policy
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - ./components/dbms/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
@@ -36,7 +36,7 @@ services:
     container_name: zta-splunk
     environment:
       SPLUNK_START_ARGS: --accept-license
-      SPLUNK_PASSWORD: "5#Gkc6Z:h|68 Ndr3j"
+      SPLUNK_PASSWORD: ${SPLUNK_PASSWORD}
     ports:
       - "8000:8000" # Web UI
       - "8089:8089" # REST API (per il PDP)
@@ -53,7 +53,11 @@ services:
       - dbms
     environment:
       SPLUNK_HOST: splunk
+      SPLUNK_PASS: ${SPLUNK_PASSWORD}
       DB_HOST: dbms
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
     networks:
       - control-plane
 

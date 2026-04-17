@@ -10,6 +10,14 @@ docker-compose up -d --build
 > [!TIP]
 > Il parametro `--build` fa sì che Docker compili al volo i tuoi script Python ed installi i tool (come Snort e Squid) dentro alle macchinette. Usa `--build` solo la prima volta o quando modifichi il codice. Le volte successive basta `docker-compose up -d`.
 
+> [!IMPORTANT]
+> **PRIMA di lanciare il comando**, ogni membro del gruppo deve creare il proprio file `.env` nella root del progetto. Copia il template e inserisci le tue credenziali:
+> ```bash
+> cp .env.example .env
+> ```
+> Poi apri `.env` con un editor e sostituisci `LA_TUA_PASSWORD_QUI` con la password del tuo account Splunk personale.
+> Il file `.env` è nel `.gitignore`, quindi **non verrà mai pushato su GitHub** e ognuno tiene le proprie credenziali al sicuro.
+
 ---
 
 ## 2. Configurazione Splunk (Da fare UNA SOLA VOLTA dopo il primo avvio) 🔧
