@@ -22,7 +22,7 @@ docker-compose up -d --build
 
 ## 2. Configurazione Splunk (Da fare UNA SOLA VOLTA dopo il primo avvio) 🔧
 
-Una volta che i container sono tutti verdi su Docker Desktop, apri il browser e vai su **http://localhost:8000**. Loggati con `admin` / `5#Gkc6Z:h|68 Ndr3j`.
+Una volta che i container sono tutti verdi su Docker Desktop, apri il browser e vai su **http://localhost:8000**. Loggati con `admin` + la password che hai inserito nel tuo file `.env`.
 
 ### Passo 1: Abilitare la ricezione Log (UDP Syslog)
 Splunk appena nato è "sordo": non ascolta nulla. Dobbiamo aprirgli le orecchie.
@@ -101,11 +101,69 @@ Non serve impazzire con la riga di comando! Hai due interfacce visive potentissi
 ### Splunk Web UI (`http://localhost:8000`)
 - Vai in **Search & Reporting**.
 - Nella barra scrivi: `index="honeypot" src_ip="172.20.0.12"` e vedrai tutti i "crimini" di Bob nel dataset.
-- Per creare le Dashboard grafiche (torte, barre, timeline degli attacchi): esegui una query → clicca **Save As** → **Dashboard Panel**.
 
 ---
 
-## 6. Cosa Mostrare al Professore (Lo Show Live) 🎬
+## 6. Come funziona la Simulazione (Gira DA SOLA) 🔄
+
+Una volta che i container sono accesi, **non devi fare niente**. La simulazione è completamente automatica:
+
+| Container | Cosa fa in loop | Frequenza |
+|---|---|---|
+| `client-alice` | Chiede `/balance` e `/transfer` (traffico legittimo) | Ogni 10-15 sec |
+| `client-kiosk` | Chiede solo `/balance` (trust limitato) | Ogni 5 sec |
+| `client-bob` | Tenta SQL Injection, naviga su domini malevoli via Proxy | Ogni 10 sec |
+| `PEP` | Intercetta ogni richiesta, chiede al DB il trust, decide allow/deny | Ad ogni richiesta |
+| `PDP` | Interroga Splunk via REST API, incrocia con dataset Honeypot, aggiorna trust nel DB | Ogni 15 sec |
+| `Firewall` | Riceve ordini di DROP dal PEP quando il trust va a 0.0 | Su evento |
+
+**Il flusso che vedrai accadere in automatico:**
+1. Bob manda richieste malevole → Snort lo rileva → i log arrivano a Splunk
+2. Il PDP interroga Splunk via REST → trova Bob nel dataset Honeypot → abbassa il trust di 0.40
+3. Dopo 3-4 cicli il trust di Bob crolla a 0.0
+4. Il PEP vede trust=0.0 → invia il comando al Firewall → IPTables `DROP` su `172.20.0.12`
+5. Da quel momento Bob è tagliato fuori dalla rete!
+
+---
+
+## 7. Creare le Dashboard su Splunk (Il colpo finale per il Prof) 📊
+
+Le dashboard sono grafici interattivi che Splunk genera dalle query. Sono la parte visiva WOW che il prof si aspetta.
+
+### Dashboard 1: "Top 10 IP Attaccanti" (Torta)
+1. Vai in **Search & Reporting**
+2. Nella barra scrivi:
+   ```
+   index="honeypot" | top limit=10 src_ip
+   ```
+3. Premi **Search** (tasto verde)
+4. Sotto i risultati clicca la tab **Visualization**
+5. Seleziona **Pie Chart** → vedrai Bob (`172.20.0.12`) come fetta enorme!
+6. Clicca **Save As** → **Dashboard Panel** → **New Dashboard**
+7. Chiamalo **"ZTA Threat Intelligence"** → **Save**
+
+### Dashboard 2: "Timeline degli Attacchi" (Barra Temporale)
+1. Nuova ricerca:
+   ```
+   index="honeypot" src_ip="172.20.0.12" | timechart count by dst_port
+   ```
+2. Tab **Visualization** → seleziona **Area Chart**
+3. **Save As** → **Existing Dashboard** → seleziona "ZTA Threat Intelligence"
+
+### Dashboard 3: "Porte più Attaccate" (Barre Orizzontali)
+1. Nuova ricerca:
+   ```
+   index="honeypot" | top limit=20 dst_port
+   ```
+2. Tab **Visualization** → seleziona **Bar Chart**
+3. **Save As** → **Existing Dashboard** → seleziona "ZTA Threat Intelligence"
+
+### Come mostrare la Dashboard all'esame
+Vai su **Dashboards** nel menu a sinistra di Splunk. Troverai la tua "ZTA Threat Intelligence" con tutti i grafici assemblati in un'unica pagina. Tienila aperta a schermo intero mentre presenti il progetto!
+
+---
+
+## 8. Cosa Mostrare al Professore (Lo Show Live) 🎬
 
 Se preferisci comunque usare il terminale per fare colpo durante l'esame, ecco i 4 comandi d'oro:
 
@@ -134,7 +192,7 @@ docker exec -it zta-dbms psql -U zta_admin -d zta_policy -c "SELECT device_name,
 
 ---
 
-## 7. Come Spegnere e Riaccendere ⚡
+## 9. Come Spegnere e Riaccendere ⚡
 
 ```bash
 # Spegnere tutto (preserva i dati)
