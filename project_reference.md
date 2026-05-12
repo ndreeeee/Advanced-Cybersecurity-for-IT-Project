@@ -59,6 +59,89 @@ Qualsiasi traffico → IPTables/Squid/Snort generano log → Log arrivano a Splu
 
 ---
 
+## 1b. Indicazioni VERBALI del Prof (appunti Flaia, 12/05/2026)
+
+> [!IMPORTANT]
+> Queste indicazioni sono state date a voce dal professore e **integrano** i requisiti del PDF. Vanno tenute in considerazione nell'architettura.
+
+### 1. Envoy → OPA (sostituto/complemento del PEP attuale)
+
+Il prof suggerisce di usare **Envoy Proxy** come sidecar/gateway davanti alla risorsa:
+- **Envoy** intercetta tutte le richieste in ingresso e riesce a capire **da dove vengono** (IP sorgente, headers, certificati TLS)
+- Envoy delega la decisione di autorizzazione a **OPA (Open Policy Agent)**, che è un engine di policy as code
+- In pratica: **Envoy** fa il ruolo di **PEP** (enforcement) e **OPA** fa il ruolo di **PDP** (decision), ma in modo più standard e production-grade rispetto al codice Python custom
+
+**Impatto sul progetto**: Il PEP attuale (FastAPI Python) potrebbe essere sostituito o affiancato da Envoy + OPA. Questo renderebbe l'architettura più vicina a uno standard enterprise (service mesh).
+
+### 2. mTLS (Mutual TLS)
+
+Il prof vuole vedere **mTLS** — cioè autenticazione TLS bidirezionale:
+- Non basta che il client verifichi il server (TLS classico)
+- Anche il **server deve verificare il certificato del client** → il device deve dimostrare la propria identità con un certificato
+- Questo è un pilastro fondamentale della Zero Trust: **"never trust, always verify"** anche a livello di connessione
+
+**Impatto sul progetto**: Serve generare una **CA interna** (Certificate Authority), emettere certificati per ogni client/device, e configurare Envoy (o il PEP) per richiedere e validare i certificati client. I container senza certificato valido vengono rifiutati a livello di handshake TLS.
+
+### 3. Dispositivo TPM (Trusted Platform Module)
+
+Il prof ha menzionato il **TPM** come concetto di attestazione del device:
+- Il TPM è un chip hardware che garantisce l'identità crittografica del dispositivo
+- In una ZTA reale, il device dimostra la propria integrità tramite **device attestation** (il TPM firma un report sullo stato del firmware/OS)
+- Nel nostro progetto Docker **non possiamo avere un TPM fisico**, ma possiamo **simularlo**:
+  - Ogni container client potrebbe avere una **chiave privata unica** montata via volume
+  - Il PEP/Envoy verifica il certificato client legato a quella chiave (collegamento con mTLS sopra)
+  - A livello di presentazione, spieghiamo che in produzione questa chiave sarebbe custodita nel TPM
+
+**Impatto sul progetto**: Aggiungere un meccanismo di device identity basato su certificati client. Nella presentazione, spiegare il collegamento con TPM hardware.
+
+### 4. Calcolo probabilità d'attacco basato sulla frequenza
+
+Il prof vuole che il **PDP** non faccia un semplice "IP trovato → trust a zero", ma calcoli una **probabilità d'attacco** basata sulla **frequenza degli attacchi precedenti**:
+- Se un IP ha fatto 3 tentativi sospetti nell'ultima ora → probabilità bassa → riduzione trust moderata
+- Se un IP ha fatto 500 tentativi sospetti → probabilità alta → trust a zero immediato
+- Il concetto è: **più un comportamento anomalo è frequente, più è probabile che sia un attacco reale**
+
+**Impatto sul progetto**: Il PDP deve essere reworkato:
+- Invece di una detrazione fissa (`-0.40`), deve usare una **funzione che mappa la frequenza ad una probabilità**
+- La query Splunk deve restituire non solo la lista degli IP ma anche il **count** di quante volte appaiono
+- Formula esempio: `P(attacco) = 1 - e^(-λ * count)` dove λ è un parametro di sensibilità
+
+### 5. Density Function su Splunk
+
+Il prof vuole vedere una **funzione di densità (density function)** implementata dentro Splunk:
+- Splunk permette di calcolare distribuzioni statistiche direttamente nelle query SPL
+- Si può usare per visualizzare la **distribuzione degli attacchi nel tempo** e calcolare se il comportamento attuale di un device è anomalo rispetto al baseline
+- Comandi SPL utili: `| eventstats`, `| streamstats`, `| timechart`, `| predict`
+
+**Esempio di query SPL con density**:
+```spl
+index=honeypot srcstr="172.20.0.12"
+| bucket _time span=1h
+| stats count as attack_count by _time
+| eventstats avg(attack_count) as mean_rate stdev(attack_count) as std_rate
+| eval z_score = (attack_count - mean_rate) / std_rate
+| eval is_anomalous = if(z_score > 2, "YES", "NO")
+```
+
+**Impatto sul progetto**: 
+- Il PDP dovrebbe lanciare query Splunk più sofisticate che includano statistiche di densità
+- Le Dashboard Splunk dovrebbero mostrare grafici di distribuzione (istogrammi di frequenza, density plot)
+- Il trust score dovrebbe derivare da queste analisi statistiche, non da un semplice conteggio
+
+---
+
+### Riepilogo impatti architetturali
+
+| Indicazione Prof | Componenti impattati | Priorità |
+|---|---|---|
+| **Envoy + OPA** | PEP, docker-compose, nuovi container | 🔴 Alta |
+| **mTLS** | Tutti i container, CA interna, Envoy/PEP config | 🔴 Alta |
+| **TPM (simulato)** | Client, certificati, presentazione | 🟡 Media |
+| **Probabilità d'attacco** | PDP (pdp.py), query Splunk | 🔴 Alta |
+| **Density Function** | PDP, query SPL, Dashboard Splunk | 🟡 Media |
+
+---
+
 ## 2. Risposta alla domanda: "Bob è nel dataset?"
 
 **SÌ, Bob (`172.20.0.12`) è stato iniettato nel dataset.**
