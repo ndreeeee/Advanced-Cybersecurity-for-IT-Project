@@ -18,7 +18,9 @@ SPLUNK_PASS = os.getenv("SPLUNK_PASS", "changeme")
 
 # Query Splunk che andrà a cercare nella Threat Intelligence (dataset honeypot/attack_data)
 # I campi del CSV sono: srcstr (IP attaccante), dpt (porta destinazione), cc (paese), proto (protocollo)
-SEARCH_QUERY = 'search source="honeypot.csv" | stats count by srcstr | search count > 5'
+# Cerca in TUTTI gli index (index=*) e supporta sia 'merged.csv' che 'honeypot.csv' come source name,
+# così funziona indipendentemente dall'index scelto durante l'upload su Splunk.
+SEARCH_QUERY = 'search index=* (source="honeypot.csv" OR source="merged.csv") | stats count by srcstr | search count > 0'
 
 print("[PDP] Policy Decision Point Motor Started. Connecting to Splunk REST API...", flush=True)
 
