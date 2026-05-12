@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import httpx
 import psycopg2
 from datetime import datetime
@@ -18,9 +19,9 @@ SPLUNK_PASS = os.getenv("SPLUNK_PASS", "changeme")
 
 # Query Splunk che andrà a cercare nella Threat Intelligence (dataset honeypot/attack_data)
 # I campi del CSV sono: srcstr (IP attaccante), dpt (porta destinazione), cc (paese), proto (protocollo)
-# Cerca in TUTTI gli index (index=*) e supporta sia 'merged.csv' che 'honeypot.csv' come source name,
-# così funziona indipendentemente dall'index scelto durante l'upload su Splunk.
-SEARCH_QUERY = 'search index=* (source="honeypot.csv" OR source="merged.csv") | stats count by srcstr | search count > 0'
+# Cerca gli IP della nostra rete (172.20.*) in TUTTI gli index e supporta vari source name,
+# per trovare i nostri client nel dataset delle minacce bypassando il limite dei 100 risultati.
+SEARCH_QUERY = 'search index=* (source="honeypot.csv" OR source="merged.csv") srcstr="172.20.*" | stats count by srcstr | where count > 5'
 
 print("[PDP] Policy Decision Point Motor Started. Connecting to Splunk REST API...", flush=True)
 
@@ -33,17 +34,28 @@ def get_splunk_session_key():
         response = httpx.post(
             f"{SPLUNK_HOST}/services/auth/login",
             data={'username': SPLUNK_USER, 'password': SPLUNK_PASS, 'output_mode': 'json'},
-            verify=False # Certificato auto-generato da Splunk docker
+            verify=False, # Certificato auto-generato da Splunk docker
+            timeout=15.0
         )
         response.raise_for_status()
-        # Splunk ha la tendenza a rispondere in XML per la route di auth anche se chiedi json
-        # quindi facciamo un parsing furbo se serve, o estraiamo stringa
         text = response.text
+        
+        # Prova parsing JSON (versioni recenti di Splunk)
+        try:
+            data = json.loads(text)
+            if "sessionKey" in data:
+                print("[PDP] Authenticated to Splunk (JSON). SessionKey ACQUIRED.", flush=True)
+                return data["sessionKey"]
+        except (json.JSONDecodeError, TypeError):
+            pass
+        
+        # Fallback: parsing XML (versioni precedenti di Splunk)
         if "<sessionKey>" in text:
-            # Estrazione XML brutale ma infallibile
             key = text.split("<sessionKey>")[1].split("</sessionKey>")[0]
-            print("[PDP] Authenticated to Splunk. SessionKey ADQUIRED.", flush=True)
+            print("[PDP] Authenticated to Splunk (XML). SessionKey ACQUIRED.", flush=True)
             return key
+        
+        print(f"[PDP] WARNING: Auth response received but no sessionKey found. Response: {text[:200]}", flush=True)
         return None
     except Exception as e:
         print(f"[PDP] SPLUNK Auth Connection Error: {e}. Splunk is probably still booting...", flush=True)
@@ -64,7 +76,8 @@ def verify_logs_via_api(session_key):
             f"{SPLUNK_HOST}/services/search/jobs",
             headers=headers,
             data={"search": SEARCH_QUERY, "output_mode": "json"},
-            verify=False
+            verify=False,
+            timeout=15.0
         )
         if job_res.status_code != 201:
              print(f"[PDP] Errore creazione Job: {job_res.status_code} - {job_res.text}", flush=True)
@@ -79,7 +92,8 @@ def verify_logs_via_api(session_key):
             status_res = httpx.get(
                 f"{SPLUNK_HOST}/services/search/jobs/{sid}?output_mode=json",
                 headers=headers,
-                verify=False
+                verify=False,
+                timeout=15.0
             )
             job_status = status_res.json()
             # Controlla chiave 'isDone' oppure 'dispatchState'
@@ -93,7 +107,8 @@ def verify_logs_via_api(session_key):
         results_res = httpx.get(
             f"{SPLUNK_HOST}/services/search/jobs/{sid}/results?output_mode=json",
             headers=headers,
-            verify=False
+            verify=False,
+            timeout=15.0
         )
         
         results = results_res.json()
