@@ -35,12 +35,13 @@ services:
     image: splunk/splunk:latest
     container_name: zta-splunk
     environment:
+      SPLUNK_GENERAL_TERMS: --accept-sgt-current-at-splunk-com
       SPLUNK_START_ARGS: --accept-license
       SPLUNK_PASSWORD: ${SPLUNK_PASSWORD}
     ports:
-      - "8000:8000" # Web UI
-      - "8089:8089" # REST API (per il PDP)
-      - "1514:1514/udp" # Syslog receiver
+      - "8000:8000"       # Web UI
+      - "8089:8089"       # REST API (per il PDP)
+      - "1514:1514/udp"   # Syslog receiver (da Firewall, Squid, Snort)
     networks:
       - control-plane
 
@@ -79,6 +80,11 @@ services:
     depends_on:
       - api-server
       - dbms
+    environment:
+      DB_HOST: dbms
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
     networks:
       data-plane:
         ipv4_address: 172.20.0.99
@@ -91,6 +97,8 @@ services:
     container_name: zta-ids
     cap_add:
       - NET_ADMIN
+    depends_on:
+      - splunk
     networks:
       data-plane:
         ipv4_address: 172.20.0.98
@@ -101,6 +109,9 @@ services:
     build:
       context: ./components/proxy
     container_name: zta-proxy
+    depends_on:
+      - pep
+      - splunk
     networks:
       data-plane:
         ipv4_address: 172.20.0.97
@@ -114,6 +125,9 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
+    depends_on:
+      - proxy
+      - splunk
     networks:
       data-plane:
         ipv4_address: 172.20.0.96
@@ -127,9 +141,12 @@ services:
     build:
       context: ./components/clients
     container_name: zta-client-alice
+    depends_on:
+      - firewall
     environment:
       CLIENT_NAME: employee-alice
       CLIENT_ROLE: legit
+      CLIENT_IP: 172.20.0.10
     networks:
       data-plane:
         ipv4_address: 172.20.0.10
@@ -138,9 +155,12 @@ services:
     build:
       context: ./components/clients
     container_name: zta-client-kiosk
+    depends_on:
+      - firewall
     environment:
       CLIENT_NAME: branch-kiosk
       CLIENT_ROLE: kiosk
+      CLIENT_IP: 172.20.0.11
     networks:
       data-plane:
         ipv4_address: 172.20.0.11
@@ -149,9 +169,12 @@ services:
     build:
       context: ./components/clients
     container_name: zta-client-bob
+    depends_on:
+      - firewall
     environment:
       CLIENT_NAME: employee-bob
       CLIENT_ROLE: suspect
+      CLIENT_IP: 172.20.0.12
     networks:
       data-plane:
         ipv4_address: 172.20.0.12

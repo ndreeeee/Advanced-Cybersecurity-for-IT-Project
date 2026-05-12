@@ -1,32 +1,51 @@
 #!/bin/bash
-# Simulatore di traffico in base al ruolo del container
+# =============================================================
+# Client Simulator
+# Traffic flow: Client → Firewall → Squid → PEP → API Server
+# =============================================================
 
-echo "[*] Avvio operatività client: $CLIENT_NAME ($CLIENT_ROLE)"
-sleep 15 # Attendiamo che il server e pep si avviino
+echo "[*] Client avviato: $CLIENT_NAME ($CLIENT_ROLE)"
+echo "[*] Traffico diretto a: http://firewall (primo anello ZTA)"
+sleep 20  # Attendiamo che tutta la catena sia pronta
+
+# Entry point della catena Zero Trust (il firewall)
+GATEWAY="http://firewall"
 
 while true; do
     if [ "$CLIENT_ROLE" = "legit" ]; then
-        # Alice fa normali query di balance e trasferimenti
+        # Alice — traffico completamente legittimo
         echo "[Alice] Chiedo saldo:"
-        curl -s http://pep/api/v1/balance
+        curl -s -H "X-Forwarded-For: $CLIENT_IP" "$GATEWAY/api/v1/balance" 2>/dev/null
+        echo ""
         sleep 5
+
         echo "[Alice] Faccio bonifico:"
-        curl -s -X POST http://pep/api/v1/transfer
+        curl -s -X POST -H "X-Forwarded-For: $CLIENT_IP" "$GATEWAY/api/v1/transfer" 2>/dev/null
+        echo ""
         sleep 10
 
     elif [ "$CLIENT_ROLE" = "kiosk" ]; then
-        # Il totem fa solo balance (trust base limitato)
+        # Totem filiale — solo lettura saldi
         echo "[Kiosk] Chiedo saldo:"
-        curl -s http://pep/api/v1/balance
+        curl -s -H "X-Forwarded-For: $CLIENT_IP" "$GATEWAY/api/v1/balance" 2>/dev/null
+        echo ""
         sleep 5
-        
+
     elif [ "$CLIENT_ROLE" = "suspect" ]; then
-        # Bob lancia attacchi e naviga su proxy malevoli
-        echo "[Bob Malware] Tentativo Proxy verso server Comando&Controllo:"
-        curl -s -x http://proxy:3128 http://evil-malware-domain.com
+        # Bob — dispositivo compromesso
+        echo "[Bob] Tentativo SQL Injection + accesso admin:"
+        curl -s -H "X-Forwarded-For: $CLIENT_IP" "$GATEWAY/api/v1/admin/dump?id=1'%20OR%201=1--" 2>/dev/null
+        echo ""
         sleep 5
-        echo "[Bob Malware] Tentativo esfiltrazione dati banca (SQL Injection + Accesso Admin):"
-        curl -s "http://pep/api/v1/admin/dump?id=1' OR 1=1--"
-        sleep 10
+
+        echo "[Bob] Tentativo accesso transfer:"
+        curl -s -X POST -H "X-Forwarded-For: $CLIENT_IP" "$GATEWAY/api/v1/transfer" 2>/dev/null
+        echo ""
+        sleep 5
+
+        echo "[Bob] Tentativo navigazione dominio malevolo via Proxy:"
+        curl -s -x http://proxy:3128 http://evil-malware-domain.com 2>/dev/null
+        echo ""
+        sleep 5
     fi
 done

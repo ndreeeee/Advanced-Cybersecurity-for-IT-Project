@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     iproute2 \
+    rsyslog \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -16,6 +17,6 @@ COPY fw_api.py .
 COPY start.sh .
 RUN chmod +x start.sh
 
-EXPOSE 8081
+EXPOSE 80
 
 CMD ["./start.sh"]

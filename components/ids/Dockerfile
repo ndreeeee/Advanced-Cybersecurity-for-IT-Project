@@ -1,4 +1,10 @@
 FROM linton/docker-snort:latest
-# Questo container ha già snort pre-installato
+
+# Install rsyslog for log forwarding to Splunk
+RUN apt-get update && apt-get install -y rsyslog && rm -rf /var/lib/apt/lists/* || true
+
 COPY local.rules /etc/snort/rules/local.rules
-CMD ["snort", "-A", "console", "-q", "-c", "/etc/snort/snort.conf", "-i", "eth0"]
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+CMD ["/start.sh"]

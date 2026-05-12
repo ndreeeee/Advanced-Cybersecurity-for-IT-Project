@@ -1,5 +1,8 @@
--- Crazione schema ZTA Database
+-- =========================================================
+-- ZTA Policy Store — Schema Database
+-- =========================================================
 
+-- Tabella principale: policy per device (trust score)
 CREATE TABLE policies (
     id SERIAL PRIMARY KEY,
     device_ip VARCHAR(15) UNIQUE NOT NULL,
@@ -9,6 +12,7 @@ CREATE TABLE policies (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Log di ogni decisione PEP (audit trail)
 CREATE TABLE access_logs (
     id SERIAL PRIMARY KEY,
     device_ip VARCHAR(15),
@@ -18,6 +22,17 @@ CREATE TABLE access_logs (
     timestamp TIMESTAMP DEFAULT NOW()
 );
 
+-- Storico variazioni trust (per analisi e presentazione)
+CREATE TABLE trust_history (
+    id SERIAL PRIMARY KEY,
+    device_ip VARCHAR(15),
+    old_score DECIMAL(3,2),
+    new_score DECIMAL(3,2),
+    reason TEXT,
+    timestamp TIMESTAMP DEFAULT NOW()
+);
+
+-- Dati iniziali dei device
 INSERT INTO policies (device_ip, device_name, trust_score) VALUES
 ('172.20.0.10', 'employee-alice', 0.85),
 ('172.20.0.11', 'branch-kiosk', 0.50),
