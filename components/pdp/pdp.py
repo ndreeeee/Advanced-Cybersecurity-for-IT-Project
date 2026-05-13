@@ -21,7 +21,7 @@ SPLUNK_PASS = os.getenv("SPLUNK_PASS", "changeme")
 # I campi del CSV sono: srcstr (IP attaccante), dpt (porta destinazione), cc (paese), proto (protocollo)
 # Cerca gli IP della nostra rete (172.20.*) in TUTTI gli index e supporta vari source name,
 # per trovare i nostri client nel dataset delle minacce bypassando il limite dei 100 risultati.
-SEARCH_QUERY = 'search index=* (source="honeypot.csv" OR source="merged.csv") srcstr="172.20.*" | stats count by srcstr | where count > 5'
+SEARCH_QUERY = 'search index=* (source="*honeypot.csv" OR source="*merged.csv") srcstr="172.20.*" | stats count by srcstr | where count > 5'
 
 print("[PDP] Policy Decision Point Motor Started. Connecting to Splunk REST API...", flush=True)
 
