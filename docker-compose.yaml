@@ -37,7 +37,6 @@ services:
     environment:
       SPLUNK_GENERAL_TERMS: --accept-sgt-current-at-splunk-com
       SPLUNK_START_ARGS: --accept-license
-      SPLUNK_USER: ${SPLUNK_USER}
       SPLUNK_PASSWORD: ${SPLUNK_PASSWORD}
     ports:
       - "8000:8000"       # Web UI
@@ -65,7 +64,6 @@ services:
         condition: service_started
     environment:
       SPLUNK_HOST: splunk
-      SPLUNK_USER: ${SPLUNK_USER}
       SPLUNK_PASS: ${SPLUNK_PASSWORD}
       DB_HOST: dbms
       DB_USER: ${POSTGRES_USER}

@@ -19,23 +19,38 @@ TARGET_API = "http://api-server:80"
 FIREWALL_URL = "http://firewall:80"
 NEXT_HOP = os.getenv("NEXT_HOP", "http://api-server:80")
 
-# --- Syslog Setup for Splunk ---
+# Syslog / Splunk Logging
 log = logging.getLogger("pep")
 log.setLevel(logging.INFO)
 formatter = logging.Formatter('component=pep %(message)s')
 
-# Stdout
 sh = logging.StreamHandler()
 sh.setFormatter(formatter)
 log.addHandler(sh)
 
-# Syslog
+class SplunkUDPHandler(logging.Handler):
+    def __init__(self, host, port):
+        super().__init__()
+        self.host = host
+        self.port = port
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            # Add current timestamp for Splunk
+            full_msg = f"{datetime.now().strftime('%b %d %H:%M:%S')} {msg}"
+            self.sock.sendto(full_msg.encode('utf-8'), (self.host, self.port))
+        except Exception:
+            self.handleError(record)
+
 try:
-    sysh = SysLogHandler(address=('splunk', 1514), facility=SysLogHandler.LOG_USER)
+    import socket
+    sysh = SplunkUDPHandler('splunk', 1514)
     sysh.setFormatter(formatter)
     log.addHandler(sysh)
 except Exception as e:
-    print(f"[PEP] Syslog setup failed: {e}", flush=True)
+    print(f"[PEP] Splunk setup failed: {e}", flush=True)
 
 
 def get_db_connection():

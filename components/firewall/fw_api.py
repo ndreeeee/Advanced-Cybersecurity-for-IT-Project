@@ -14,8 +14,6 @@ banned_ips: set[str] = set()
 
 NEXT_HOP = os.getenv("NEXT_HOP", "http://proxy:3128")
 
-from logging.handlers import SysLogHandler
-
 # Syslog-style logger → stdout (Docker) + syslog (Splunk)
 log = logging.getLogger("firewall")
 log.setLevel(logging.INFO)
@@ -26,12 +24,30 @@ sh = logging.StreamHandler()
 sh.setFormatter(formatter)
 log.addHandler(sh)
 
+from datetime import datetime
+import socket
+class SplunkUDPHandler(logging.Handler):
+    def __init__(self, host, port):
+        super().__init__()
+        self.host = host
+        self.port = port
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            # Aggiungiamo il timestamp corrente per Splunk
+            full_msg = f"{datetime.now().strftime('%b %d %H:%M:%S')} {msg}"
+            self.sock.sendto(full_msg.encode('utf-8'), (self.host, self.port))
+        except Exception:
+            self.handleError(record)
+
 try:
-    sysh = SysLogHandler(address=('splunk', 1514), facility=SysLogHandler.LOG_USER)
+    sysh = SplunkUDPHandler('splunk', 1514)
     sysh.setFormatter(formatter)
     log.addHandler(sysh)
 except Exception as e:
-    print(f"[FIREWALL] Syslog setup failed: {e}", flush=True)
+    print(f"[FIREWALL] Splunk setup failed: {e}", flush=True)
 
 # -----------------------------------------------------------------------
 # MANAGEMENT ENDPOINTS  (called by PEP to ban an IP)
