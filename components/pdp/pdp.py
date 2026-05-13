@@ -79,6 +79,10 @@ def verify_logs_via_api(session_key):
             verify=False,
             timeout=15.0
         )
+        if job_res.status_code == 401:
+             print("[PDP] SessionKey expired or invalid. Resetting...", flush=True)
+             return None # Signal to renew session key
+             
         if job_res.status_code != 201:
              print(f"[PDP] Errore creazione Job: {job_res.status_code} - {job_res.text}", flush=True)
              return []
@@ -165,6 +169,10 @@ while True:
     print(f"[{datetime.now().strftime('%H:%M:%S')}] [PDP] Heartbeat: Analisi REST API Log SIEM in corso...", flush=True)
     
     bad_ips = verify_logs_via_api(session_key)
+    if bad_ips is None:
+        session_key = None
+        continue
+        
     if bad_ips:
         print(f"[PDP] IDENTIFIED MALICIOUS SOURCE IPs IN DATASET: {bad_ips}", flush=True)
         for bad_ip in bad_ips:

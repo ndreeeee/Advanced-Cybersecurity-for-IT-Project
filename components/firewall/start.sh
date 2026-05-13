@@ -26,6 +26,8 @@ if command -v rsyslogd &> /dev/null; then
 # Forward all logs to Splunk SIEM
 *.* @splunk:1514
 EOF
+    # Ensure any existing rsyslog is killed to pick up new config
+    pkill -9 rsyslogd || true
     rsyslogd 2>/dev/null || true
     echo "[FW] Rsyslog forwarding to splunk:1514 started."
 fi
