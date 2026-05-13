@@ -14,7 +14,7 @@ DB_PASS = os.getenv("DB_PASS", "zta_password")
 DB_NAME = os.getenv("DB_NAME", "zta_policy")
 
 SPLUNK_HOST = "https://splunk:8089" # Splunk REST expone sempre in HTTPS
-SPLUNK_USER = "admin"
+SPLUNK_USER = os.getenv("SPLUNK_USER", "admin")
 SPLUNK_PASS = os.getenv("SPLUNK_PASS", "changeme")
 
 # Query Splunk che andrà a cercare nella Threat Intelligence (dataset honeypot/attack_data)
