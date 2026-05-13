@@ -31,11 +31,11 @@ log.addHandler(sh)
 
 # Syslog
 try:
-    sysh = SysLogHandler(address='/dev/log')
+    sysh = SysLogHandler(address=('splunk', 1514), facility=SysLogHandler.LOG_USER)
     sysh.setFormatter(formatter)
     log.addHandler(sysh)
-except Exception:
-    pass
+except Exception as e:
+    print(f"[PEP] Syslog setup failed: {e}", flush=True)
 
 
 def get_db_connection():

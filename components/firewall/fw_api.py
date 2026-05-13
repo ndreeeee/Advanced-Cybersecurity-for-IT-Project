@@ -27,11 +27,11 @@ sh.setFormatter(formatter)
 log.addHandler(sh)
 
 try:
-    sysh = SysLogHandler(address='/dev/log')
+    sysh = SysLogHandler(address=('splunk', 1514), facility=SysLogHandler.LOG_USER)
     sysh.setFormatter(formatter)
     log.addHandler(sysh)
-except Exception:
-    pass
+except Exception as e:
+    print(f"[FIREWALL] Syslog setup failed: {e}", flush=True)
 
 # -----------------------------------------------------------------------
 # MANAGEMENT ENDPOINTS  (called by PEP to ban an IP)
