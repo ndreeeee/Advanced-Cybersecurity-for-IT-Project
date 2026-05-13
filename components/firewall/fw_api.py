@@ -14,9 +14,24 @@ banned_ips: set[str] = set()
 
 NEXT_HOP = os.getenv("NEXT_HOP", "http://proxy:3128")
 
-# Syslog-style logger → stdout (Docker picks it up)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [FW] %(message)s")
+from logging.handlers import SysLogHandler
+
+# Syslog-style logger → stdout (Docker) + syslog (Splunk)
 log = logging.getLogger("firewall")
+log.setLevel(logging.INFO)
+# Standard KV format for Splunk (Rsyslog will add the timestamp)
+formatter = logging.Formatter('component=firewall %(message)s')
+
+sh = logging.StreamHandler()
+sh.setFormatter(formatter)
+log.addHandler(sh)
+
+try:
+    sysh = SysLogHandler(address='/dev/log')
+    sysh.setFormatter(formatter)
+    log.addHandler(sysh)
+except Exception:
+    pass
 
 # -----------------------------------------------------------------------
 # MANAGEMENT ENDPOINTS  (called by PEP to ban an IP)
@@ -27,7 +42,7 @@ async def ban_ip(ip: str):
         raise HTTPException(status_code=400, detail="Missing IP")
 
     banned_ips.add(ip)
-    log.info(f"🔥 BAN REQUEST for {ip}")
+    log.info(f"event=ban_request client_ip={ip}")
 
     try:
         # Avoid duplicate iptables rules
@@ -40,7 +55,7 @@ async def ban_ip(ip: str):
                 ["iptables", "-A", "FORWARD", "-s", ip, "-j", "DROP"],
                 check=True,
             )
-            log.info(f"⛔ iptables DROP rule added for {ip}")
+            log.info(f"event=iptables_drop status=added client_ip={ip}")
     except subprocess.CalledProcessError as e:
         log.error(f"iptables error: {e}")
 
@@ -65,10 +80,10 @@ async def proxy_traffic(request: Request, path: str):
 
     # --- L3/L4 check: is this IP banned? ---
     if client_ip in banned_ips:
-        log.warning(f"⛔ BLOCKED (banned): {client_ip} → /{path}")
+        log.warning(f"event=access_denied reason=banned client_ip={client_ip} path=/{path}")
         raise HTTPException(status_code=403, detail="Firewall: IP is banned.")
 
-    log.info(f"✅ ALLOW {client_ip} → /{path}  →  forwarding to Squid")
+    log.info(f"event=access_allowed client_ip={client_ip} path=/{path} action=forward_to_squid")
 
     # --- Forward to next hop (Squid reverse proxy) ---
     try:

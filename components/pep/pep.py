@@ -5,6 +5,8 @@ import psycopg2  # pyrefly: ignore [missing-import]
 from fastapi import FastAPI, Request, HTTPException, status  # pyrefly: ignore [missing-import]
 from fastapi.responses import JSONResponse  # pyrefly: ignore [missing-import]
 from datetime import datetime
+import logging
+from logging.handlers import SysLogHandler
 
 app = FastAPI(title="PEP - Policy Enforcement Point")
 
@@ -15,6 +17,25 @@ DB_NAME = os.getenv("DB_NAME", "zta_policy")
 
 TARGET_API = "http://api-server:80"
 FIREWALL_URL = "http://firewall:80"
+NEXT_HOP = os.getenv("NEXT_HOP", "http://api-server:80")
+
+# --- Syslog Setup for Splunk ---
+log = logging.getLogger("pep")
+log.setLevel(logging.INFO)
+formatter = logging.Formatter('component=pep %(message)s')
+
+# Stdout
+sh = logging.StreamHandler()
+sh.setFormatter(formatter)
+log.addHandler(sh)
+
+# Syslog
+try:
+    sysh = SysLogHandler(address='/dev/log')
+    sysh.setFormatter(formatter)
+    log.addHandler(sysh)
+except Exception:
+    pass
 
 
 def get_db_connection():
@@ -54,6 +75,9 @@ def log_access(ip: str, endpoint: str, action: str, reason: str):
         conn.close()
     except Exception as e:
         print(f"[PEP] DB Error (log_access): {e}", flush=True)
+    
+    # Also log to Splunk via Syslog
+    log.info(f"event=access_decision action={action} client_ip={ip} endpoint=/{endpoint} reason=\"{reason}\"")
 
 
 async def forward_request(request: Request, path: str):
@@ -80,7 +104,8 @@ async def forward_request(request: Request, path: str):
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def pep_gateway(request: Request, path: str):
     # Use X-Forwarded-For from upstream (firewall/squid) to get the real client IP
-    client_ip = request.headers.get("X-Forwarded-For", request.client.host)
+    xfwd = request.headers.get("X-Forwarded-For")
+    client_ip = xfwd.split(',')[0].strip() if xfwd else request.client.host
     trust = get_trust_score(client_ip)
 
     print(f"[PEP] Incoming: {client_ip} → /{path} | Trust: {trust}", flush=True)

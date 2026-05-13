@@ -42,6 +42,13 @@ services:
       - "8000:8000"       # Web UI
       - "8089:8089"       # REST API (per il PDP)
       - "1514:1514/udp"   # Syslog receiver (da Firewall, Squid, Snort)
+    volumes:
+      - ./components/splunk/inputs.conf:/opt/splunk/etc/apps/search/local/inputs.conf
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-s", "https://localhost:8089/services/server/info", "-u", "admin:${SPLUNK_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
     networks:
       - control-plane
 
@@ -50,8 +57,10 @@ services:
       context: ./components/pdp
     container_name: zta-pdp
     depends_on:
-      - splunk
-      - dbms
+      splunk:
+        condition: service_healthy
+      dbms:
+        condition: service_started
     environment:
       SPLUNK_HOST: splunk
       SPLUNK_PASS: ${SPLUNK_PASSWORD}

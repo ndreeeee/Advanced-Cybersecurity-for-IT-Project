@@ -5,6 +5,8 @@
 cat > /etc/rsyslog.d/50-splunk.conf << 'EOF'
 *.* @splunk:1514
 EOF
+# Ensure any existing rsyslog is killed to pick up new config
+pkill -9 rsyslogd || true
 rsyslogd 2>/dev/null || true
 
 echo "[PROXY] Rsyslog forwarding to splunk:1514 started."
