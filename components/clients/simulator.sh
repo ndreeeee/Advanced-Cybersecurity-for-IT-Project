@@ -43,8 +43,8 @@ while true; do
         echo ""
         sleep 5
 
-        echo "[Bob] Tentativo navigazione dominio malevolo via Proxy:"
-        curl -s -x http://proxy:3128 http://evil-malware-domain.com 2>/dev/null
+        echo "[Bob] Tentativo navigazione dominio malevolo via catena ZTA:"
+        curl -s -H "X-Forwarded-For: $CLIENT_IP" "$GATEWAY/evil-malware-domain.com" 2>/dev/null
         echo ""
         sleep 5
     fi

@@ -107,13 +107,12 @@ services:
     container_name: zta-ids
     cap_add:
       - NET_ADMIN
+      - NET_RAW
     depends_on:
+      - proxy
       - splunk
-    networks:
-      data-plane:
-        ipv4_address: 172.20.0.98
-      control-plane:
-        ipv4_address: 172.21.0.98
+    # Share Squid's network namespace so Snort sees all proxy traffic on eth0
+    network_mode: "service:proxy"
 
   proxy:
     build:
