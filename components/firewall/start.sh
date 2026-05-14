@@ -20,7 +20,7 @@ iptables -P FORWARD ACCEPT 2>/dev/null || true
 
 echo "[FW] IPTables base rules configured."
 
-# --- 3. Rsyslog → Splunk (UDP 1514) ---
+# --- 3. Rsyslog â†’ Splunk (UDP 1514) ---
 if command -v rsyslogd &> /dev/null; then
     cat > /etc/rsyslog.d/50-splunk.conf << 'EOF'
 # Forward all logs to Splunk SIEM
