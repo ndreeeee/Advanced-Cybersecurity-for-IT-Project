@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 
 RUN apt-get update && apt-get install -y \
-    iptables \
+    nftables \
     python3 \
     python3-pip \
     iproute2 \

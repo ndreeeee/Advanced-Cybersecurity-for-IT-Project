@@ -12,13 +12,18 @@ set -e
 # --- 1. IP Forwarding ---
 sysctl -w net.ipv4.ip_forward=1 2>/dev/null || true
 
-# --- 2. Base IPTables rules ---
-# Log all FORWARD traffic before accepting (for Splunk visibility)
-iptables -A FORWARD -j LOG --log-prefix "[FW-FORWARD] " --log-level info 2>/dev/null || true
-# Default: allow everything (specific DROP rules added dynamically by PEP via /ban)
-iptables -P FORWARD ACCEPT 2>/dev/null || true
+# --- 2. Base NFTables rules ---
+# Flush existing rules
+nft flush ruleset
 
-echo "[FW] IPTables base rules configured."
+# Create 'filter' table and 'forward' chain
+nft add table ip filter
+nft add chain ip filter forward { type filter hook forward priority 0 \; policy accept \; }
+
+# Log all FORWARD traffic (for Splunk visibility)
+nft add rule ip filter forward counter log prefix "[FW-FORWARD] "
+
+echo "[FW] NFTables base rules configured."
 
 # --- 3. Rsyslog â†’ Splunk (UDP 1514) ---
 if command -v rsyslogd &> /dev/null; then
