@@ -1,167 +1,94 @@
 version: '3.8'
 
 networks:
-  data-plane:
+  frontend-net: # Rete pubblica
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/24
-  
-  control-plane:
+  backend-net:  # Rete privata per i dati (DMZ)
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.21.0.0/24
+  control-plane-net: # Rete di gestione (OPA, Splunk)
+    driver: bridge
 
 services:
-  # ==========================================
-  # CONTROL PLANE SERVICES
-  # ==========================================
-  dbms:
-    image: mongo:latest
-    container_name: zta-dbms
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${POSTGRES_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${POSTGRES_PASSWORD}
-      MONGO_INITDB_DATABASE: ${POSTGRES_DB}
-    volumes:
-      - ./components/dbms/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
-    networks:
-      - control-plane
-    ports:
-      - "27017:27017"
 
-  splunk:
-    image: splunk/splunk:latest
-    container_name: zta-splunk
-    environment:
-      SPLUNK_GENERAL_TERMS: --accept-sgt-current-at-splunk-com
-      SPLUNK_START_ARGS: --accept-license
-      SPLUNK_PASSWORD: ${SPLUNK_PASSWORD}
-    ports:
-      - "8000:8000"       # Web UI
-      - "8089:8089"       # REST API (per il PDP)
-      - "1514:1514/udp"   # Syslog receiver (da Firewall, Squid, Snort)
-    volumes:
-      - ./components/splunk/inputs.conf:/opt/splunk/etc/apps/search/local/inputs.conf
-      - ./merged.csv:/opt/splunk/etc/apps/search/sample_data/merged.csv
-    healthcheck:
-      test: ["CMD", "curl", "-k", "-s", "https://localhost:8089/services/server/info", "-u", "admin:${SPLUNK_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    networks:
-      - control-plane
-
-  pdp:
+  # 1. IL FIREWALL L3/L4 (NFTables)
+  nftables-firewall:
     build: 
-      context: ./components/pdp
-    container_name: zta-pdp
-    depends_on:
-      splunk:
-        condition: service_healthy
-      dbms:
-        condition: service_started
-    environment:
-      SPLUNK_HOST: splunk
-      SPLUNK_PASS: ${SPLUNK_PASSWORD}
-      DB_HOST: dbms
-      DB_USER: ${POSTGRES_USER}
-      DB_PASS: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
-    networks:
-      - control-plane
-
-  # ==========================================
-  # DATA PLANE SERVICES
-  # ==========================================
-  pep:
-    build:
-      context: ./components/pep
-    container_name: zta-pep
-    depends_on:
-      - dbms
-    environment:
-      DB_HOST: dbms
-      DB_USER: ${POSTGRES_USER}
-      DB_PASS: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
-    networks:
-      data-plane:
-        ipv4_address: 172.20.0.99
-      control-plane:
-        ipv4_address: 172.21.0.99
-
-  ids:
-    build:
-      context: ./components/ids
-    container_name: zta-ids
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    depends_on:
-      - pep
-      - splunk
-    # Share PEP's network namespace so Snort sees all PEP traffic on eth0
-    network_mode: "service:pep"
-
-  firewall:
-    build:
       context: ./components/firewall
     container_name: zta-firewall
     cap_add:
       - NET_ADMIN
-      - NET_RAW
-    depends_on:
-      - pep
-      - splunk
     networks:
-      data-plane:
-        ipv4_address: 172.20.0.96
-      control-plane:
-        ipv4_address: 172.21.0.96
+      - frontend-net
+      - backend-net
 
-  # ==========================================
-  # CLIENTS (SIMULATORS)
-  # ==========================================
+  # 2. LA RISORSA (MongoDB)
+  mongodb-resource:
+    image: mongo:latest
+    container_name: zta-mongodb
+    volumes:
+      - ./components/dbms/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - backend-net # Isolato, nessuna porta esposta all'host!
+
+  # 3. IL PEP E PROXY (Envoy)
+  envoy-pep:
+    image: envoyproxy/envoy:v1.30-latest
+    container_name: zta-envoy
+    volumes:
+      - ./components/pep/envoy.yaml:/etc/envoy/envoy.yaml:ro
+      - ./components/pep/lua_script.lua:/etc/envoy/lua_script.lua:ro
+      - ./certs:/etc/certs:ro # I certificati per l'mTLS
+    depends_on:
+      - mongodb-resource
+      - opa-pdp
+    networks:
+      - backend-net
+      - control-plane-net
+
+  # 4. L'IDS PASSIVO (Snort)
+  snort-ids:
+    build: 
+      context: ./components/ids
+    container_name: zta-snort
+    cap_add:
+      - NET_ADMIN
+    # Si attacca alla scheda di rete di Envoy per ispezionarne il traffico
+    network_mode: "service:envoy-pep"
+
+  # 5. IL DECISION MAKER (OPA)
+  opa-pdp:
+    image: openpolicyagent/opa:latest
+    container_name: zta-opa
+    command:
+      - "run"
+      - "--server"
+      - "--log-level=debug"
+      - "/policy/rules.rego"
+    volumes:
+      - ./components/pdp/rules.rego:/policy/rules.rego:ro
+    networks:
+      - control-plane-net
+
+  # 6. IL SIEM (Splunk)
+  splunk-siem:
+    image: splunk/splunk:latest
+    container_name: zta-splunk
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD}
+    ports:
+      - "8000:8000" # Web UI
+      - "8088:8088" # HEC (HTTP Event Collector per i log)
+      - "8089:8089" # API REST
+    networks:
+      - control-plane-net
+
+  # 7. IL CLIENT DI TEST (Es. Alice)
   client-alice:
-    build:
-      context: ./components/clients
+    build: 
+    context: ./components/clients
     container_name: zta-client-alice
-    depends_on:
-      - firewall
-    environment:
-      CLIENT_NAME: employee-alice
-      CLIENT_ROLE: legit
-      CLIENT_IP: 172.20.0.10
+    volumes:
+      - ./certs:/etc/certs:ro # Serve il certificato mTLS per bussare a Envoy
     networks:
-      data-plane:
-        ipv4_address: 172.20.0.10
-
-  client-kiosk:
-    build:
-      context: ./components/clients
-    container_name: zta-client-kiosk
-    depends_on:
-      - firewall
-    environment:
-      CLIENT_NAME: branch-kiosk
-      CLIENT_ROLE: kiosk
-      CLIENT_IP: 172.20.0.11
-    networks:
-      data-plane:
-        ipv4_address: 172.20.0.11
-  
-  client-bob:
-    build:
-      context: ./components/clients
-    container_name: zta-client-bob
-    depends_on:
-      - firewall
-    environment:
-      CLIENT_NAME: employee-bob
-      CLIENT_ROLE: suspect
-      CLIENT_IP: 172.20.0.12
-    networks:
-      data-plane:
-        ipv4_address: 172.20.0.12
+      - frontend-net

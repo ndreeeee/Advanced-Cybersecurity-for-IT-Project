@@ -1,42 +1,51 @@
-// =========================================================
-// ZTA Policy Store — MongoDB Initialization
-// =========================================================
+// ==============================================================================
+// ZTA 2026 - MONGODB INITIALIZATION SCRIPT (Dominio Ospedaliero)
+// Questo script popola il database al primo avvio del container
+// ==============================================================================
 
-db = db.getSiblingDB('zta_policy');
+// 1. Creiamo il database
+db = db.getSiblingDB('hospital_db');
 
-// Create collections
-db.createCollection('policies');
-db.createCollection('access_logs');
-db.createCollection('trust_history');
+// 2. Creiamo un utente di servizio per le connessioni
+db.createUser({
+  user: "zta_service_user",
+  pwd: "ZtaSuperSecurePassword2026!",
+  roles: [
+    { role: "readWrite", db: "hospital_db" }
+  ]
+});
 
-// Create indexes
-db.policies.createIndex({ "device_ip": 1 }, { unique: true });
-db.access_logs.createIndex({ "timestamp": -1 });
-db.trust_history.createIndex({ "device_ip": 1, "timestamp": -1 });
+// 3. Popoliamo la collezione dei pazienti
+db.createCollection('patients');
 
-// Initial device data
-db.policies.insertMany([
+db.patients.insertMany([
   {
-    device_ip: '172.20.0.10',
-    device_name: 'employee-alice',
-    trust_score: 0.85,
-    created_at: new Date(),
-    updated_at: new Date()
+    patient_id: "P-1001",
+    name: "Mario Rossi",
+    age: 45,
+    ward: "Cardiologia",          // Dato a basso rischio (Infermieri)
+    blood_type: "A+",
+    sensitive_notes: "Paziente sieropositivo (HIV+). Prestare attenzione.", // Dato ad alto rischio (Solo Medici)
+    treatment: "Betabloccanti"
   },
   {
-    device_ip: '172.20.0.11',
-    device_name: 'branch-kiosk',
-    trust_score: 0.50,
-    created_at: new Date(),
-    updated_at: new Date()
+    patient_id: "P-1002",
+    name: "Giulia Bianchi",
+    age: 32,
+    ward: "Psichiatria",
+    blood_type: "0-",
+    sensitive_notes: "Tentativo di suicidio recente. Monitoraggio a vista.",
+    treatment: "Antidepressivi"
   },
   {
-    device_ip: '172.20.0.12',
-    device_name: 'employee-bob',
-    trust_score: 0.80,
-    created_at: new Date(),
-    updated_at: new Date()
+    patient_id: "P-1003",
+    name: "Luca Verdi",
+    age: 68,
+    ward: "Ortopedia",
+    blood_type: "B+",
+    sensitive_notes: "Nessuna nota sensibile di rilievo.",
+    treatment: "Fisioterapia"
   }
 ]);
 
-print('✅ ZTA MongoDB initialized successfully.');
+print("=== ZTA HOSPITAL DATABASE INITIALIZED SUCCESSFULLY ===");
