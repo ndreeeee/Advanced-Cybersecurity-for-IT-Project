@@ -85,7 +85,8 @@ services:
 
   # 7. IL CLIENT DI TEST (Es. Alice)
   client-alice:
-    build: context: ./components/clients
+    build: 
+    context: ./components/clients
     container_name: zta-client-alice
     volumes:
       - ./certs:/etc/certs:ro # Serve il certificato mTLS per bussare a Envoy
