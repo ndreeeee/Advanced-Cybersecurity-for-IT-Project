@@ -75,20 +75,11 @@ services:
   # ==========================================
   # DATA PLANE SERVICES
   # ==========================================
-  api-server:
-    build:
-      context: ./components/api-server
-    container_name: zta-resource
-    networks:
-      data-plane:
-        ipv4_address: 172.20.0.100
-
   pep:
     build:
       context: ./components/pep
     container_name: zta-pep
     depends_on:
-      - api-server
       - dbms
     environment:
       DB_HOST: dbms
