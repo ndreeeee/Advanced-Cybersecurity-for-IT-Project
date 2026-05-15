@@ -5,14 +5,14 @@ import httpx  # pyrefly: ignore [missing-import]
 from fastapi import FastAPI, Request, HTTPException  # pyrefly: ignore [missing-import]
 from fastapi.responses import Response  # pyrefly: ignore [missing-import]
 
-app = FastAPI(title="ZTA Firewall — IPTables + L3/L4 Reverse Proxy")
+app = FastAPI(title="ZTA Firewall — NFTables + L3/L4 Reverse Proxy")
 
 # -----------------------------------------------------------------------
 # In-memory ban set (mirrors iptables DROP rules for fast app-level check)
 # -----------------------------------------------------------------------
 banned_ips: set[str] = set()
 
-NEXT_HOP = os.getenv("NEXT_HOP", "http://proxy:3128")
+NEXT_HOP = os.getenv("NEXT_HOP", "http://pep:80")
 
 # Syslog-style logger → stdout (Docker) + syslog (Splunk)
 log = logging.getLogger("firewall")
@@ -61,27 +61,25 @@ async def ban_ip(ip: str):
     log.info(f"event=ban_request client_ip={ip}")
 
     try:
-        # Avoid duplicate iptables rules
-        check = subprocess.run(
-            ["iptables", "-C", "FORWARD", "-s", ip, "-j", "DROP"],
-            capture_output=True,
+        # NFTables: Add rule to the 'forward' chain in the 'filter' table
+        # Sintassi: nft add rule ip filter forward ip saddr <IP> drop
+        subprocess.run(
+            ["nft", "add", "rule", "ip", "filter", "forward", "ip", "saddr", ip, "drop"],
+            check=True,
         )
-        if check.returncode != 0:
-            subprocess.run(
-                ["iptables", "-A", "FORWARD", "-s", ip, "-j", "DROP"],
-                check=True,
-            )
-            log.info(f"event=iptables_drop status=added client_ip={ip}")
+        log.info(f"event=nftables_drop status=added client_ip={ip}")
     except subprocess.CalledProcessError as e:
-        log.error(f"iptables error: {e}")
+        log.error(f"nftables error: {e}")
+        # Se fallisce perché la regola esiste già, procediamo
+        pass
 
-    return {"status": "success", "message": f"{ip} DROPPED at kernel level."}
+    return {"status": "success", "message": f"{ip} DROPPED via NFTables."}
 
 
 @app.get("/status")
 async def get_status():
     try:
-        res = subprocess.check_output(["iptables", "-L", "FORWARD", "-n", "-v"])
+        res = subprocess.check_output(["nft", "list", "table", "ip", "filter"])
         return {"rules": res.decode(), "banned_ips": sorted(banned_ips)}
     except Exception as e:
         return {"error": str(e)}
