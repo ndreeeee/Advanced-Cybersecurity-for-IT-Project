@@ -1,0 +1,2 @@
+# Shell entrypoints must stay LF so Linux containers can exec them
+*.sh text eol=lf

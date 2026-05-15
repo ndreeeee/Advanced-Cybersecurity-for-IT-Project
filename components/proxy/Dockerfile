@@ -9,4 +9,5 @@ RUN chmod +x /start.sh
 
 EXPOSE 3128
 
-ENTRYPOINT ["/start.sh"]
+# Use bash explicitly so a stray CRLF on the shebang cannot break container start
+ENTRYPOINT ["/bin/bash", "/start.sh"]

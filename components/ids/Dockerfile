@@ -7,4 +7,4 @@ COPY local.rules /etc/snort/rules/local.rules
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-CMD ["/start.sh"]
+CMD ["/bin/bash", "/start.sh"]
