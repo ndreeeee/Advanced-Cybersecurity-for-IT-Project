@@ -24,6 +24,7 @@ services:
     networks:
       - frontend-net
       - backend-net
+      - control-plane-net
     depends_on:
       - envoy-pep
 
@@ -89,13 +90,18 @@ services:
     environment:
       - SPLUNK_START_ARGS=--accept-license
       - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com
-      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD:-ZTA_Admin_2026!}
+      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD}
     ports:
       - "8000:8000" # Web UI
       - "8088:8088" # HEC (HTTP Event Collector per i log)
       - "8089:8089" # API REST
+    volumes:
+      - ./components/splunk:/opt/splunk/etc/apps/zta/local
     networks:
-      - control-plane-net
+      control-plane-net:
+        aliases:
+          - splunk
+          - splunk-siem
 
   # 7. IL CLIENT DI TEST (Alice - Legittimo con TPM)
   client-alice:
