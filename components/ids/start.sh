@@ -11,4 +11,4 @@ rm -f /var/run/snort_eth0.pid
 # -i eth0 : Ascolta sull'interfaccia principale (che abbiamo attaccato a Envoy)
 # -c      : Usa il file di configurazione base
 # -l      : Scrivi i file di log nella cartella condivisa con Fluent Bit!
-exec snort -i eth0 -c /etc/snort/snort.conf -l /var/log/snort
+exec snort -i eth0 -c /opt/etc/snort.conf -l /var/log/snort

@@ -12,7 +12,7 @@ logger = logging.getLogger("ZTA-Client")
 # Parametri dall'ambiente
 CLIENT_NAME = os.getenv("CLIENT_NAME", "unknown")
 CLIENT_ROLE = os.getenv("CLIENT_ROLE", "legit")
-TARGET_HOST = "nftables-firewall"  # Puntiamo al Firewall! (Prima linea di difesa)
+TARGET_HOST = "zta-envoy"  # Envoy PEP: prima linea di difesa applicativa (mTLS + OPA)
 TARGET_PORT = 27017
 
 # Percorsi certificati (montati tramite Docker volume)
@@ -22,34 +22,25 @@ CLIENT_KEY = f"/etc/certs/{CLIENT_NAME.replace('employee-', '')}.key"
 
 def get_mongo_client():
     """Crea una connessione MongoDB protetta da mTLS tramite URI."""
+    # Percorso del file combinato (certificato + chiave) - es. alice_combined.pem
+    client_id = CLIENT_NAME.replace('employee-', '')
+    COMBINED_PEM = f"/etc/certs/{client_id}_combined.pem"
+
+    uri = (
+        f"mongodb://{TARGET_HOST}:{TARGET_PORT}/?authSource=admin"
+        f"&tls=true"
+        f"&tlsCAFile={CA_CERT}"
+        f"&tlsCertificateKeyFile={COMBINED_PEM}"
+        f"&serverSelectionTimeoutMS=5000"
+        f"&tlsInsecure=true"  # Evita errori di hostname matching nei nomi interni Docker
+    )
+
     try:
-        # Percorso del file combinato (certificato + chiave)
-        COMBINED_PEM = f"/etc/certs/{CLIENT_NAME.replace('employee-', '')}_combined.pem"
-        
-        # Costruiamo l'URI con i parametri TLS inclusi
-        # tls=true
-        # tlsCAFile: il certificato della CA
-        # tlsCertificateKeyFile: il file combinato cert+key del client
-        uri = (
-            f"mongodb://{TARGET_HOST}:{TARGET_PORT}/?authSource=admin"
-            f"&tls=true"
-            f"&tlsCAFile={CA_CERT}"
-            f"&tlsCertificateKeyFile={COMBINED_PEM}"
-            f"&serverSelectionTimeoutMS=5000"
-            f"&tlsInsecure=true" # Per evitare errori di hostname matching sui nomi interni Docker
-        )
-        
-        logger.info(f"Connessione a: {uri.split('?')[0]} (TLS attivo)")
+        logger.info(f"Connessione a: mongodb://{TARGET_HOST}:{TARGET_PORT}/ (TLS attivo, cert: {client_id})")
         client = MongoClient(uri)
         return client
     except Exception as e:
-        logger.error(f"Errore creazione client URI: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Errore configurazione SSL: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Errore configurazione TLS: {e}")
+        logger.error(f"Errore creazione client MongoDB: {e}")
         return None
 
 def run_simulation():
