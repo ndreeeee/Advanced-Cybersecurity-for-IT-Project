@@ -124,6 +124,8 @@ services:
     environment:
       - CLIENT_NAME=alice
       - CLIENT_ROLE=medico
+    ports:
+      - "8081:8000"
     volumes:
       - ./certs:/etc/certs:ro  # simulator.py legge da /etc/certs/
     depends_on:
@@ -139,12 +141,23 @@ services:
     environment:
       - CLIENT_NAME=bob
       - CLIENT_ROLE=suspect
+    ports:
+      - "8082:8000"
     volumes:
       - ./certs:/etc/certs:ro  # Bob ha un certificato valido ma senza TPM OID
     depends_on:
       - envoy-pep
     networks:
       - frontend-net # Bob è sulla stessa rete di Alice, ma OPA lo bloccherà
+
+  web-api:
+    build:
+      context: ./components/api
+    container_name: zta-web-api
+    networks:
+      - backend-net
+    depends_on:
+      - mongodb-resource
 
 volumes:
   nftables_logs:

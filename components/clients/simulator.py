@@ -1,89 +1,105 @@
-import time
 import os
-import ssl
 import logging
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure, OperationFailure
+import requests
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
-# Configurazione Log
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(message)s')
-logger = logging.getLogger("ZTA-Client")
+logger = logging.getLogger("ZTA-Client-UI")
+
+app = FastAPI(title="ZTA Client Interfaccia")
+
+# Setup template Jinja2
+templates = Jinja2Templates(directory="templates")
 
 # Parametri dall'ambiente
 CLIENT_NAME = os.getenv("CLIENT_NAME", "unknown")
 CLIENT_ROLE = os.getenv("CLIENT_ROLE", "legit")
-TARGET_HOST = "zta-envoy"  # Envoy PEP: prima linea di difesa applicativa (mTLS + OPA)
-TARGET_PORT = 27017
+ENVOY_HOST = "zta-envoy"
+ENVOY_PORT = 8443  # Nuovo listener HTTP di Envoy protetto da mTLS
 
-# Percorsi certificati (montati tramite Docker volume)
+# Percorsi dei certificati mTLS caricati a volume
 CA_CERT = "/etc/certs/ca.crt"
-CLIENT_CERT = f"/etc/certs/{CLIENT_NAME.replace('employee-', '')}.crt"
-CLIENT_KEY = f"/etc/certs/{CLIENT_NAME.replace('employee-', '')}.key"
+client_id = CLIENT_NAME.replace('employee-', '')
+CLIENT_CERT = f"/etc/certs/{client_id}.crt"
+CLIENT_KEY = f"/etc/certs/{client_id}.key"
+COMBINED_PEM = f"/etc/certs/{client_id}_combined.pem"
 
-def get_mongo_client():
-    """Crea una connessione MongoDB protetta da mTLS tramite URI."""
-    # Percorso del file combinato (certificato + chiave) - es. alice_combined.pem
-    client_id = CLIENT_NAME.replace('employee-', '')
-    COMBINED_PEM = f"/etc/certs/{client_id}_combined.pem"
-
-    uri = (
-        f"mongodb://{TARGET_HOST}:{TARGET_PORT}/?authSource=admin"
-        f"&tls=true"
-        f"&tlsCAFile={CA_CERT}"
-        f"&tlsCertificateKeyFile={COMBINED_PEM}"
-        f"&serverSelectionTimeoutMS=5000"
-        f"&tlsInsecure=true"  # Evita errori di hostname matching nei nomi interni Docker
+@app.get("/", response_class=HTMLResponse)
+def get_dashboard(request: Request):
+    """ Restituisce l'interfaccia grafica HTML """
+    return templates.TemplateResponse(
+        request, 
+        "index.html", 
+        {
+            "client_name": client_id,
+            "client_role": CLIENT_ROLE
+        }
     )
 
-    try:
-        logger.info(f"Connessione a: mongodb://{TARGET_HOST}:{TARGET_PORT}/ (TLS attivo, cert: {client_id})")
-        client = MongoClient(uri)
-        return client
-    except Exception as e:
-        logger.error(f"Errore creazione client MongoDB: {e}")
-        return None
-
-def run_simulation():
-    logger.info(f"🚀 Avvio simulatore ZTA per: {CLIENT_NAME} (Ruolo: {CLIENT_ROLE})")
+def make_mtls_request(method: str, endpoint: str):
+    url = f"https://{ENVOY_HOST}:{ENVOY_PORT}{endpoint}"
+    logger.info(f"Effettuo richiesta mTLS {method} a: {url}")
     
-    while True:
-        client = get_mongo_client()
-        if not client:
-            time.sleep(10)
-            continue
+    # Determina quale file di certificato usare
+    cert = None
+    if os.path.exists(COMBINED_PEM):
+        cert = COMBINED_PEM
+    elif os.path.exists(CLIENT_CERT) and os.path.exists(CLIENT_KEY):
+        cert = (CLIENT_CERT, CLIENT_KEY)
+    else:
+        logger.error("Certificati mTLS non trovati!")
+        raise HTTPException(status_code=500, detail="Certificati mTLS mancanti sul client")
 
-        try:
-            db = client["hospital_db"]
+    try:
+        # Nota: usiamo verify=CA_CERT per validare il certificato di Envoy
+        # tlsInsecure=true nei log di prima indica che possiamo ignorare il match del CN (visto che siamo su rete Docker)
+        # requests supporta verify=False ma se vogliamo validare la CA passiamo il CA_CERT.
+        # Per evitare problemi di CN (hostname mismatch) e considerando che siamo in ambiente demo chiuso:
+        response = requests.request(
+            method=method,
+            url=url,
+            cert=cert,
+            verify=False,  # Ignoriamo il controllo CN del server per semplicità di sviluppo locale
+            timeout=5.0
+        )
+        
+        # Disabilita i warning di urllib3 per le richieste insicure (verify=False)
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+        logger.info(f"Risposta ricevuta da Envoy: {response.status_code}")
+        
+        if response.status_code in (200, 201):
+            return response.json()
+        elif response.status_code == 403:
+            raise HTTPException(status_code=403, detail="Accesso Negato dalla Policy OPA del PEP")
+        else:
+            # Altri errori inoltrati
+            try:
+                err_detail = response.json().get("detail", response.text)
+            except Exception:
+                err_detail = response.text
+            raise HTTPException(status_code=response.status_code, detail=err_detail)
             
-            # SCENARIO 1: Lettura dati non sensibili (Permesso a tutti i certificati validi)
-            logger.info(f"🔍 {CLIENT_NAME} tenta lettura lista pazienti (Dati base)...")
-            patients = db.patients.find({}, {"name": 1, "ward": 1, "_id": 0}).limit(3)
-            for p in patients:
-                logger.info(f"   [DATA] Paziente: {p.get('name')} | Reparto: {p.get('ward')}")
+    except requests.exceptions.ConnectionError as ce:
+        logger.error(f"Errore connessione ad Envoy: {ce}")
+        raise HTTPException(status_code=503, detail="Impossibile connettersi ad Envoy. PEP offline o mTLS rifiutato.")
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logger.error(f"Errore generico durante richiesta mTLS: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-            # SCENARIO 2: Lettura dati sensibili (Richiede TPM OID secondo le policy ZTA)
-            logger.info(f"🔐 {CLIENT_NAME} tenta lettura NOTE SENSIBILI...")
-            sensitive_data = db.patients.find({}, {"name": 1, "sensitive_notes": 1, "_id": 0}).limit(1)
-            for s in sensitive_data:
-                notes = s.get('sensitive_notes', '🚫 [ACCESSO NEGATO DAL PEP]')
-                logger.info(f"   [SENSITIVE] {s.get('name')}: {notes}")
+@app.get("/request/patients")
+def request_patients():
+    return make_mtls_request("GET", "/api/patients")
 
-            # SCENARIO 3: Tentativo di attacco (Solo se Bob)
-            if CLIENT_ROLE == "suspect":
-                logger.warning(f"💀 {CLIENT_NAME} tenta attacco: DROP COLLECTION!")
-                try:
-                    db.patients.drop()
-                except OperationFailure as oe:
-                    logger.error(f"   [BLOCCATO] Il PEP/OPA ha impedito l'operazione distruttiva: {oe}")
+@app.get("/request/sensitive")
+def request_sensitive():
+    return make_mtls_request("GET", "/api/patients/sensitive")
 
-        except ConnectionFailure:
-            logger.error("❌ Connessione ad Envoy fallita. mTLS rifiutato o PEP offline.")
-        except Exception as e:
-            logger.error(f"⚠️ Errore durante l'operazione: {e}")
-        finally:
-            client.close()
-            
-        time.sleep(15)
-
-if __name__ == "__main__":
-    run_simulation()
+@app.delete("/request/drop")
+def request_drop():
+    return make_mtls_request("DELETE", "/api/patients")
