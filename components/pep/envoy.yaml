@@ -1,90 +1,59 @@
-# ==============================================================================
-# ZTA 2026 - ENVOY PEP CONFIGURATION 
-# Allineamento Perfetto: Slide Prof + Script Lua HTTP
-# ==============================================================================
-
 static_resources:
   listeners:
-  - name: listener_mongo
+  - name: mongodb_listener
     address:
       socket_address:
         address: 0.0.0.0
-        port_value: 27017 
-
-    # --- [SLIDE PUNTO 1 & 2]: mTLS Handshake ---
-    listener_filters:
-    - name: "envoy.filters.listener.tls_inspector"
-      typed_config:
-        "@type": type.googleapis.com/envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector
-
+        port_value: 27017
     filter_chains:
     - filters:
-      # --- [SLIDE PUNTO 3]: envoy.filters.network.mongo_proxy ---
       - name: envoy.filters.network.mongo_proxy
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.mongo_proxy.v3.MongoProxy
-          stat_prefix: mongo_stats
-
-      # --- [SLIDE PUNTO 4, 5, 8]: envoy.filters.network.ext_authz ---
+          stat_prefix: mongodb
+      
       - name: envoy.filters.network.ext_authz
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.ext_authz.v3.ExtAuthz
           stat_prefix: opa_authz
+          transport_api_version: V3 # FIX: Obbligatorio per Envoy v1.30+
           grpc_service:
             envoy_grpc:
               cluster_name: opa_cluster
-            timeout: 0.5s
           include_peer_certificate: true
 
-      # --- [SLIDE PUNTO 9]: envoy.filters.http.lua ---
-      # In Envoy, per usare il filtro http.lua richiesto dal prof, 
-      # dobbiamo obbligatoriamente inserirlo dentro un HttpConnectionManager
-      - name: envoy.filters.network.http_connection_manager
+      - name: envoy.filters.network.tcp_proxy
         typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: local_service
-              domains: ["*"]
-              routes:
-              - match: { prefix: "/" }
-                route: { cluster: mongo_cluster } # [SLIDE PUNTO 10, 11] (Il Routing)
-          
-          # Ecco l'aggancio ESATTO al tuo file lua_script.lua
-          http_filters:
-          - name: envoy.filters.http.lua
+          "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+          stat_prefix: tcp
+          cluster: mongodb_cluster
+          access_log:
+          - name: envoy.access_loggers.stdout
             typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
-              default_source_code:
-                filename: "/etc/envoy/lua_script.lua"
-          
-          # Router finale obbligatorio per chiudere la catena HTTP
-          - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
 
-      # --- [SLIDE PUNTO 1]: Verifica del Certificato (mTLS) ---
       transport_socket:
         name: envoy.transport_sockets.tls
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
-          require_client_certificate: true
           common_tls_context:
             tls_certificates:
-            - certificate_chain: { filename: "/etc/certs/envoy.crt" }
-              private_key: { filename: "/etc/certs/envoy.key" }
+            - certificate_chain:
+                filename: /etc/certs/envoy.crt
+              private_key:
+                filename: /etc/certs/envoy.key
             validation_context:
-              trusted_ca: { filename: "/etc/certs/ca.crt" }
+              trusted_ca:
+                filename: /etc/certs/ca.crt
+          require_client_certificate: true
 
   clusters:
-  # Cluster MongoDB (La Risorsa)
-  - name: mongo_cluster
+  - name: mongodb_cluster
     connect_timeout: 0.25s
     type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
     load_assignment:
-      cluster_name: mongo_cluster
+      cluster_name: mongodb_cluster
       endpoints:
       - lb_endpoints:
         - endpoint:
@@ -93,15 +62,15 @@ static_resources:
                 address: mongodb-resource
                 port_value: 27017
 
-  # Cluster OPA (Il PDP)
   - name: opa_cluster
     connect_timeout: 0.25s
     type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
     typed_extension_protocol_options:
       envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
         "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
         explicit_http_config:
-          http2_protocol_options: {} # gRPC richiede HTTP/2
+          http2_protocol_options: {}
     load_assignment:
       cluster_name: opa_cluster
       endpoints:

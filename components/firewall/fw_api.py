@@ -50,7 +50,7 @@ async def ban_ip(ip: str):
         # Assumiamo che la tabella 'filter' e la chain 'input/forward' esistano 
         # (vengono create di solito all'avvio dal file nftables.conf o dallo start.sh)
         subprocess.run(
-            ["nft", "add", "rule", "ip", "filter", "forward", "ip", "saddr", ip, "drop"],
+            ["nft", "add", "element", "ip", "filter", "denylist", "{", ip, "}"],
             check=True,
         )
         log.info(f'event="nftables_drop" status="added" client_ip="{ip}"')
