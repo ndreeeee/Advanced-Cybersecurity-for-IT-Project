@@ -132,3 +132,31 @@ services:
       - frontend-net
     depends_on:
       - envoy-pep
+
+  # 9. IL TRUST SCORE ENGINE (Python PDP Daemon + REST API)
+  pdp-trust-engine:
+    image: python:3.9-slim
+    container_name: zta-pdp
+    working_dir: /app
+    volumes:
+      - ./components/pdp:/app
+    environment:
+      - DB_HOST=mongodb-resource
+      - DB_USER=zta_service_user
+      - DB_PASS=ZtaSuperSecurePassword2026!
+      - DB_NAME=hospital_db
+      - SPLUNK_USER=admin
+      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD}
+    ports:
+      - "5000:5000"
+    command: >
+      bash -c "
+      pip install pymongo httpx &&
+      python pdp.py
+      "
+    networks:
+      - backend-net
+      - control-plane-net
+    depends_on:
+      - mongodb-resource
+      - splunk-siem
