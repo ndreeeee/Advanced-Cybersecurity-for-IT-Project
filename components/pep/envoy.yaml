@@ -21,6 +21,7 @@ static_resources:
           grpc_service:
             envoy_grpc:
               cluster_name: opa_cluster
+            timeout: 5s
           include_peer_certificate: true
 
       - name: envoy.filters.network.tcp_proxy
@@ -86,6 +87,7 @@ static_resources:
               grpc_service:
                 envoy_grpc:
                   cluster_name: opa_cluster
+                timeout: 5s
               include_peer_certificate: true
               with_request_body:
                 max_request_bytes: 1024
