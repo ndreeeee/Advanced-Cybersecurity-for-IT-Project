@@ -105,6 +105,7 @@ services:
     container_name: zta-fluent-bit
     volumes:
       - ./components/ids/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./components/ids/custom_parsers.conf:/fluent-bit/etc/custom_parsers.conf:ro
       - nftables_logs:/var/log/nftables:ro
       - mongo_logs:/var/log/mongodb:ro
       - envoy_logs:/var/log/envoy:ro
