@@ -1,17 +1,14 @@
 #!/bin/bash
-# IDS (Snort) entrypoint: rsyslog + snort
+echo "Avvio di Snort IDS in modalità Cloud-Native (Zero Trust)..."
 
-# Configure rsyslog to forward to Splunk
-mkdir -p /etc/rsyslog.d
-cat > /etc/rsyslog.d/50-splunk.conf << 'EOF'
-*.* @splunk:1514
-EOF
-# Ensure any existing rsyslog is killed to pick up new config
-pkill -9 rsyslogd || true
-rsyslogd 2>/dev/null || true
+# Creiamo la cartella dei log nel caso non esista, per evitare crash
+mkdir -p /var/log/snort
 
-echo "[IDS] Rsyslog forwarding to splunk:1514 started."
-echo "[IDS] Starting Snort IDS on eth0..."
+# Puliamo eventuali vecchi "file lucchetto" di esecuzioni precedenti
+rm -f /var/run/snort_eth0.pid
 
-# Snort in alert mode with syslog output (-s) + console
-exec snort -s -A console -q -c /opt/etc/snort.conf -i eth0 -l /var/log/snort
+# Avviamo Snort
+# -i eth0 : Ascolta sull'interfaccia principale (che abbiamo attaccato a Envoy)
+# -c      : Usa il file di configurazione base
+# -l      : Scrivi i file di log nella cartella condivisa con Fluent Bit!
+exec snort -i eth0 -c /etc/snort/snort.conf -l /var/log/snort

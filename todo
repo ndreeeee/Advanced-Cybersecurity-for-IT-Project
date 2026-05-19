@@ -1,0 +1,4 @@
+Valutare se insarire terza sonda di snort tra client e firewall di rete (probabilmente si può evitare)
+Valutare se aggiungere pagine web per la demo come altro progetto
+Valutare inserimento servizio di autenticazione con jwt token (keycloack)
+Spiegare utilizzo di fluent bit al posto di syslog
