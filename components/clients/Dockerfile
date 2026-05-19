@@ -1,5 +1,5 @@
-FROM alpine:latest
-RUN apk add --no-cache curl bash jq
-COPY simulator.sh /simulator.sh
-RUN chmod +x /simulator.sh
-CMD ["/simulator.sh"]
+FROM python:3.11-slim
+RUN pip install --no-cache-dir pymongo
+WORKDIR /app
+COPY simulator.py .
+CMD ["python", "simulator.py"]

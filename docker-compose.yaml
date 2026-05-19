@@ -3,8 +3,11 @@ version: '3.8'
 networks:
   frontend-net: # Rete pubblica
     driver: bridge
-  backend-net:  # Rete privata per i dati (DMZ)
+  backend-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.10.0/24
   control-plane-net: # Rete di gestione (OPA, Splunk)
     driver: bridge
 
@@ -15,11 +18,14 @@ services:
     build: 
       context: ./components/firewall
     container_name: zta-firewall
+    privileged: true
     cap_add:
       - NET_ADMIN
     networks:
       - frontend-net
       - backend-net
+    depends_on:
+      - envoy-pep
 
   # 2. LA RISORSA (MongoDB)
   mongodb-resource:
@@ -42,8 +48,14 @@ services:
       - mongodb-resource
       - opa-pdp
     networks:
-      - backend-net
-      - control-plane-net
+      backend-net:
+        ipv4_address: 10.10.10.100
+        aliases:
+          - envoy-pep
+          - zta-envoy
+      control-plane-net:
+        aliases:
+          - envoy-pep
 
   # 4. L'IDS PASSIVO (Snort)
   snort-ids:
@@ -57,15 +69,16 @@ services:
 
   # 5. IL DECISION MAKER (OPA)
   opa-pdp:
-    image: openpolicyagent/opa:latest
+    image: openpolicyagent/opa:latest-envoy
     container_name: zta-opa
     command:
       - "run"
       - "--server"
+      - "--config-file=/policies/opa-config.yaml"
       - "--log-level=debug"
-      - "/policy/rules.rego"
+      - "/policies"
     volumes:
-      - ./components/pdp/rules.rego:/policy/rules.rego:ro
+      - ./components/pdp:/policies:ro
     networks:
       - control-plane-net
 
@@ -75,7 +88,8 @@ services:
     container_name: zta-splunk
     environment:
       - SPLUNK_START_ARGS=--accept-license
-      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD}
+      - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com
+      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD:-ZTA_Admin_2026!}
     ports:
       - "8000:8000" # Web UI
       - "8088:8088" # HEC (HTTP Event Collector per i log)
@@ -83,12 +97,32 @@ services:
     networks:
       - control-plane-net
 
-  # 7. IL CLIENT DI TEST (Es. Alice)
+  # 7. IL CLIENT DI TEST (Alice - Legittimo con TPM)
   client-alice:
     build: 
-    context: ./components/clients
+      context: ./components/clients
     container_name: zta-client-alice
+    environment:
+      - CLIENT_NAME=employee-alice
+      - CLIENT_ROLE=legit
     volumes:
-      - ./certs:/etc/certs:ro # Serve il certificato mTLS per bussare a Envoy
+      - ./certs:/etc/certs:ro
     networks:
       - frontend-net
+    depends_on:
+      - envoy-pep
+
+  # 8. IL CLIENT DI TEST (Bob - Sospetto senza TPM)
+  client-bob:
+    build: 
+      context: ./components/clients
+    container_name: zta-client-bob
+    environment:
+      - CLIENT_NAME=employee-bob
+      - CLIENT_ROLE=suspect
+    volumes:
+      - ./certs:/etc/certs:ro
+    networks:
+      - frontend-net
+    depends_on:
+      - envoy-pep

@@ -43,7 +43,7 @@ class SplunkUDPHandler(logging.Handler):
             self.handleError(record)
 
 try:
-    sysh = SplunkUDPHandler('splunk', 1514)
+    sysh = SplunkUDPHandler('splunk-siem', 1514)
     sysh.setFormatter(formatter)
     log.addHandler(sysh)
 except Exception as e:
@@ -61,16 +61,15 @@ async def ban_ip(ip: str):
     log.info(f"event=ban_request client_ip={ip}")
 
     try:
-        # NFTables: Add rule to the 'forward' chain in the 'filter' table
-        # Sintassi: nft add rule ip filter forward ip saddr <IP> drop
+        # NFTables: Add IP to the 'denylist' set
+        # Sintassi: nft add element ip filter denylist { <IP> }
         subprocess.run(
-            ["nft", "add", "rule", "ip", "filter", "forward", "ip", "saddr", ip, "drop"],
+            ["nft", "add", "element", "ip", "filter", "denylist", "{", ip, "}"],
             check=True,
         )
-        log.info(f"event=nftables_drop status=added client_ip={ip}")
+        log.info(f"event=nftables_denylist status=added client_ip={ip}")
     except subprocess.CalledProcessError as e:
-        log.error(f"nftables error: {e}")
-        # Se fallisce perché la regola esiste già, procediamo
+        log.warning(f"nftables error (likely already banned): {e}")
         pass
 
     return {"status": "success", "message": f"{ip} DROPPED via NFTables."}
@@ -97,7 +96,7 @@ async def proxy_traffic(request: Request, path: str):
         log.warning(f"event=access_denied reason=banned client_ip={client_ip} path=/{path}")
         raise HTTPException(status_code=403, detail="Firewall: IP is banned.")
 
-    log.info(f"event=access_allowed client_ip={client_ip} path=/{path} action=forward_to_squid")
+    log.info(f"event=access_allowed client_ip={client_ip} path=/{path} action=forward_to_envoy")
 
     # --- Forward to next hop (Squid reverse proxy) ---
     try:
@@ -129,5 +128,5 @@ async def proxy_traffic(request: Request, path: str):
         return Response(content=resp.content, status_code=resp.status_code, headers=resp_headers)
 
     except httpx.RequestError as e:
-        log.error(f"❌ Upstream error (Squid): {e}")
-        raise HTTPException(status_code=502, detail="Firewall: next hop unreachable")
+        log.error(f"❌ Upstream error (Envoy): {e}")
+        raise HTTPException(status_code=502, detail="Firewall: next hop (Envoy) unreachable")
