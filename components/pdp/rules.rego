@@ -25,11 +25,34 @@ user := regex.replace(regex.replace(input.attributes.source.principal, "^.*/", "
 
 # 2. CLIENT SOFTWARE (software)
 default software := "Python mTLS Client"
-software := input.attributes.request.http.headers["x-client-fingerprint"]
+
+# Ottieni il JA3 fingerprint da metadataContext (popolato da ext_authz tramite tls_inspector)
+software := input.attributes.metadataContext.filterMetadata["envoy.filters.listener.tls_inspector"]["ja3"] if {
+    input.attributes.metadataContext.filterMetadata["envoy.filters.listener.tls_inspector"]["ja3"] != ""
+}
+
+# Se non c'è nei metadati, prova a prenderlo dall'header x-client-fingerprint
+software := input.attributes.request.http.headers["x-client-fingerprint"] if {
+    not input.attributes.metadataContext.filterMetadata["envoy.filters.listener.tls_inspector"]["ja3"]
+    input.attributes.request.http.headers["x-client-fingerprint"] != ""
+}
+
+# Verifica dinamica se il certificato è legato all'hardware (contiene OID TPM: 1.3.6.1.4.1.9999.1)
+default is_tpm := false
+is_tpm := true if {
+    cert_raw := input.attributes.source.certificate
+    cert_pem := urlquery.decode(cert_raw)
+    certs := crypto.x509.parse_certificates(cert_pem)
+    count(certs) > 0
+    some ext in certs[0].Extensions
+    ext.Id == [1, 3, 6, 1, 4, 1, 9999, 1]
+}
 
 # 3. DISPOSITIVO & TPM (device)
 default device := "Personal Laptop (Software Only - No TPM)"
-device := "Workstation TPM (OID 1.3.6.1.4 - Hardware Attested)" if user == "alice"
+device := "Workstation TPM (OID 1.3.6.1.4 - Hardware Attested)" if {
+    is_tpm
+}
 
 # 4. INDIRIZZO RETE (network_ip)
 default network_ip := "0.0.0.0"
@@ -55,6 +78,7 @@ command := "delete()" if {
 # ----------------------------------------------------------------
 allow := true if {
     input.attributes.source.principal == alice_identity
+    is_tpm
     print("[OPA-PDP]", json.marshal({
         "Log": "Access Allowed",
         "user": user,

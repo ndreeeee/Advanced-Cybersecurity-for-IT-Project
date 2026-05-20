@@ -44,6 +44,7 @@ services:
       - ENVOY_UID=0  # Disabilita il drop dei privilegi (su-exec) in /docker-entrypoint.sh
     volumes:
       - ./components/pep/envoy.yaml:/etc/envoy/envoy.yaml:ro
+      - ./components/pep/lua_script.lua:/etc/envoy/lua_script.lua:ro
       - ./certs:/etc/certs:ro
       - envoy_logs:/var/log/envoy
     command: -c /etc/envoy/envoy.yaml --log-path /var/log/envoy/envoy.log
