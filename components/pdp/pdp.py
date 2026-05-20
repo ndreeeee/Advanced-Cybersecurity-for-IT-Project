@@ -16,8 +16,8 @@ DB_PASS = os.getenv("DB_PASS", "zta_password")
 DB_NAME = os.getenv("DB_NAME", "zta_policy")
 
 SPLUNK_HOST = "https://splunk:8089"
-SPLUNK_USER = "admin"
-SPLUNK_PASS = os.getenv("SPLUNK_PASS", "changeme")
+SPLUNK_USER = os.getenv("SPLUNK_USER", "admin")
+SPLUNK_PASS = os.getenv("SPLUNK_PASS", os.getenv("SPLUNK_PASSWORD", "changeme"))
 
 # =======================================================================
 # CONFIGURAZIONE TRUST SCORE

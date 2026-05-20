@@ -1,5 +1,6 @@
-FROM alpine:latest
-RUN apk add --no-cache curl bash jq
-COPY simulator.sh /simulator.sh
-RUN chmod +x /simulator.sh
-CMD ["/simulator.sh"]
+FROM python:3.11-slim
+RUN pip install --no-cache-dir fastapi uvicorn requests jinja2
+WORKDIR /app
+COPY templates/ ./templates/
+COPY simulator.py .
+CMD ["uvicorn", "simulator:app", "--host", "0.0.0.0", "--port", "8000"]
