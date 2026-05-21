@@ -13,6 +13,29 @@ function envoy_on_request(request_handle)
     -- Stampa nei log di Envoy per il SIEM (Splunk)
     request_handle:logInfo("[ZTA-PEP] Analisi Lua avviata per il client: " .. client_identity)
 
+    -- 1b. Diagnostica metadati ed SSL
+    local metadata = request_handle:streamInfo():dynamicMetadata()
+    request_handle:logInfo("[ZTA-PEP] Dynamic metadata dump:")
+    local ns_list = {"envoy.filters.listener.tls_inspector", "envoy.tls_inspector", "envoy.filters.http.lua"}
+    for _, ns in ipairs(ns_list) do
+        local ns_meta = metadata:get(ns)
+        if ns_meta ~= nil then
+            request_handle:logInfo("[ZTA-PEP]   Namespace: " .. ns)
+            for k, v in pairs(ns_meta) do
+                request_handle:logInfo("[ZTA-PEP]     " .. tostring(k) .. " = " .. tostring(v))
+            end
+        else
+            request_handle:logInfo("[ZTA-PEP]   Namespace non trovato: " .. ns)
+        end
+    end
+
+    local ssl = request_handle:streamInfo():downstreamSslConnection()
+    if ssl ~= nil then
+        request_handle:logInfo("[ZTA-PEP] Downstream SSL trovato!")
+    else
+        request_handle:logInfo("[ZTA-PEP] Downstream SSL NON trovato")
+    end
+
     -- 2. Leggiamo il "corpo" del pacchetto (Il payload della query)
     -- Usiamo chunking per evitare di bloccare la memoria con payload enormi
     local body = request_handle:body()

@@ -1,29 +1,61 @@
+# ==============================================================================
+# CONFIGURAZIONE PEP (POLICY ENFORCEMENT POINT) - ENVOY PROXY
+# ==============================================================================
+# Questo file definisce il comportamento del PEP a livello di rete e applicativo.
+# Gestisce due listener principali:
+# 1. mongodb_listener (Porta 27017): Per intercettare e autenticare mTLS sul traffico database.
+# 2. http_listener (Porta 8443): Per il traffico web API con ispezione JA3 ed Ext-Authz L7.
+# ==============================================================================
+
 static_resources:
   listeners:
+
+  # ----------------------------------------------------------------------------
+  # 1. LISTENER DATABASE (MongoDB) - Porta 27017
+  # ----------------------------------------------------------------------------
   - name: mongodb_listener
     address:
       socket_address:
         address: 0.0.0.0
         port_value: 27017
+    
+    # Listener Filters: Vengono eseguiti subito dopo la connessione TCP
+    listener_filters:
+      # MODULO: TLS Inspector
+      # Estrae informazioni dal TLS handshake prima che la connessione venga decifrata
+      # (es. SNI, ALPN e in particolare il calcolo del fingerprint JA3).
+      - name: envoy.filters.listener.tls_inspector
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector
+          enable_ja3_fingerprinting: true
+
     filter_chains:
     - filters:
+      # MODULO: Mongo Proxy (L4/L7 Network Filter)
+      # Analizza a livello applicativo i comandi MongoDB che transitano sulla connessione,
+      # producendo metadati dinamici (es. operazione di find/insert e collezione/risorsa).
       - name: envoy.filters.network.mongo_proxy
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.mongo_proxy.v3.MongoProxy
           stat_prefix: mongodb
-          emit_dynamic_metadata: true
+          emit_dynamic_metadata: true # Genera metadati per gli step successivi
       
+      # MODULO: External Authorization (Ext-Authz L4 Network Filter)
+      # Interrompe il flusso della connessione per inviare il certificato client
+      # e i metadati a un server di autorizzazione esterno (il PDP OPA) via gRPC.
       - name: envoy.filters.network.ext_authz
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.ext_authz.v3.ExtAuthz
           stat_prefix: opa_authz
-          transport_api_version: V3 # FIX: Obbligatorio per Envoy v1.30+
+          transport_api_version: V3 # Obbligatorio per Envoy moderno v1.30+
           grpc_service:
             envoy_grpc:
-              cluster_name: opa_cluster
+              cluster_name: opa_cluster # Invia le richieste al cluster OPA
             timeout: 5s
-          include_peer_certificate: true
+          include_peer_certificate: true # Invia il certificato client (PEM) a OPA per la convalida TPM
 
+      # MODULO: TCP Proxy
+      # Se OPA risponde con ALLOW, questo modulo inoltra il traffico TCP cifrato al database.
       - name: envoy.filters.network.tcp_proxy
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
@@ -42,6 +74,8 @@ static_resources:
                   network_n: "%DOWNSTREAM_REMOTE_ADDRESS%"
                   db_operation_a: "%DYNAMIC_METADATA(envoy.filters.network.mongo_proxy)%"
                   db_resource_r: "Extracted_from_dynamic_metadata"
+      
+      # Configurazione TLS per il Listener MongoDB (Abilita mTLS obbligatorio)
       transport_socket:
         name: envoy.transport_sockets.tls
         typed_config:
@@ -55,19 +89,34 @@ static_resources:
             validation_context:
               trusted_ca:
                 filename: /etc/certs/ca.crt
-          require_client_certificate: true
+          require_client_certificate: true # Richiede il certificato client (mTLS)
 
+  # ----------------------------------------------------------------------------
+  # 2. LISTENER HTTP/API (Web API) - Porta 8443
+  # ----------------------------------------------------------------------------
   - name: http_listener
     address:
       socket_address:
         address: 0.0.0.0
         port_value: 8443
+    
+    # Listener Filters: Estrazione preliminare JA3 sul traffico HTTPS
+    listener_filters:
+      - name: envoy.filters.listener.tls_inspector
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector
+          enable_ja3_fingerprinting: true
+
     filter_chains:
     - filters:
+      # MODULO: HTTP Connection Manager (HCM)
+      # Gestisce la decodifica del protocollo HTTP/1.1 o HTTP/2, il routing, gli header e i filtri L7.
       - name: envoy.filters.network.http_connection_manager
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: ingress_http
+          
+          # Configurazione delle Rotte HTTP
           route_config:
             name: local_route
             virtual_hosts:
@@ -77,24 +126,67 @@ static_resources:
               - match:
                   prefix: "/"
                 route:
-                  cluster: web_api_cluster
+                  cluster: web_api_cluster # Inoltra il traffico autorizzato alle Web API
+            
+            # Iniezione dell'header a valle (eseguito dal Router prima di inoltrare al backend)
+            request_headers_to_add:
+            - header:
+                key: "x-client-fingerprint"
+                value: "%TLS_JA3_FINGERPRINT%"
+              append_action: OVERWRITE_IF_EXISTS_OR_ADD
+
+          # CATENA DEI FILTRI HTTP L7 (Processati in ordine dall'alto verso il basso)
           http_filters:
+          
+          # MODULO A: Header Mutation (Filtro HTTP iniziale)
+          # Aggiunge in modo proattivo l'header x-client-fingerprint contenente l'hash JA3
+          # PRIMA che vengano eseguiti i filtri successivi (Lua ed Ext-Authz).
+          - name: envoy.filters.http.header_mutation
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.header_mutation.v3.HeaderMutation
+              mutations:
+                request_mutations:
+                - append:
+                    header:
+                      key: "x-client-fingerprint"
+                      value: "%TLS_JA3_FINGERPRINT%"
+                    append_action: OVERWRITE_IF_EXISTS_OR_ADD
+
+          # MODULO B: Lua (Script personalizzabili)
+          # Esegue uno script Lua locale che analizza ed elabora la richiesta dinamicamente.
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              default_source_code:
+                filename: /etc/envoy/lua_script.lua
+
+          # MODULO C: External Authorization (L7 Ext-Authz HTTP Filter)
+          # Interrompe la catena HTTP e invia i dettagli della richiesta HTTP (path, headers, cert, body)
+          # ad OPA per la decisione di autorizzazione prima di contattare il backend delle API.
           - name: envoy.filters.http.ext_authz
             typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+              "@type": type.googleapis.com/envoy.extensions.http.ext_authz.v3.ExtAuthz
               stat_prefix: opa_http_authz
               transport_api_version: V3
               grpc_service:
                 envoy_grpc:
                   cluster_name: opa_cluster
                 timeout: 5s
-              include_peer_certificate: true
+              include_peer_certificate: true # Invia il certificato mTLS client ad OPA
+              metadata_context_namespaces:
+              - envoy.filters.listener.tls_inspector
               with_request_body:
                 max_request_bytes: 1024
                 pack_as_bytes: true
+
+          # MODULO D: Router
+          # L'ultimo filtro nella catena, effettua il routing definitivo della richiesta
+          # verso il rispettivo cluster di backend.
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      # Configurazione TLS per il Listener HTTP (Abilita mTLS obbligatorio)
       transport_socket:
         name: envoy.transport_sockets.tls
         typed_config:
@@ -108,9 +200,14 @@ static_resources:
             validation_context:
               trusted_ca:
                 filename: /etc/certs/ca.crt
-          require_client_certificate: true
+          require_client_certificate: true # Richiede mTLS per autorizzare Alice o Bob
 
+# ------------------------------------------------------------------------------
+# CLUSTERS - Definizione dei Backend a cui Envoy può inoltrare il traffico
+# ------------------------------------------------------------------------------
   clusters:
+
+  # A. MongoDB Cluster (Database di Risorsa)
   - name: mongodb_cluster
     connect_timeout: 0.25s
     type: STRICT_DNS
@@ -125,6 +222,7 @@ static_resources:
                 address: mongodb-resource
                 port_value: 27017
 
+  # B. Web API Cluster (Backend Applicativo Python FastAPI)
   - name: web_api_cluster
     connect_timeout: 0.25s
     type: STRICT_DNS
@@ -139,10 +237,12 @@ static_resources:
                 address: web-api
                 port_value: 8000
 
+  # C. OPA PDP Cluster (Decision Maker gRPC)
   - name: opa_cluster
     connect_timeout: 0.25s
     type: STRICT_DNS
     lb_policy: ROUND_ROBIN
+    # Configurazione obbligatoria per far parlare Envoy e OPA in HTTP/2 (gRPC)
     typed_extension_protocol_options:
       envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
         "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
