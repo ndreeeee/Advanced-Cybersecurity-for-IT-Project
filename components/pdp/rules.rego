@@ -25,11 +25,11 @@ is_mongo := true if {
 # 2. ESTRAZIONE DELLE 6 DIMENSIONI (ZTA 6D)
 # ================================================================
 
-# A. UTENTE (Estrae "alice", "medico-rossi", ecc. dal certificato)
+# A. UTENTE
 default user := "Sconosciuto"
 user := regex.replace(regex.replace(input.attributes.source.principal, "^.*/", ""), "^client-", "")
 
-# B. SOFTWARE / JA3 (Legge dal TLS Inspector o dall'header iniettato)
+# B. SOFTWARE / JA3
 default software := "Sconosciuto"
 software := input.attributes.metadataContext.filterMetadata["envoy.filters.listener.tls_inspector"]["ja3"] if {
     input.attributes.metadataContext.filterMetadata["envoy.filters.listener.tls_inspector"]["ja3"] != ""
@@ -40,7 +40,7 @@ software := input.attributes.request.http.headers["x-client-fingerprint"] if {
     input.attributes.request.http.headers["x-client-fingerprint"] != ""
 }
 
-# C. DISPOSITIVO E TPM (Controllo Hardware Attestation)
+# C. DISPOSITIVO E TPM
 default is_tpm := false
 is_tpm := true if {
     cert_raw := input.attributes.source.certificate
@@ -53,53 +53,69 @@ is_tpm := true if {
 default device := "Dispositivo non censito (No TPM)"
 device := "Workstation Ospedaliera Sicura (TPM Validato)" if { is_tpm }
 
-# D. RETE (Indirizzo IP)
+# D. RETE
 default network_ip := "0.0.0.0"
 network_ip := input.attributes.source.address.socketAddress.address
 
-# E. RISORSA (Se HTTP legge il path, se Mongo cerca la collezione)
+# E. RISORSA
 default resource := "Risorsa Non Definita"
 resource := input.attributes.request.http.path if { is_http }
-# Se è traffico Mongo, i metadati dinamici ci diranno quale collezione sta venendo interrogata
-resource := "MongoDB / pazienti" if { 
-    is_mongo 
-    # Fallback sicuro nel caso il metadato esatto cambi
-}
+resource := "MongoDB / pazienti" if { is_mongo }
 
-# F. COMANDO (Se HTTP legge GET/POST, se Mongo legge find/insert)
+# F. COMANDO
 default command := "Operazione Non Definita"
 command := input.attributes.request.http.method if { is_http }
 command := "Query Database" if { is_mongo }
 
 
 # ================================================================
-# 3. MOTORE DECISIONALE CON SPLUNK MOCK E LOGGING
+# 3. MOTORE DECISIONALE CON SPLUNK MOCK E LOGGING JSON
 # ================================================================
 
 allow := true if {
-    # 1. Passiamo anche l'utente (user) per testare l'accesso di Alice!
+    # 1. Chiede il livello di rischio a Splunk passando IP, JA3 e Utente
     risk_score := get_risk_from_splunk(network_ip, software, user)
     
-    # 2. CONDIZIONE DI ACCESSO: Rischio accettabile (< 50) E presenza TPM
+    # 2. CONDIZIONI DI ACCESSO
     risk_score < 50
-    is_tpm # Manteniamo il controllo hardware severo del vecchio file!
+    is_tpm
     
-    # 3. Log di successo nella console di OPA
-    print("[OPA-PDP] 🟢 ACCESSO CONSENTITO | Rischio:", risk_score, "| Utente:", user, "| DB/API:", command, "su", resource)
+    # 3. Log di SUCCESSO strutturato in JSON per Splunk
+    print("[OPA-PDP]", json.marshal({
+        "Decision": "ALLOW",
+        "risk_score": risk_score,
+        "user": user,
+        "software": software,
+        "device": device,
+        "network_ip": network_ip,
+        "resource": resource,
+        "command": command
+    }))
 } else := false if {
+    # Calcola il rischio anche se l'accesso fallisce (per capire perché è fallito)
     risk_score := get_risk_from_splunk(network_ip, software, user)
-    print("[OPA-PDP] 🔴 ACCESSO BLOCCATO (ZERO TRUST) | Rischio:", risk_score, "| Utente:", user, "| JA3:", software, "| TPM:", is_tpm)
+    
+    # Log di BLOCCO strutturato in JSON per Splunk
+    print("[OPA-PDP]", json.marshal({
+        "Decision": "DENY",
+        "risk_score": risk_score,
+        "tpm_present": is_tpm,
+        "user": user,
+        "software": software,
+        "device": device,
+        "network_ip": network_ip,
+        "resource": resource,
+        "command": command
+    }))
 }
+
 # --- MOCK SPLUNK PER LA FASE DI SVILUPPO ---
-# Ora la funzione accetta anche il parametro "current_user"
 get_risk_from_splunk(ip, ja3, current_user) := risk if {
-    # Fingiamo che Splunk dica: "Se sei alice o bob, il rischio è 10"
     current_user == "alice"
     risk := 10
 }
 get_risk_from_splunk(ip, ja3, current_user) := risk if {
     current_user == "bob"
-    risk := 50
+    risk := 10
 }
-# Per chiunque altro (es. un hacker o "mario"), il rischio è 90 (Blocco)
 default get_risk_from_splunk(_, _, _) := 90
