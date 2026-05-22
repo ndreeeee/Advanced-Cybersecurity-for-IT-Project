@@ -32,12 +32,12 @@ nft add table ip nat
 nft add chain ip nat prerouting { type nat hook prerouting priority -100 \; }
 nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
 
-# Inoltra tutto il traffico TCP in arrivo sulla porta 10001 verso Envoy (che decifrerà l'mTLS)
-nft add rule ip nat prerouting tcp dport 10001 dnat to $ENVOY_IP:10001
+# Inoltra tutto il traffico TCP in arrivo sulla porta 8443 verso Envoy (che decifrerà l'mTLS) - CONTATORI ATTIVI
+nft add rule ip nat prerouting tcp dport 8443 counter dnat to $ENVOY_IP:8443
 
-# SNAT (Masquerade) per fare in modo che Envoy risponda al Firewall, e il Firewall ad Alice
-nft add rule ip nat postrouting ip daddr $ENVOY_IP tcp dport 10001 masquerade
-echo "[FW] Port Forwarding L4 attivato con successo."
+# SNAT (Masquerade) per fare in modo che Envoy risponda al Firewall, e il Firewall ad Alice - CONTATORI ATTIVI
+nft add rule ip nat postrouting ip daddr $ENVOY_IP tcp dport 8443 counter masquerade
+echo "[FW] Port Forwarding L4 attivato con successo (Porta 8443)."
 
 # --- 5. Avvio dell'API di Management ---
 echo "[FW] Avvio della Management API (Porta 80)..."
