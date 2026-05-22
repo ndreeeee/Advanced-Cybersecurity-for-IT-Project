@@ -49,8 +49,12 @@ services:
       - envoy_logs:/var/log/envoy
     command: -c /etc/envoy/envoy.yaml --log-path /var/log/envoy/envoy.log
     depends_on:
-      - mongodb-resource
-      - opa-pdp
+      mongodb-resource:
+        condition: service_started
+      trust-engine:
+        condition: service_started
+      opa-pdp:
+        condition: service_started
     networks:
       - frontend-net      # Alice lo raggiunge direttamente per l'mTLS (porta 27017)
       - backend-net
@@ -69,17 +73,39 @@ services:
       - envoy-pep  # FONDAMENTALE: il namespace di rete di Envoy deve esistere prima
     network_mode: "service:envoy-pep"
 
-  # 5. IL DECISION MAKER (OPA)
+  # 5a. TRUST ENGINE — SIEM client (Splunk REST) + Policy Store (MongoDB)
+  trust-engine:
+    build:
+      context: ./components/pdp
+      dockerfile: Dockerfile.trust-engine
+    container_name: zta-trust-engine
+    environment:
+      MONGO_URI: mongodb://mongodb-resource:27017/hospital_db
+      SPLUNK_HOST: https://splunk-siem:8089
+      SPLUNK_USER: admin
+      SPLUNK_PASS: ${SPLUNK_PASSWORD}
+      FIREWALL_URL: http://nftables-firewall
+      TRUST_POLL_SECONDS: "15"
+    depends_on:
+      mongodb-resource:
+        condition: service_started
+      splunk-siem:
+        condition: service_started
+    networks:
+      - control-plane-net
+      - backend-net
+      - frontend-net
+
+  # 5b. DECISION MAKER (OPA) — ext_authz gRPC + http.send verso trust-engine
   opa-pdp:
     build:
       context: ./components/pdp
     container_name: zta-opa
     volumes:
-      - ./components/pdp/rules.rego:/policy/rules.rego:ro
-      - ./components/pdp/opa-config.yaml:/etc/opa/config.yaml:ro
       - opa_logs:/var/log/opa
-    command:
-      - "exec /opa run --server --log-level=debug --log-format=json --config-file=/etc/opa/config.yaml /policy/rules.rego > /var/log/opa/decision.log 2>&1"
+    depends_on:
+      trust-engine:
+        condition: service_started
     networks:
       - control-plane-net
 

@@ -1,12 +1,17 @@
-FROM openpolicyagent/opa:latest-envoy AS opa-source
+FROM openpolicyagent/opa:latest-envoy AS opa_bin
+
 FROM debian:bookworm-slim
 
-# Copia l'eseguibile OPA con il plugin Envoy
-COPY --from=opa-source /opa /opa
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates bash \
+    && rm -rf /var/lib/apt/lists/*
 
-# Aggiungiamo un utente non root per sicurezza (opzionale ma consigliato)
-RUN useradd -u 1000 -m nonroot
-RUN mkdir -p /var/log/opa && chown nonroot:nonroot /var/log/opa
+COPY --from=opa_bin /opa /opa
+RUN mkdir -p /var/log/opa /policy && chmod 777 /var/log/opa
 
-USER nonroot
-ENTRYPOINT ["sh", "-c"]
+COPY rules.rego /policy/rules.rego
+COPY opa-config.yaml /etc/opa/config.yaml
+COPY entrypoint-opa.sh /entrypoint-opa.sh
+RUN chmod +x /entrypoint-opa.sh
+
+EXPOSE 8181 9191
+ENTRYPOINT ["/entrypoint-opa.sh"]

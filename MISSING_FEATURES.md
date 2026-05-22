@@ -26,7 +26,7 @@ Il simulatore attuale è obsoleto (usa `curl` per chiamate web).
 - [ ] **mTLS Enforcement**: Configurare i client affinché presentino i rispettivi certificati (`alice.crt`, `bob.crt`) durante la connessione, altrimenti Envoy li bloccherà al punto 1 della slide 3.
 
 ## 6. Trust Score Engine (PDP Python)
-- [ ] **Allineamento MongoDB**: Il file `pdp.py` usa ancora `psycopg2` (Postgres). Deve essere migrato definitivamente a `pymongo` per analizzare i log del nuovo `hospital_db`.
+- [x] **OPA ↔ Splunk ↔ MongoDB**: `trust_engine.py` + `rules.rego` + servizio `trust-engine` in compose. `pdp.py` è solo stub legacy; policy store su `hospital_db.identities`.
 
 ---
 > [!IMPORTANT]
