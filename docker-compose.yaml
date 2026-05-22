@@ -90,7 +90,7 @@ services:
       mongodb-resource:
         condition: service_started
       splunk-siem:
-        condition: service_started
+        condition: service_healthy
     networks:
       - control-plane-net
       - backend-net
@@ -139,7 +139,8 @@ services:
       - snort_logs:/var/log/snort:ro
       - opa_logs:/var/log/opa:ro
     depends_on:
-      - splunk-siem
+      splunk-siem:
+        condition: service_healthy
     networks:
       - control-plane-net
 
