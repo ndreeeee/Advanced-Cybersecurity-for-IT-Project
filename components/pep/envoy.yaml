@@ -51,7 +51,7 @@ static_resources:
           grpc_service:
             envoy_grpc:
               cluster_name: opa_cluster # Invia le richieste al cluster OPA
-            timeout: 5s
+            timeout: 45s
           include_peer_certificate: true # Invia il certificato client (PEM) a OPA per la convalida TPM
 
       # MODULO: TCP Proxy
@@ -186,7 +186,7 @@ static_resources:
               grpc_service:
                 envoy_grpc:
                   cluster_name: opa_cluster
-                timeout: 5s
+                timeout: 45s
               include_peer_certificate: true # Invia il certificato mTLS client ad OPA
               metadata_context_namespaces:
               - envoy.filters.listener.tls_inspector

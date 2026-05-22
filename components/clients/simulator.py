@@ -62,7 +62,7 @@ def make_mtls_request(method: str, endpoint: str):
             url=url,
             cert=cert,
             verify=False,  # Ignoriamo il controllo CN del server per semplicità di sviluppo locale
-            timeout=5.0
+            timeout=45.0
         )
         
         # Disabilita i warning di urllib3 per le richieste insicure (verify=False)

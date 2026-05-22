@@ -51,8 +51,6 @@ services:
     depends_on:
       mongodb-resource:
         condition: service_started
-      trust-engine:
-        condition: service_started
       opa-pdp:
         condition: service_started
     networks:
@@ -73,39 +71,13 @@ services:
       - envoy-pep  # FONDAMENTALE: il namespace di rete di Envoy deve esistere prima
     network_mode: "service:envoy-pep"
 
-  # 5a. TRUST ENGINE — SIEM client (Splunk REST) + Policy Store (MongoDB)
-  trust-engine:
-    build:
-      context: ./components/pdp
-      dockerfile: Dockerfile.trust-engine
-    container_name: zta-trust-engine
-    environment:
-      MONGO_URI: mongodb://mongodb-resource:27017/hospital_db
-      SPLUNK_HOST: https://splunk-siem:8089
-      SPLUNK_USER: admin
-      SPLUNK_PASS: ${SPLUNK_PASSWORD}
-      FIREWALL_URL: http://nftables-firewall
-      TRUST_POLL_SECONDS: "15"
-    depends_on:
-      mongodb-resource:
-        condition: service_started
-      splunk-siem:
-        condition: service_healthy
-    networks:
-      - control-plane-net
-      - backend-net
-      - frontend-net
-
-  # 5b. DECISION MAKER (OPA) — ext_authz gRPC + http.send verso trust-engine
+  # 5b. DECISION MAKER (OPA) — ext_authz gRPC + http.send verso Splunk
   opa-pdp:
     build:
       context: ./components/pdp
     container_name: zta-opa
     volumes:
       - opa_logs:/var/log/opa
-    depends_on:
-      trust-engine:
-        condition: service_started
     networks:
       - control-plane-net
 
@@ -123,6 +95,10 @@ services:
       - "8000:8000"
       - "8088:8088"
       - "8089:8089"
+    volumes:
+      - splunk_etc:/opt/splunk/etc
+      - splunk_var:/opt/splunk/var
+      - ./simulated_traffic.csv:/opt/splunk/etc/apps/search/lookups/simulated_traffic.csv
     networks:
       - control-plane-net
 
@@ -184,6 +160,7 @@ services:
     container_name: zta-web-api
     networks:
       - backend-net
+      - control-plane-net
     depends_on:
       - mongodb-resource
 
@@ -193,3 +170,5 @@ volumes:
   envoy_logs:
   snort_logs:
   opa_logs:
+  splunk_etc:
+  splunk_var:

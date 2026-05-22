@@ -69,21 +69,50 @@ command := "Query Database" if { is_mongo }
 
 
 # ================================================================
-# 3. MOTORE DECISIONALE CON SPLUNK MOCK E LOGGING JSON
+# 3. MOTORE DECISIONALE CON SIEM ML E LOGGING JSON
 # ================================================================
 
-allow := true if {
-    # 1. Chiede il livello di rischio a Splunk passando IP, JA3 e Utente
-    risk_score := get_risk_from_splunk(network_ip, software, user)
+# Valore di default in caso Splunk non risponda o fallisca
+default splunk_risk_score := 100
+
+splunk_risk_score := risk if {
+    # Costruiamo la query SPL interpolando le 6 dimensioni (ZTA 6D)
+    query := sprintf("| makeresults | eval user=\"%s\", software=\"%s\", device=\"%s\", network=\"%s\", action=\"%s\", resource=\"%s\" | apply trust_model | rename \"predicted(rischio)\" as rischio | table rischio", [user, software, device, network_ip, command, resource])
     
-    # 2. CONDIZIONI DI ACCESSO
-    risk_score < 50
+    # Chiamata sincrona a Web-API che fa da proxy per Splunk MLTK
+    resp := http.send({
+        "method": "POST",
+        "url": "http://zta-web-api:8000/api/ml/predict",
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": {
+            "query": query
+        },
+        "raise_error": false,
+        "timeout": "35s"
+    })
+    
+    resp.status_code == 200
+    
+    # Parsing della risposta (Il proxy restituisce {"rischio": 15.34})
+    risk := to_number(resp.body.rischio)
+}
+
+# La regola di autorizzazione base: rischio deve essere <= 50
+risk_ok := true if {
+    splunk_risk_score <= 50
+} else := false
+
+allow := true if {
+    # CONDIZIONI DI ACCESSO
+    risk_ok
     is_tpm
     
     # 3. Log di SUCCESSO strutturato in JSON per Splunk
     print("[OPA-PDP]", json.marshal({
         "Decision": "ALLOW",
-        "risk_score": risk_score,
+        "risk_score": splunk_risk_score,
         "user": user,
         "software": software,
         "device": device,
@@ -92,14 +121,12 @@ allow := true if {
         "command": command
     }))
 } else := false if {
-    # Calcola il rischio anche se l'accesso fallisce (per capire perché è fallito)
-    risk_score := get_risk_from_splunk(network_ip, software, user)
-    
     # Log di BLOCCO strutturato in JSON per Splunk
     print("[OPA-PDP]", json.marshal({
         "Decision": "DENY",
-        "risk_score": risk_score,
+        "risk_score": splunk_risk_score,
         "tpm_present": is_tpm,
+        "risk_ok": risk_ok,
         "user": user,
         "software": software,
         "device": device,
@@ -108,14 +135,3 @@ allow := true if {
         "command": command
     }))
 }
-
-# --- MOCK SPLUNK PER LA FASE DI SVILUPPO ---
-get_risk_from_splunk(ip, ja3, current_user) := risk if {
-    current_user == "alice"
-    risk := 10
-}
-get_risk_from_splunk(ip, ja3, current_user) := risk if {
-    current_user == "bob"
-    risk := 10
-}
-default get_risk_from_splunk(_, _, _) := 90
