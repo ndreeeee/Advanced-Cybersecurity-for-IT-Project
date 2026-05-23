@@ -13,6 +13,7 @@ services:
   nftables-firewall:
     build: 
       context: ./components/firewall
+      network: host
     container_name: zta-firewall
     cap_add:
       - NET_ADMIN
@@ -62,6 +63,7 @@ services:
   snort-ids:
     build: 
       context: ./components/ids
+      network: host
     container_name: zta-snort
     cap_add:
       - NET_ADMIN
@@ -75,6 +77,7 @@ services:
   opa-pdp:
     build:
       context: ./components/pdp
+      network: host
     container_name: zta-opa
     volumes:
       - opa_logs:/var/log/opa
@@ -124,6 +127,7 @@ services:
   client-alice:
     build: 
       context: ./components/clients
+      network: host
     container_name: zta-client-alice
     environment:
       - CLIENT_NAME=alice
@@ -141,6 +145,7 @@ services:
   client-bob:
     build:
       context: ./components/clients
+      network: host
     container_name: zta-client-bob
     environment:
       - CLIENT_NAME=bob
@@ -157,6 +162,7 @@ services:
   web-api:
     build:
       context: ./components/api
+      network: host
     container_name: zta-web-api
     networks:
       - backend-net
