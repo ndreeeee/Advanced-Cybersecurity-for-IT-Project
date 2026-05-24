@@ -9,5 +9,5 @@ Vedere se si riescono a fare certificati con lo stesso nome dei container per ev
 Sistemare i parser dei log
 Verificare quale porta lasciare su envoy.yaml per mongo (mongo direttamente o la web api nuova messa)
 Cancellare cartella splunk (non ci dovrebbe essere in teoria, sono rimasti dentro file vecchi)
-Nel client modificare envoyhost da zta-firewall a nome sito ospedale (inserire dns nel docker-compose come alias)
-Valutare se limitare i log continui inutili di mongo
+
+

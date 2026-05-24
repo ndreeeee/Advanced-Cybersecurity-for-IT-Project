@@ -19,9 +19,13 @@ data = {
     'exec_mode': 'oneshot'
 }
 
+import os
+splunk_user = os.getenv("SPLUNK_USER", "admin")
+splunk_password = os.getenv("SPLUNK_PASSWORD", "changeme")
+
 resp = requests.post(
     'https://zta-splunk:8089/services/search/jobs', 
-    auth=('admin', 'pratofiorito'), 
+    auth=(splunk_user, splunk_password), 
     data=data, 
     verify=False
 )

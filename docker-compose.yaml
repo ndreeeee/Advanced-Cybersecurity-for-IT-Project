@@ -164,6 +164,9 @@ services:
       context: ./components/api
       network: host
     container_name: zta-web-api
+    environment:
+      - SPLUNK_USER=${SPLUNK_USER}
+      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD}
     networks:
       - backend-net
       - control-plane-net

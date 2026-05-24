@@ -75,9 +75,11 @@ def predict_risk(ml_query: MLQuery):
     """ Proxy endpoint for OPA to query Splunk MLTK """
     logger.info(f"Ricevuta query ML: {ml_query.query}")
     
-    # Credenziali di default per Splunk
-    splunk_url = "https://zta-splunk:8089/services/search/jobs/export"
-    auth = ("admin", "pratofiorito")
+    # Credenziali lette dalle variabili d'ambiente (non hardcodate)
+    splunk_url = os.getenv("SPLUNK_URL", "https://zta-splunk:8089/services/search/jobs/export")
+    splunk_user = os.getenv("SPLUNK_USER", "admin")
+    splunk_password = os.getenv("SPLUNK_PASSWORD", "changeme")
+    auth = (splunk_user, splunk_password)
     
     # Mappatura dei valori reali ZTA ai valori del dataset di addestramento Splunk MLTK
     # L'algoritmo RandomForestRegressor genera un errore FATAL se riceve categorie non viste in fase di fit

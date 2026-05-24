@@ -11,7 +11,7 @@ Il motore di Machine Learning richiede due pacchetti ufficiali.
 2. Scarica **Splunk Machine Learning Toolkit (MLTK)** (oppure il nuovo *Splunk AI Toolkit*). Scegli sempre Linux se richiesto.
 
 **Procedura di caricamento:**
-1. Accedi all'interfaccia web di Splunk (`http://localhost:8000`) usando le credenziali `admin` / `pratofiorito`.
+1. Accedi all'interfaccia web di Splunk (`http://localhost:8000`) usando le credenziali `admin` / `<TUA_PASSWORD>` (definita nel file `.env`).
 2. Nella barra laterale di sinistra (vicino alla scritta "Apps"), clicca sull'icona a forma di **ingranaggio** (Manage Apps).
 3. In alto a destra, clicca su **Install app from file**.
 4. Carica il primo file (`.spl` o `.tgz`) e premi *Upload*.
