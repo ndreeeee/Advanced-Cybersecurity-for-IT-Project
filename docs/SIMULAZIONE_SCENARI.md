@@ -43,7 +43,7 @@ Il secondo livello dimostra la *Continuous Authentication* e il *Trust Score din
 ### Come testarlo:
 1. Accedere alla dashboard tramite il client di Alice (`localhost:8081`).
 2. Nella barra di ricerca in alto a destra, inserire una query normale (es. `Mario`): la ricerca non sortirà effetti negativi sul punteggio di fiducia.
-3. **Simulazione Attacco SQLi**: Inserire nella barra di ricerca un payload malevolo (es. `DROP TABLE patients;` o includere la parola `DELETE`). L'applicazione invierà una richiesta sospetta al backend. 
+3. **Simulazione Attacco SQLi**: Inserire nella barra di ricerca un payload malevolo come `DROP TABLE patients;`, `DELETE FROM records`, `Mario Rossi'; DROP DATABASE;--` o anche solo `;`. L'applicazione invierà una richiesta sospetta al backend.
 4. **Cosa succede dietro le quinte**: Splunk MLTK (simulato nel nostro web-api) rileva l'anomalia comportamentale (una richiesta distruttiva su una risorsa API da parte di un medico). Il **Trust Score** della richiesta schizza a valori altissimi (rischio > 50). OPA riceve questo score e, nonostante il certificato di Alice e il suo TPM siano validi, blocca la richiesta sul nascere, restituendo un errore ZTA a schermo.
 
 ```mermaid

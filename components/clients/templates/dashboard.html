@@ -72,7 +72,7 @@
                 <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
                     <div class="card-title">Database Pazienti</div>
                     <div class="search-container" style="position:relative;">
-                        <input type="text" id="patient-search" placeholder="Cerca paziente per ID o Nome..." style="padding: 0.5rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; width: 300px; font-family: 'Inter', sans-serif;">
+                        <input type="text" id="patient-search" placeholder="Cerca paziente per ID o Nome..." style="padding: 0.5rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; width: 300px; font-family: 'Inter', sans-serif;" onkeyup="handleSearch()">
                         <button onclick="handleSearch()" style="position:absolute; right:5px; top:5px; background:var(--primary-color); color:white; border:none; border-radius:4px; padding:0.25rem 0.5rem; cursor:pointer;">Cerca</button>
                     </div>
                 </div>
@@ -153,8 +153,18 @@
                 // Simulazione SQL Injection -> invia una richiesta dannosa al backend
                 fetchData('/request/drop', 'Ricerca: ' + query, 'DELETE');
             } else {
-                // Ricerca normale simulata (frontend-only)
-                alert("Nessun paziente trovato con questo criterio.");
+                // Ricerca normale (filtra la tabella sul frontend)
+                const rows = document.querySelectorAll('#table-body tr');
+                rows.forEach(row => {
+                    const nameCell = row.querySelector('.patient-name');
+                    if (nameCell) {
+                        if (nameCell.textContent.toUpperCase().includes(query)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    }
+                });
             }
         }
 
