@@ -46,6 +46,10 @@ def generate_pki():
     print("[PKI] Generazione Certificato Bob (SOFTWARE-ONLY)...")
     generate_leaf(base_dir, "bob", "employee-bob", ca_cert, ca_key, has_tpm=False)
 
+    # 5. GENERAZIONE CERTIFICATO CHARLIE (CON TPM - DA REMOTO)
+    print("[PKI] Generazione Certificato Charlie (HARDWARE-BACKED)...")
+    generate_leaf(base_dir, "charlie", "employee-charlie", ca_cert, ca_key, has_tpm=True)
+
     print("\n[PKI] Success: PKI generated in 'certs/' folder")
 
 def generate_leaf(base_dir, name, cn, ca_cert, ca_key, has_tpm=False):

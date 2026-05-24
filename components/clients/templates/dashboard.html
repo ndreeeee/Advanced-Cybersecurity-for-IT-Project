@@ -64,7 +64,7 @@
             <!-- Loading -->
             <div id="loading" class="loading-state">
                 <div class="spinner"></div>
-                <p>Verifica credenziali mTLS e policy Zero Trust in corso...</p>
+                <p>Caricamento...</p>
             </div>
 
             <!-- Table Card -->
@@ -133,6 +133,11 @@
     </main>
 
     <script>
+        // Controllo Sessione Login
+        if (sessionStorage.getItem('zta_auth_token') !== 'valid') {
+            window.location.href = '/';
+        }
+
         // Gestione UI della Sidebar
         document.querySelectorAll('.nav-item:not(.danger)').forEach(item => {
             item.addEventListener('click', function() {

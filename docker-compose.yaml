@@ -2,10 +2,18 @@
 networks:
   frontend-net:      # Rete pubblica (Client -> Firewall)
     driver: bridge
+    ipam:
+      config:
+        - subnet: 10.0.1.0/24
   backend-net:       # Rete privata per i dati (Firewall -> Envoy -> Mongo)
     driver: bridge
   control-plane-net: # Rete di gestione (OPA, Splunk, Fluent Bit)
     driver: bridge
+  external-net:      # Rete esterna non attendibile (Wi-Fi Pubblico)
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
 
 services:
 
@@ -24,6 +32,7 @@ services:
     networks:
       - frontend-net
       - backend-net
+      - external-net
 
   # 2. LA RISORSA (MongoDB)
   mongodb-resource:
@@ -58,6 +67,7 @@ services:
       - frontend-net      # Alice lo raggiunge direttamente per l'mTLS (porta 27017)
       - backend-net
       - control-plane-net
+      - external-net
 
   # 4. L'IDS PASSIVO (Snort) — condivide il namespace di rete di Envoy
   snort-ids:
@@ -101,7 +111,7 @@ services:
     volumes:
       - splunk_etc:/opt/splunk/etc
       - splunk_var:/opt/splunk/var
-      - ./simulated_traffic.csv:/opt/splunk/etc/apps/search/lookups/simulated_traffic.csv
+      - ./db_traffico_simulato/simulated_traffic.csv:/opt/splunk/etc/apps/search/lookups/simulated_traffic.csv
     networks:
       - control-plane-net
 
@@ -158,6 +168,24 @@ services:
       - envoy-pep
     networks:
       - frontend-net # Bob è sulla stessa rete di Alice, ma OPA lo bloccherà
+
+  # 10. IL CLIENT ESTERNO (Charlie)
+  client-charlie:
+    build:
+      context: ./components/clients
+      network: host
+    container_name: zta-client-charlie
+    environment:
+      - CLIENT_NAME=charlie
+      - CLIENT_ROLE=suspect
+    ports:
+      - "8083:8000"
+    volumes:
+      - ./certs:/etc/certs:ro  # Ha un certificato di Alice valido
+    depends_on:
+      - envoy-pep
+    networks:
+      - external-net # È confinato all'esterno (192.168.100.0/24)
 
   web-api:
     build:

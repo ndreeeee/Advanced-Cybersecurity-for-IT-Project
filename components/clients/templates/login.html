@@ -50,7 +50,7 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
-            btn.innerHTML = `<style>@keyframes spin { 100% { transform: rotate(360deg); } }</style><svg style="animation: spin 1s linear infinite; width: 1.2rem; height: 1.2rem; vertical-align: middle; margin-right: 0.5rem;" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Negoziazione TLS in corso...`;
+            btn.innerHTML = `<style>@keyframes spin { 100% { transform: rotate(360deg); } }</style><svg style="animation: spin 1s linear infinite; width: 1.2rem; height: 1.2rem; vertical-align: middle; margin-right: 0.5rem;" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Attendere il caricamento...`;
             btn.disabled = true;
             errorDiv.classList.remove('visible');
             
@@ -63,6 +63,7 @@
                 });
                 
                 if (response.ok) {
+                    sessionStorage.setItem('zta_auth_token', 'valid');
                     window.location.href = '/dashboard';
                 } else if (response.status === 403) {
                     // Sostituisci l'intero contenuto della pagina con un errore di blocco 403 nativo

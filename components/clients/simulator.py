@@ -1,6 +1,7 @@
 import os
 import logging
 import requests
+import socket
 from fastapi import FastAPI, HTTPException, Request, Body
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -56,7 +57,18 @@ def get_dashboard(request: Request):
 
 def make_mtls_request(method: str, endpoint: str, json_data=None):
     url = f"https://{ENVOY_HOST}:{ENVOY_PORT}{endpoint}"
-    logger.info(f"Effettuo richiesta mTLS {method} a: {url}")
+    
+    try:
+        # Ottieni l'indirizzo IP locale del container
+        local_ip = socket.gethostbyname(socket.gethostname())
+    except Exception:
+        local_ip = "127.0.0.1"
+
+    headers = {
+        "X-Forwarded-For": local_ip
+    }
+
+    logger.info(f"Effettuo richiesta mTLS {method} a: {url} (IP Sorgente Simulato: {local_ip})")
     
     # Determina quale file di certificato usare
     cert = None
@@ -78,6 +90,7 @@ def make_mtls_request(method: str, endpoint: str, json_data=None):
             url=url,
             cert=cert,
             verify=False,  # Ignoriamo il controllo CN del server per semplicità di sviluppo locale
+            headers=headers,
             json=json_data,
             timeout=45.0
         )

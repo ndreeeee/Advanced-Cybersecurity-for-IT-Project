@@ -12,6 +12,28 @@ Il primo livello dimostra l'implementazione del concetto *Device & Identity Veri
 1. **Accesso Legittimo (Alice)**: Collegandosi a `http://localhost:8081` si utilizza il client di Alice. Cliccando su "Accedi al Portale", il sistema effettua l'handshake mTLS usando il certificato di Alice. Envoy estrae i campi del certificato e OPA valuta la presenza dell'OID `1.3.6.1.4.1.9999.1` (simulazione del chip TPM hardware). Dato che Alice usa un PC aziendale sicuro, l'accesso è **concesso** e può visualizzare i pazienti e le cartelle cliniche.
 2. **Accesso Negato (Bob)**: Collegandosi a `http://localhost:8082` si utilizza il client di Bob. Sebbene anche lui "conosca" la password e invii una richiesta formalmente corretta, il suo certificato è sprovvisto dell'estensione TPM (simulando un dispositivo personale non autorizzato, BYOD non sicuro). OPA intercetta la richiesta tramite Envoy e restituisce un **DENY** immediato. L'interfaccia mostrerà nativamente l'errore `403 Forbidden - Access Denied`.
 
+```mermaid
+sequenceDiagram
+    actor A as Alice (PC Aziendale)
+    actor B as Bob (PC Privato)
+    participant E as Envoy (PEP)
+    participant O as OPA (PDP)
+    participant DB as MongoDB / API
+
+    Note over A, E: Handshake mTLS (Certificato OK, TPM OK)
+    A->>E: Richiesta Accesso (GET /api/pazienti)
+    E->>O: Controllo Autorizzazione (gRPC ext_authz)
+    O-->>E: ALLOW (TPM Valido)
+    E->>DB: Inoltro Richiesta
+    DB-->>A: Accesso Concesso (Dati)
+
+    Note over B, E: Handshake mTLS (Certificato OK, NO TPM)
+    B->>E: Richiesta Accesso (GET /api/pazienti)
+    E->>O: Controllo Autorizzazione (gRPC ext_authz)
+    O-->>E: DENY (Manca OID Hardware)
+    E-->>B: 403 Forbidden Access Denied
+```
+
 ---
 
 ## 🔴 Livello 2: Rilevamento Anomalie e Insider Threat (Il Modello ML)
@@ -23,6 +45,23 @@ Il secondo livello dimostra la *Continuous Authentication* e il *Trust Score din
 2. Nella barra di ricerca in alto a destra, inserire una query normale (es. `Mario`): la ricerca non sortirà effetti negativi sul punteggio di fiducia.
 3. **Simulazione Attacco SQLi**: Inserire nella barra di ricerca un payload malevolo (es. `DROP TABLE patients;` o includere la parola `DELETE`). L'applicazione invierà una richiesta sospetta al backend. 
 4. **Cosa succede dietro le quinte**: Splunk MLTK (simulato nel nostro web-api) rileva l'anomalia comportamentale (una richiesta distruttiva su una risorsa API da parte di un medico). Il **Trust Score** della richiesta schizza a valori altissimi (rischio > 50). OPA riceve questo score e, nonostante il certificato di Alice e il suo TPM siano validi, blocca la richiesta sul nascere, restituendo un errore ZTA a schermo.
+
+```mermaid
+sequenceDiagram
+    actor A as Alice (Medico Affidabile)
+    participant E as Envoy (PEP)
+    participant O as OPA (PDP)
+    participant ML as Modello ML (Splunk)
+
+    A->>E: Azione Anomala (es. DELETE /api/drop)
+    E->>O: Controllo Autorizzazione (Con Contesto)
+    O->>ML: Valutazione Rischio Comportamentale
+    Note over ML: Il modello calcola Rischio = 97 (Altissimo)
+    ML-->>O: Ritorna Risk Score (97)
+    Note over O: Regola di Base: Tolleranza Rischio <= 50
+    O-->>E: DENY (Risk > Threshold)
+    E-->>A: 403 Forbidden Access Denied
+```
 
 ---
 
@@ -36,6 +75,51 @@ L'ultimo livello dimostra la robustezza dei confini di micro-segmentazione. Un a
 3. Inserire il comando `curl http://backend-api:8000/api/patients` e premere Invio.
 4. **Cosa succede dietro le quinte**: Stai dicendo al container del client di scavalcare Envoy e fare una richiesta HTTP diretta al backend. Tuttavia, il traffico passa attraverso la rete gestita dal Firewall L3/L4 (nftables). Il firewall è istruito per droppare qualsiasi connessione al backend che non provenga esclusivamente dall'IP del container Envoy. La richiesta va in timeout o viene scartata (DROP), e il terminale mostrerà un `[ERRORE DI RETE]`.
 
+```mermaid
+sequenceDiagram
+    actor B as Attaccante Interno (Bob / Dev Console)
+    participant F as Firewall L3/L4 (NFTables)
+    participant S as Snort (NIDS)
+    participant DB as Backend / Database
+
+    B->>F: Connessione Diretta Bypassa PEP (Porta Backend)
+    Note over F, DB: Il Firewall intercetta il traffico
+    F--xDB: DROP (L'IP non è quello di Envoy)
+    F->>S: Registra il log dell'intrusione
+    S-->>B: Timeout della richiesta / Errore di rete
+```
+
 ---
 
-Questi scenari dimostrano i pilastri della Zero Trust: **non fidarsi di nulla (né rete, né credenziali, né dispositivo) e verificare continuamente ogni singola transazione.**
+## 🌐 Livello 4: Accesso Condizionato Adattivo (Adaptive Risk Threshold)
+
+Il quarto livello espande il concetto di "Non fidarti mai" includendo il **contesto ambientale** dell'utente. Invece di bloccare a prescindere gli accessi dall'esterno, la ZTA valuta dinamicamente la tolleranza al rischio. Un utente interno ha un margine di rischio maggiore, mentre un utente esterno (smart working) deve avere un profilo di sicurezza quasi perfetto.
+
+### Come testarlo:
+1. **Accesso dalla Rete Interna (Ospedale)**: Vai su `http://localhost:8081` (Client Alice interno). OPA vede che l'IP è `10.0.1.x` e tollera un `risk_score <= 50`. Alice entra tranquillamente.
+2. **Accesso dalla Rete Esterna (Smart Working o Wi-Fi Pubblico)**: Vai su `http://localhost:8083` (Client Charlie). OPA rileva che l'IP è esterno (`192.168.100.x`). 
+3. **L'Intelligenza Zero Trust in azione**: Nei vecchi modelli di sicurezza (come con le VPN classiche), una volta dentro sei fidato allo stesso modo, a prescindere da dove ti trovi. Invece, per gli utenti esterni, la nostra policy in `rules.rego` **abbassa drasticamente la tolleranza al rischio (il punteggio deve essere <= 10 invece che <= 50)**.
+4. **Perché Charlie viene bloccato?** Charlie usa un dispositivo aziendale con un livello di rischio "normale" stimato a circa `15` (magari per colpa di un sistema operativo non aggiornato all'ultimissima versione). Se fosse fisicamente dentro l'ospedale, questo rischio sarebbe tollerato. Ma poiché si sta connettendo da una rete esterna (es. il Wi-Fi di casa o di un bar), l'ambiente circostante non è sicuro e la ZTA esige una "salute" del dispositivo impeccabile.
+5. Di conseguenza, Charlie riceverà un **403 Forbidden - Access Denied**, nonostante abbia le credenziali corrette e un modulo TPM perfettamente valido!
+6. Questo dimostra uno dei concetti più avanzati della ZTA: **la fiducia non è fissa, ma è un calcolo dinamico e proporzionale al contesto ambientale in cui ci si trova.**
+
+```mermaid
+sequenceDiagram
+    actor C as Charlie (Rete Esterna)
+    participant E as Envoy (PEP)
+    participant O as OPA (PDP)
+    participant ML as Modello ML (Splunk)
+
+    Note over C, E: Handshake mTLS (Credenziali di Alice, TPM OK, IP Esterno)
+    C->>E: Richiesta Accesso (GET /api/pazienti)
+    E->>O: Controllo Autorizzazione
+    O->>ML: Valutazione Rischio
+    ML-->>O: Ritorna Risk Score = 15
+    Note over O: Regola Adaptive Risk Threshold:<br>Rete Interna tollera <= 50<br>Rete Esterna tollera <= 10
+    O-->>E: DENY (15 > Threshold di 10)
+    E-->>C: 403 Forbidden Access Denied
+```
+
+---
+
+Questi scenari dimostrano i pilastri della Zero Trust: **non fidarsi di nulla (né rete, né credenziali, né dispositivo, né posizione) e verificare continuamente ogni singola transazione.**

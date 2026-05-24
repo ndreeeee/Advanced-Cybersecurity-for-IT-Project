@@ -55,7 +55,10 @@ device := "Workstation Ospedaliera Sicura (TPM Validato)" if { is_tpm }
 
 # D. RETE
 default network_ip := "0.0.0.0"
-network_ip := input.attributes.source.address.socketAddress.address
+network_ip := input.attributes.request.http.headers["x-forwarded-for"] if {
+    is_http
+    input.attributes.request.http.headers["x-forwarded-for"]
+} else := input.attributes.source.address.socketAddress.address
 
 # E. RISORSA
 default resource := "Risorsa Non Definita"
@@ -99,9 +102,21 @@ splunk_risk_score := risk if {
     risk := to_number(resp.body.rischio)
 }
 
-# La regola di autorizzazione base: rischio deve essere <= 50
+# Contesto di rete: la richiesta DEVE provenire dalla rete interna ospedaliera
+default is_internal_network := false
+is_internal_network := true if {
+    net.cidr_contains("10.0.1.0/24", network_ip)
+}
+
+# La regola di autorizzazione adattiva:
+# - Se la rete è INTERNA, tolleranza rischio <= 50
+# - Se la rete è ESTERNA, tolleranza rischio <= 10
 risk_ok := true if {
+    is_internal_network
     splunk_risk_score <= 50
+} else := true if {
+    not is_internal_network
+    splunk_risk_score <= 10
 } else := false
 
 allow := true if {
@@ -117,6 +132,7 @@ allow := true if {
         "software": software,
         "device": device,
         "network_ip": network_ip,
+        "network_internal": is_internal_network,
         "resource": resource,
         "command": command
     }))
@@ -127,6 +143,7 @@ allow := true if {
         "risk_score": splunk_risk_score,
         "tpm_present": is_tpm,
         "risk_ok": risk_ok,
+        "network_internal": is_internal_network,
         "user": user,
         "software": software,
         "device": device,
