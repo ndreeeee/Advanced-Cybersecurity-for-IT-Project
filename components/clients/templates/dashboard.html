@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portale Medico - ZTA</title>
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        :root {
+            /* Default: Tema Sospetto (Bob) */
+            --primary-color: #f43f5e;
+            --primary-glow: rgba(244, 63, 94, 0.15);
+            --tpm-bg: #fee2e2;
+            --tpm-color: #b91c1c;
+            --gradient-start: #f43f5e;
+            --gradient-end: #fb7185;
+        }
+        
+        body.theme-alice {
+            /* Tema Legittimo (Alice) */
+            --primary-color: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.15);
+            --tpm-bg: #d1fae5;
+            --tpm-color: #047857;
+            --gradient-start: #10b981;
+            --gradient-end: #34d399;
+        }
+
+        .tpm-badge {
+            background-color: var(--tpm-bg);
+            color: var(--tpm-color);
+        }
+        
+        .logo-icon, .avatar {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+        }
+    </style>
+</head>
+<body class="theme-{{ client_name }}">
+
+    <main style="width: 100vw;">
+        <header>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="logo-icon" style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary-color), var(--gradient-end)); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem;">🏥</div>
+                <h1 style="font-size: 1.5rem; font-weight: 700; margin: 0;">San Raffaele</h1>
+                <div class="header-title" id="page-title" style="margin-left: 1.5rem; padding-left: 1.5rem; border-left: 1px solid #e2e8f0;">Panoramica Pazienti</div>
+            </div>
+            
+            <div class="user-profile">
+                <div class="user-info">
+                    <span class="user-name">Dr. {{ client_name.capitalize() if client_name else 'Sconosciuto' }}</span>
+                    <span class="user-role">{{ client_role }}</span>
+                </div>
+                <div class="avatar">{{ client_name[0].upper() if client_name else '?' }}</div>
+            </div>
+        </header>
+
+        <div class="content-area">
+            
+            <!-- Loading -->
+            <div id="loading" class="loading-state">
+                <div class="spinner"></div>
+                <p>Verifica credenziali mTLS e policy Zero Trust in corso...</p>
+            </div>
+
+            <!-- Table Card -->
+            <div id="data-card" class="card">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="card-title">Database Pazienti</div>
+                    <div class="search-container" style="position:relative;">
+                        <input type="text" id="patient-search" placeholder="Cerca paziente per ID o Nome..." style="padding: 0.5rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; width: 300px; font-family: 'Inter', sans-serif;">
+                        <button onclick="handleSearch()" style="position:absolute; right:5px; top:5px; background:var(--primary-color); color:white; border:none; border-radius:4px; padding:0.25rem 0.5rem; cursor:pointer;">Cerca</button>
+                    </div>
+                </div>
+                <table id="patients-table">
+                    <thead>
+                        <tr>
+                            <th>Paziente</th>
+                            <th>Reparto</th>
+                            <th>Stato</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- Filled via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Error State -->
+            <div id="error-card" class="error-state">
+                <div class="error-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                </div>
+                <h2>403 Forbidden - Access Denied</h2>
+                <p>La risorsa richiesta è bloccata. La tua identità, il dispositivo o il contesto della richiesta non soddisfano le policy di sicurezza (Zero Trust Enforcement).</p>
+                <div class="error-details" id="error-details">
+                    <!-- Error injected here -->
+                </div>
+            </div>
+
+            <!-- Clinical Record Modal -->
+            <div id="clinical-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:100; justify-content:center; align-items:center;">
+                <div class="card" style="width:600px; max-width:90%; position:relative; display:block;">
+                    <div class="card-header" style="background:#f1f5f9; color:#0f172a; display:flex; justify-content:space-between; align-items:center;">
+                        <div class="card-title">Cartella Clinica Sensibile</div>
+                        <button onclick="document.getElementById('clinical-modal').style.display='none'" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#64748b;">&times;</button>
+                    </div>
+                    <div style="padding:1.5rem;" id="clinical-modal-content">
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Hidden Developer Console (Bypass Simulation) -->
+        <div id="dev-console" style="display:none; position:fixed; bottom:0; left:0; width:100%; height:300px; background:#0f172a; color:#10b981; font-family:monospace; z-index:999; border-top:2px solid #334155; padding:1rem; box-sizing:border-box; overflow-y:auto; box-shadow: 0 -10px 20px rgba(0,0,0,0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:0.5rem; margin-bottom:1rem;">
+                <strong style="color:#e2e8f0;">[ROOT@ZTA-CLIENT] ~ /dev/debug_console (UNAUTHORIZED ACCESS)</strong>
+                <button onclick="document.getElementById('dev-console').style.display='none'" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;">[X] CHIUDI</button>
+            </div>
+            <p style="color:#64748b; margin-bottom:0.5rem;"># Console di Debug. Inserisci un comando per testare la connettività di rete bypassando le rotte ufficiali.</p>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                <span style="color:#e2e8f0;">root@client:~#</span>
+                <input type="text" id="dev-cli-input" placeholder="es: curl http://backend-api:8000/api/patients" style="flex:1; background:transparent; border:none; color:#10b981; font-family:monospace; font-size:1rem; outline:none;" onkeypress="handleDevCli(event)">
+            </div>
+            <div id="dev-cli-output" style="margin-top:1rem; white-space:pre-wrap; color:#f8fafc; font-size: 0.9rem;"></div>
+        </div>
+    </main>
+
+    <script>
+        // Gestione UI della Sidebar
+        document.querySelectorAll('.nav-item:not(.danger)').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Gestione Ricerca Pazienti (Simulazione SQL Injection)
+        function handleSearch() {
+            const query = document.getElementById('patient-search').value.toUpperCase();
+            if (query.includes('DROP') || query.includes('DELETE') || query.includes(';')) {
+                // Simulazione SQL Injection -> invia una richiesta dannosa al backend
+                fetchData('/request/drop', 'Ricerca: ' + query, 'DELETE');
+            } else {
+                // Ricerca normale simulata (frontend-only)
+                alert("Nessun paziente trovato con questo criterio.");
+            }
+        }
+
+        // Segreto per attivare la console di debug nascosta (Ctrl + Shift + D)
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+                e.preventDefault();
+                const devConsole = document.getElementById('dev-console');
+                devConsole.style.display = devConsole.style.display === 'none' ? 'block' : 'none';
+                if (devConsole.style.display === 'block') {
+                    document.getElementById('dev-cli-input').focus();
+                }
+            }
+        });
+
+        // Gestione input nel Terminale Hacker (Simulazione Bypass L4)
+        function handleDevCli(e) {
+            if (e.key === 'Enter') {
+                const cmd = e.target.value.trim();
+                const outputDiv = document.getElementById('dev-cli-output');
+                outputDiv.innerHTML += `\n<span style="color:#64748b;">root@client:~# ${cmd}</span>\n`;
+                
+                if (cmd.startsWith('curl http://')) {
+                    outputDiv.innerHTML += `Tentativo di connessione diretta al backend bypassando il PEP (Envoy)...\n`;
+                    // Simuliamo la richiesta di bypass al backend
+                    fetch('/request/bypass')
+                        .then(async res => {
+                            const data = await res.json();
+                            if (!res.ok) {
+                                outputDiv.innerHTML += `<span style="color:#ef4444;">[ERRORE FIREWALL] ${data.detail || JSON.stringify(data)}</span>\n`;
+                            } else {
+                                outputDiv.innerHTML += `<span style="color:#10b981;">${JSON.stringify(data)}</span>\n`;
+                            }
+                            scrollToBottom();
+                        })
+                        .catch(err => {
+                            outputDiv.innerHTML += `<span style="color:#ef4444;">[ERRORE DI RETE] Impossibile raggiungere l'host di destinazione. Pacchetto scartato dal Firewall.</span>\n`;
+                            scrollToBottom();
+                        });
+                } else {
+                    outputDiv.innerHTML += `<span style="color:#ef4444;">bash: ${cmd.split(' ')[0]}: command not found (Prova con: curl http://backend-api:8000/api/patients)</span>\n`;
+                }
+                e.target.value = '';
+                scrollToBottom();
+            }
+        }
+
+        function scrollToBottom() {
+            const consoleDiv = document.getElementById('dev-console');
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        async function viewSensitive(patientName) {
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('data-card').style.display = 'none';
+            document.getElementById('error-card').style.display = 'none';
+            
+            try {
+                // Richiede le cartelle cliniche
+                const response = await fetch('/request/sensitive');
+                const status = response.status;
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (status === 200) {
+                    document.getElementById('data-card').style.display = 'block';
+                    const patient = data.data.find(p => p.name === patientName);
+                    if (patient) {
+                        const content = `
+                            <h3 style="margin-bottom: 1rem; color: var(--primary-color);">${patient.name}</h3>
+                            <div style="background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+                                <strong style="display:block; margin-bottom: 0.5rem;">Note Sensibili:</strong>
+                                <p style="color: #475569; line-height: 1.5;">${patient.sensitive_notes || 'Nessuna nota presente.'}</p>
+                            </div>
+                            <div style="background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+                                <strong style="display:block; margin-bottom: 0.5rem;">Piano di Trattamento:</strong>
+                                <p style="color: #475569; line-height: 1.5;">${patient.treatment || 'Nessun trattamento registrato.'}</p>
+                            </div>
+                        `;
+                        document.getElementById('clinical-modal-content').innerHTML = content;
+                        document.getElementById('clinical-modal').style.display = 'flex';
+                    } else {
+                        alert("Dati sensibili non trovati per questo paziente.");
+                    }
+                } else {
+                    showError(data.detail || JSON.stringify(data));
+                }
+            } catch (err) {
+                document.getElementById('loading').style.display = 'none';
+                showError("Impossibile contattare il server: " + err.message);
+            }
+        }
+
+        async function fetchData(endpoint, title, method = 'GET') {
+            document.getElementById('page-title').innerText = title;
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('data-card').style.display = 'none';
+            document.getElementById('error-card').style.display = 'none';
+
+            try {
+                const response = await fetch(endpoint, { method: method });
+                const status = response.status;
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (status === 200) {
+                    renderTable(data.data);
+                    document.getElementById('data-card').style.display = 'block';
+                } else {
+                    showError(data.detail || JSON.stringify(data));
+                }
+            } catch (err) {
+                document.getElementById('loading').style.display = 'none';
+                showError("Impossibile contattare il server: " + err.message);
+            }
+        }
+
+        function renderTable(patients) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            if (!patients || patients.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;">Nessun dato disponibile.</td></tr>';
+                return;
+            }
+
+            patients.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="patient-name">${p.name || 'Sconosciuto'}</span></td>
+                    <td><span class="badge">${p.ward || 'N/A'}</span></td>
+                    <td><span style="color:#10b981; font-weight:500;">Ricoverato</span></td>
+                    <td><button onclick="viewSensitive('${p.name}')" style="background-color: var(--primary-color); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500;">Vedi Cartella</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function showError(detail) {
+            document.getElementById('error-details').innerHTML = `<strong>Dettaglio Tecnico (OPA/Envoy):</strong><br><br>${detail}`;
+            document.getElementById('error-card').style.display = 'block';
+        }
+
+        // Carica dati di default all'avvio
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchData('/request/patients', 'Elenco Pazienti');
+        });
+    </script>
+</body>
+</html>

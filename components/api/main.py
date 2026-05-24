@@ -29,15 +29,27 @@ def get_db():
         return None
 
 @app.get("/api/patients")
-def get_patients(request: Request):
-    """ Restituisce i dati base dei pazienti """
-    logger.info("Richiesta ricevuta per /api/patients")
+async def get_patients(request: Request):
+    """
+    Ritorna la lista dei pazienti (dati di base).
+    Accessibile da 'legit' o 'suspect' se il TPM è valido.
+    """
+    logger.info("Richiesta a /api/patients accettata. Recupero dati da MongoDB...")
     db = get_db()
     if db is None:
         raise HTTPException(status_code=503, detail="Database irraggiungibile")
-    
     patients = list(db.patients.find({}, {"name": 1, "ward": 1, "_id": 0}))
     return {"status": "success", "data": patients}
+
+@app.post("/api/auth")
+async def authenticate(request: Request):
+    """
+    Endpoint di test per il login.
+    Non esegue vera logica perché Envoy e OPA fanno l'autorizzazione a monte basata su mTLS.
+    Se OPA blocca, questa funzione non viene nemmeno raggiunta.
+    """
+    logger.info("Richiesta di login passata attraverso Envoy/OPA con successo.")
+    return {"status": "success", "message": "Autenticazione Zero Trust completata."}
 
 @app.get("/api/patients/sensitive")
 def get_sensitive_data(request: Request):
@@ -47,7 +59,7 @@ def get_sensitive_data(request: Request):
     if db is None:
         raise HTTPException(status_code=503, detail="Database irraggiungibile")
     
-    sensitive_data = list(db.patients.find({}, {"name": 1, "sensitive_notes": 1, "_id": 0}))
+    sensitive_data = list(db.patients.find({}, {"name": 1, "sensitive_notes": 1, "treatment": 1, "_id": 0}))
     return {"status": "success", "data": sensitive_data}
 
 @app.delete("/api/patients")

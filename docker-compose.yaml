@@ -131,7 +131,7 @@ services:
     container_name: zta-client-alice
     environment:
       - CLIENT_NAME=alice
-      - CLIENT_ROLE=medico
+      - CLIENT_ROLE=legit
     ports:
       - "8081:8000"
     volumes:

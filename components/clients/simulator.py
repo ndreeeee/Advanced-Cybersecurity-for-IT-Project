@@ -1,44 +1,60 @@
 import os
 import logging
 import requests
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Body
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(message)s')
 logger = logging.getLogger("ZTA-Client-UI")
 
 app = FastAPI(title="ZTA Client Interfaccia")
 
-# Setup template Jinja2
+# Setup static and templates
+app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # Parametri dall'ambiente
 CLIENT_NAME = os.getenv("CLIENT_NAME", "unknown")
 CLIENT_ROLE = os.getenv("CLIENT_ROLE", "legit")
-ENVOY_HOST = "zta-firewall" # Passiamo prima dal firewall che fa da reverse proxy verso Envoy, quindi usiamo il nome del servizio del firewall
-ENVOY_PORT = 8443  # Nuovo listener HTTP di Envoy protetto da mTLS
+ENVOY_HOST = "zta-firewall" # Passiamo prima dal firewall
+ENVOY_PORT = 8443
 
-# Percorsi dei certificati mTLS caricati a volume
+# Percorsi dei certificati mTLS
 CA_CERT = "/etc/certs/ca.crt"
 client_id = CLIENT_NAME.replace('employee-', '')
 CLIENT_CERT = f"/etc/certs/{client_id}.crt"
 CLIENT_KEY = f"/etc/certs/{client_id}.key"
 COMBINED_PEM = f"/etc/certs/{client_id}_combined.pem"
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 @app.get("/", response_class=HTMLResponse)
-def get_dashboard(request: Request):
-    """ Restituisce l'interfaccia grafica HTML """
+def get_login(request: Request):
+    """ Mostra la pagina di login """
     return templates.TemplateResponse(
         request, 
-        "index.html", 
+        "login.html", 
+        {"client_name": client_id}
+    )
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def get_dashboard(request: Request):
+    """ Mostra il portale medico dopo il login """
+    return templates.TemplateResponse(
+        request, 
+        "dashboard.html", 
         {
             "client_name": client_id,
             "client_role": CLIENT_ROLE
         }
     )
 
-def make_mtls_request(method: str, endpoint: str):
+def make_mtls_request(method: str, endpoint: str, json_data=None):
     url = f"https://{ENVOY_HOST}:{ENVOY_PORT}{endpoint}"
     logger.info(f"Effettuo richiesta mTLS {method} a: {url}")
     
@@ -62,6 +78,7 @@ def make_mtls_request(method: str, endpoint: str):
             url=url,
             cert=cert,
             verify=False,  # Ignoriamo il controllo CN del server per semplicità di sviluppo locale
+            json=json_data,
             timeout=45.0
         )
         
@@ -74,7 +91,7 @@ def make_mtls_request(method: str, endpoint: str):
         if response.status_code in (200, 201):
             return response.json()
         elif response.status_code == 403:
-            raise HTTPException(status_code=403, detail="Accesso Negato dalla Policy OPA del PEP")
+            raise HTTPException(status_code=403, detail="Accesso Negato: Dispositivo non autorizzato (TPM mancante o policy violata).")
         else:
             # Altri errori inoltrati
             try:
@@ -91,6 +108,20 @@ def make_mtls_request(method: str, endpoint: str):
             raise e
         logger.error(f"Errore generico durante richiesta mTLS: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/login")
+def login(login_req: LoginRequest):
+    """ Tenta il login inoltrando le credenziali al backend tramite mTLS """
+    logger.info(f"Tentativo di login per l'utente: {login_req.username}")
+    
+    # Solo a scopo dimostrativo: controllo formale delle credenziali corrette
+    # Se le credenziali sono sbagliate a livello applicativo (non Zero Trust), ci fermiamo subito.
+    if login_req.username != "alice" or login_req.password != "password123":
+        raise HTTPException(status_code=401, detail="Credenziali errate. Riprovare.")
+        
+    # Se le credenziali "tradizionali" sono corrette, verifichiamo la policy Zero Trust!
+    # Facciamo una chiamata al backend protetto tramite Envoy
+    return make_mtls_request("POST", "/api/auth", json_data={"username": login_req.username})
 
 @app.get("/request/patients")
 def request_patients():

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Portale Medico ZTA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/login.css">
+</head>
+<body>
+
+    <div class="login-container">
+        <div class="logo-area">
+            <div class="logo-icon">🏥</div>
+            <div class="logo-text">
+                <h1>San Raffaele</h1>
+                <p>Portale Medici - Accesso Protetto</p>
+            </div>
+        </div>
+
+        <form id="login-form">
+            <div class="form-group">
+                <label for="username">Username Identificativo (Badge)</label>
+                <input type="text" id="username" class="form-control" placeholder="es. alice.medico" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Codice PIN / Password</label>
+                <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="btn-login" id="submit-btn">Accedi al Portale</button>
+        </form>
+
+        <div id="error-message" class="error-message">
+            <strong>Accesso Negato</strong><br>
+            <span id="error-text">Credenziali non valide o dispositivo non autorizzato.</span>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const errorDiv = document.getElementById('error-message');
+            const errorText = document.getElementById('error-text');
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            btn.innerHTML = `<style>@keyframes spin { 100% { transform: rotate(360deg); } }</style><svg style="animation: spin 1s linear infinite; width: 1.2rem; height: 1.2rem; vertical-align: middle; margin-right: 0.5rem;" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Negoziazione TLS in corso...`;
+            btn.disabled = true;
+            errorDiv.classList.remove('visible');
+            
+            try {
+                // Invia la richiesta al proxy python locale che farà l'mTLS verso Envoy
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/dashboard';
+                } else if (response.status === 403) {
+                    // Sostituisci l'intero contenuto della pagina con un errore di blocco 403 nativo
+                    document.body.innerHTML = `
+                        <div style="height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #f8fafc; color: #0f172a; font-family: 'Inter', sans-serif; text-align: center; padding: 2rem;">
+                            <svg width="80" height="80" fill="none" stroke="#ef4444" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom: 1rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem; font-weight: 700;">403 Forbidden</h1>
+                            <h2 style="font-size: 1.25rem; color: #475569; margin-bottom: 1.5rem; font-weight: 400;">Access Denied (Zero Trust Policy Enforcement)</h2>
+                            <p style="max-width: 600px; color: #64748b; line-height: 1.6; margin-bottom: 2rem;">
+                                La richiesta di autenticazione è stata bloccata a livello di proxy (Envoy). <br><br>
+                                <strong>Dettaglio Errore:</strong> Impossibile verificare l'identità hardware del dispositivo client. Modulo crittografico TPM non rilevato o firma non corrispondente alle policy aziendali.
+                            </p>
+                            <button onclick="window.location.reload()" style="background-color: #0f172a; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: 'Inter', sans-serif;">Torna alla Home</button>
+                        </div>
+                    `;
+                } else {
+                    const data = await response.json();
+                    errorText.innerText = data.detail || "Errore 500: Internal Server Error";
+                    errorDiv.classList.add('visible');
+                    btn.textContent = 'Accedi al Portale';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                errorText.innerText = "Errore 503: Service Unavailable. Impossibile contattare il server.";
+                errorDiv.classList.add('visible');
+                btn.textContent = 'Accedi al Portale';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
