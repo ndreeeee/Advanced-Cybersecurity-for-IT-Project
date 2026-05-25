@@ -167,7 +167,23 @@ static_resources:
                       value: "%TLS_JA3_FINGERPRINT%"
                     append_action: OVERWRITE_IF_EXISTS_OR_ADD
 
-
+          # MODULO B: L7 Firewall in Lua (Azione 2b)
+          # Ispeziona il payload/metodo HTTP prima che la richiesta sia inoltrata al DB o a OPA.
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              inline_code: |
+                function envoy_on_request(request_handle)
+                  local path = request_handle:headers():get(":path")
+                  local method = request_handle:headers():get(":method")
+                  
+                  -- L7 DPI Firewall Rules
+                  if path == "/api/patients/sensitive" then
+                    request_handle:respond({[":status"] = "403"}, '{"error": "L7 Firewall Block: Access to sensitive notes forbidden"}')
+                  elseif method == "DELETE" and string.match(path, "^/api/patients") then
+                    request_handle:respond({[":status"] = "403"}, '{"error": "L7 Firewall Block: Destructive operations (DROP) are forbidden"}')
+                  end
+                end
 
           # MODULO C: External Authorization (L7 Ext-Authz HTTP Filter)
           # Interrompe la catena HTTP e invia i dettagli della richiesta HTTP (path, headers, cert, body)
