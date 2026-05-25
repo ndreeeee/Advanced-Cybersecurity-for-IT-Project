@@ -63,12 +63,24 @@ network_ip := input.attributes.request.http.headers["x-forwarded-for"] if {
 # E. RISORSA
 default resource := "Risorsa Non Definita"
 resource := input.attributes.request.http.path if { is_http }
-resource := "MongoDB / pazienti" if { is_mongo }
+resource := input.attributes.metadataContext.filterMetadata["envoy.filters.network.mongo_proxy"]["collection"] if {
+    is_mongo
+    input.attributes.metadataContext.filterMetadata["envoy.filters.network.mongo_proxy"]["collection"]
+} else := "MongoDB (Collezione sconosciuta)" if { is_mongo }
 
-# F. COMANDO
+# F. COMANDO E QUERY (DPI)
 default command := "Operazione Non Definita"
 command := input.attributes.request.http.method if { is_http }
-command := "Query Database" if { is_mongo }
+command := input.attributes.metadataContext.filterMetadata["envoy.filters.network.mongo_proxy"]["operation"] if {
+    is_mongo
+    input.attributes.metadataContext.filterMetadata["envoy.filters.network.mongo_proxy"]["operation"]
+} else := "Comando MongoDB sconosciuto" if { is_mongo }
+
+# Estrazione Query per L7 DPI (se presente)
+default db_query := ""
+db_query := input.attributes.metadataContext.filterMetadata["envoy.filters.network.mongo_proxy"]["query"] if {
+    is_mongo
+}
 
 
 # ================================================================
@@ -108,33 +120,60 @@ is_internal_network := true if {
     net.cidr_contains("10.0.1.0/24", network_ip)
 }
 
-# La regola di autorizzazione adattiva:
-# - Se la rete è INTERNA, tolleranza rischio <= 50
-# - Se la rete è ESTERNA, tolleranza rischio <= 10
+# L7 DPI: Regole di blocco esplicite (equivalenti allo script Lua)
+default l7_dpi_block := false
+l7_dpi_block := true if {
+    # Blocca query sensibili
+    contains(lower(db_query), "sensitive_notes")
+} else := true if {
+    # Blocca distruzione dati
+    contains(lower(db_query), "dropdatabase")
+} else := true if {
+    contains(lower(db_query), "deleteall")
+}
+
+# La regola di autorizzazione adattiva (Risk-Based & JA3 Fallback)
+# - Se la rete è INTERNA:
+#   - Con TPM: tolleranza rischio <= 50
+#   - Senza TPM (solo JA3): tolleranza rischio <= 30 (più restrittivo)
+# - Se la rete è ESTERNA:
+#   - Con TPM: tolleranza rischio <= 10
+#   - Senza TPM: accesso sempre negato (troppo rischioso da fuori senza hardware)
+
 risk_ok := true if {
     is_internal_network
+    is_tpm
     splunk_risk_score <= 50
 } else := true if {
+    is_internal_network
+    not is_tpm
+    software != "Sconosciuto"
+    splunk_risk_score <= 30
+} else := true if {
     not is_internal_network
+    is_tpm
     splunk_risk_score <= 10
 } else := false
 
 allow := true if {
     # CONDIZIONI DI ACCESSO
     risk_ok
-    is_tpm
+    not l7_dpi_block
     
     # 3. Log di SUCCESSO strutturato in JSON per Splunk
     print("[OPA-PDP]", json.marshal({
         "Decision": "ALLOW",
         "risk_score": splunk_risk_score,
+        "tpm_present": is_tpm,
+        "l7_dpi_block": l7_dpi_block,
         "user": user,
         "software": software,
         "device": device,
         "network_ip": network_ip,
         "network_internal": is_internal_network,
         "resource": resource,
-        "command": command
+        "command": command,
+        "query": db_query
     }))
 } else := false if {
     # Log di BLOCCO strutturato in JSON per Splunk
@@ -143,6 +182,7 @@ allow := true if {
         "risk_score": splunk_risk_score,
         "tpm_present": is_tpm,
         "risk_ok": risk_ok,
+        "l7_dpi_block": l7_dpi_block,
         "network_internal": is_internal_network,
         "user": user,
         "software": software,
