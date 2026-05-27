@@ -9,7 +9,7 @@ Questo documento spiega nel dettaglio il funzionamento della nostra infrastruttu
 L'infrastruttura è segregata in quattro reti Docker distinte, separate da regole firewall rigorose implementate con **NFTables** e monitorate passivamente da **Snort (NIDS)**.
 
 ```mermaid
-graph TD
+graph LR
     %% Styling Moderno dei Nodi (Angoli arrotondati, bordi marcati, palette Flat)
     classDef default fill:#f9fcfb,stroke:#a3b1c6,stroke-width:2px,color:#2d3436,rx:12,ry:12;
     classDef client fill:#ffffff,stroke:#2196f3,stroke-width:2px,color:#0d47a1,rx:12,ry:12;
@@ -63,8 +63,12 @@ graph TD
 
     PEP == "Inoltro (TCP)" ==> MongoDB
     PEP == "Inoltro (HTTP)" ==> WebAPI
-    
-    Splunk -. "Riceve Logs" .- FluentBit
+    %% Flussi di Logging
+    FW -. "Logs Firewall" .-> FluentBit
+    PEP -. "Logs Accessi" .-> FluentBit
+    MongoDB -. "Logs Query" .-> FluentBit
+    Snort -. "Allarmi NIDS" .-> FluentBit
+    FluentBit -. "Inoltro Aggregato" .-> Splunk
 ```
 
 ## Spiegazione dell'Architettura a Zone
