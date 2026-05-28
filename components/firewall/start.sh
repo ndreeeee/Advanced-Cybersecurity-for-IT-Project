@@ -4,6 +4,8 @@
 # =============================================================
 
 set -e
+# Avvia un processo in background che legge i log del kernel e li salva nel volume
+dmesg -w | grep --line-buffered "NFT-BLOCK" >> /var/log/nftables/firewall.log &
 echo "[FW] Inizializzazione Firewall Zero Trust..."
 
 # --- 1. IP Forwarding ---
@@ -25,12 +27,28 @@ echo "[FW] Configurazione regole NFTables..."
 nft flush ruleset
 nft add table ip filter
 nft add chain ip filter input { type filter hook input priority 0 \; policy accept \; }
+# Crea il set per i ban dinamici della Management API
+nft add set ip filter denylist { type ipv4_addr \; }
 nft add chain ip filter forward { type filter hook forward priority 0 \; policy accept \; }
 
 # --- 4. LA MAGIA: Il Port Forwarding (DNAT) verso Envoy ---
 nft add table ip nat
 nft add chain ip nat prerouting { type nat hook prerouting priority -100 \; }
 nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
+
+# 4.1 Inoltra tutto il traffico TCP legittimo sulla porta 8443 verso Envoy
+nft add rule ip nat prerouting tcp dport 8443 counter dnat to $ENVOY_IP:8443
+
+# SNAT (Masquerade) per il traffico legittimo
+nft add rule ip nat postrouting ip daddr $ENVOY_IP tcp dport 8443 counter masquerade
+echo "[FW] Port Forwarding L4 attivato con successo (Porta 8443)."
+
+# 4.2 LA TRAPPOLA: Log e Drop di tutto il traffico che cerca di aggirare Envoy (es. porta 8000)
+echo "[FW] Configurazione Logging e Blocco per porte non autorizzate..."
+# Prima scriviamo nel log del Kernel (con prefisso "[NFT-BLOCK] ")
+nft add rule ip nat prerouting tcp dport 8000 log prefix \"[NFT-BLOCK] \" counter
+# Poi droppiamo istantaneamente il pacchetto
+nft add rule ip nat prerouting tcp dport 8000 drop
 
 # Inoltra tutto il traffico TCP in arrivo sulla porta 8443 verso Envoy (che decifrerà l'mTLS) - CONTATORI ATTIVI
 nft add rule ip nat prerouting tcp dport 8443 counter dnat to $ENVOY_IP:8443
