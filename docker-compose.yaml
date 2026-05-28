@@ -25,6 +25,7 @@ services:
     container_name: zta-firewall
     cap_add:
       - NET_ADMIN
+      - SYSLOG
     volumes:
       - nftables_logs:/var/log/nftables
     depends_on:

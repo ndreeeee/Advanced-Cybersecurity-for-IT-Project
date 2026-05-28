@@ -4,8 +4,9 @@
 # =============================================================
 
 set -e
-# Avvia un processo in background che legge i log del kernel e li salva nel volume
-dmesg -w | grep --line-buffered "NFT-BLOCK" >> /var/log/nftables/firewall.log &
+# Configura e avvia ulogd2 in background per i log di rete
+sed -i 's|file="/var/log/ulog/syslogemu.log"|file="/var/log/nftables/firewall.log"|g' /etc/ulogd.conf
+ulogd -d
 echo "[FW] Inizializzazione Firewall Zero Trust..."
 
 # --- 1. IP Forwarding ---
@@ -30,6 +31,9 @@ nft add chain ip filter input { type filter hook input priority 0 \; policy acce
 # Crea il set per i ban dinamici della Management API
 nft add set ip filter denylist { type ipv4_addr \; }
 nft add chain ip filter forward { type filter hook forward priority 0 \; policy accept \; }
+# Regole di DROP per gli IP bannati dalla Management API
+nft add rule ip filter forward ip saddr @denylist counter drop
+nft add rule ip filter input ip saddr @denylist counter drop
 
 # --- 4. LA MAGIA: Il Port Forwarding (DNAT) verso Envoy ---
 nft add table ip nat
@@ -45,17 +49,11 @@ echo "[FW] Port Forwarding L4 attivato con successo (Porta 8443)."
 
 # 4.2 LA TRAPPOLA: Log e Drop di tutto il traffico che cerca di aggirare Envoy (es. porta 8000)
 echo "[FW] Configurazione Logging e Blocco per porte non autorizzate..."
-# Prima scriviamo nel log del Kernel (con prefisso "[NFT-BLOCK] ")
-nft add rule ip nat prerouting tcp dport 8000 log prefix \"[NFT-BLOCK] \" counter
+# Prima inviamo il log a ulogd2 (group 0)
+nft add rule ip nat prerouting tcp dport 8000 log group 0 prefix \"[NFT-BLOCK] \" counter
 # Poi droppiamo istantaneamente il pacchetto
 nft add rule ip nat prerouting tcp dport 8000 drop
 
-# Inoltra tutto il traffico TCP in arrivo sulla porta 8443 verso Envoy (che decifrerà l'mTLS) - CONTATORI ATTIVI
-nft add rule ip nat prerouting tcp dport 8443 counter dnat to $ENVOY_IP:8443
-
-# SNAT (Masquerade) per fare in modo che Envoy risponda al Firewall, e il Firewall ad Alice - CONTATORI ATTIVI
-nft add rule ip nat postrouting ip daddr $ENVOY_IP tcp dport 8443 counter masquerade
-echo "[FW] Port Forwarding L4 attivato con successo (Porta 8443)."
 
 # --- 5. Avvio dell'API di Management ---
 echo "[FW] Avvio della Management API (Porta 80)..."
