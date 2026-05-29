@@ -6,6 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Via rsyslog! Installiamo solo ciò che serve alla rete e all'API
 RUN apt-get update && apt-get install -y \
     nftables \
+    ulogd2 \
     python3 \
     python3-pip \
     iproute2 \

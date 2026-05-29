@@ -69,11 +69,11 @@ static_resources:
               log_format:
                 json_format:
                   user_u: "%DOWNSTREAM_PEER_SUBJECT%"
-                  fingerprint_s: "%DOWNSTREAM_PEER_CERT_V_END%"
+                  fingerprint_s: "%DOWNSTREAM_TLS_SESSION_ID%"
                   device_d: "%DOWNSTREAM_PEER_URI_SAN%"
                   network_n: "%DOWNSTREAM_REMOTE_ADDRESS%"
                   db_operation_a: "%DYNAMIC_METADATA(envoy.filters.network.mongo_proxy)%"
-                  db_resource_r: "Extracted_from_dynamic_metadata"
+                  db_resource_r: "%DYNAMIC_METADATA(envoy.filters.network.mongo_proxy:collection)%"
       
       # Configurazione TLS per il Listener MongoDB (Abilita mTLS obbligatorio)
       transport_socket:
@@ -130,6 +130,11 @@ static_resources:
                   response_code: "%RESPONSE_CODE%"
                   duration_ms: "%DURATION%"
                   client_ip: "%DOWNSTREAM_REMOTE_ADDRESS%"
+                  user_identity: "%DOWNSTREAM_PEER_SUBJECT%"
+                  ja3_fingerprint: "%DOWNSTREAM_TLS_SESSION_ID%"
+                  device_uri_san: "%DOWNSTREAM_PEER_URI_SAN%"
+                  upstream_host: "%UPSTREAM_HOST%"
+                  authz_status: "%DYNAMIC_METADATA(envoy.filters.http.ext_authz:ext_authz_status)%"
           
           # Configurazione delle Rotte HTTP
           route_config:

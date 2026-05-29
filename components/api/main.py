@@ -221,21 +221,36 @@ def predict_risk(ml_query: MLQuery):
     splunk_password = os.getenv("SPLUNK_PASSWORD", "changeme")
     auth = (splunk_user, splunk_password)
     
-    # Mappatura dei valori reali ZTA ai valori del dataset di addestramento Splunk MLTK
-    # L'algoritmo genera un errore FATAL se riceve categorie non viste in fase di fit
+    # Mappatura dei valori reali ZTA ai valori del dataset di addestramento Splunk MLTK.
+    # Centralizzata in un dizionario per facilitare la manutenzione.
+    # L'algoritmo genera un errore FATAL se riceve categorie non viste in fase di fit.
+    ZTA_TO_MLTK_MAP = {
+        # Utenti
+        'user="alice"':    'user="alice.medico"',
+        'user="bob"':      'user="mario.rossi"',
+        'user="charlie"':  'user="luigi.verdi"',
+        # Software (JA3 hash → etichetta training)
+        'software="86dab2109182b6bbaa644647d7db2997"': 'software="chrome_115"',
+        # Dispositivi
+        'device="Workstation Ospedaliera Sicura (TPM Validato)"': 'device="tpm_enclave_88"',
+        'device="Dispositivo non censito (No TPM)"':              'device="missing_tpm"',
+        # Rete (subnet Docker → etichetta training)
+        'network="10.0.1.':  'network="10.0.0.',       # Rete interna (prefix match)
+        'network="192.168.100.': 'network="1.2.3.',     # Rete esterna (prefix match)
+        'network="172.18.0.5"': 'network="10.0.0.15"',  # Supporto per rete locale Docker
+        'network="172.18.0.6"': 'network="1.2.3.4"',     # Supporto per rete locale Docker
+        # Azioni
+        'action="GET"':    'action="find"',
+        'action="POST"':   'action="insert"',
+        'action="DELETE"': 'action="drop"',
+        # Risorse
+        'resource="/api/patients/sensitive"': 'resource="cartelle_cliniche"',
+        'resource="/api/patients"':          'resource="pazienti"',
+        'resource="/api/drop"':              'resource="config_db"',
+    }
     q = ml_query.query
-    q = q.replace('user="alice"', 'user="alice.medico"')
-    q = q.replace('user="bob"', 'user="mario.rossi"')
-    q = q.replace('software="86dab2109182b6bbaa644647d7db2997"', 'software="chrome_115"')
-    q = q.replace('device="Workstation Ospedaliera Sicura (TPM Validato)"', 'device="tpm_enclave_88"')
-    q = q.replace('device="Dispositivo non censito (No TPM)"', 'device="missing_tpm"')
-    q = q.replace('network="172.18.0.5"', 'network="10.0.0.15"') 
-    q = q.replace('network="172.18.0.6"', 'network="1.2.3.4"') 
-    q = q.replace('action="GET"', 'action="find"')
-    q = q.replace('action="DELETE"', 'action="drop"')
-    q = q.replace('resource="/api/patients"', 'resource="pazienti"')
-    q = q.replace('resource="/api/patients/sensitive"', 'resource="cartelle_cliniche"')
-    q = q.replace('resource="/api/drop"', 'resource="config_db"')
+    for original, replacement in ZTA_TO_MLTK_MAP.items():
+        q = q.replace(original, replacement)
     
     # ================================================================
     # ARRICCHIMENTO COMPORTAMENTALE:
