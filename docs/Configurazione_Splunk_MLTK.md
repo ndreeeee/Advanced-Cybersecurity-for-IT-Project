@@ -26,25 +26,42 @@ Per verificare che venga letto correttamente, vai in **Search & Reporting** ed e
 ```spl
 | inputlookup simulated_traffic.csv
 ```
-Dovresti visualizzare la tabella con i 10.000 record di traffico simulato.
+Dovresti visualizzare la tabella con i 10.000 record di traffico simulato contenenti **13 colonne**:
+- **6 Dimensioni ZTA:** `user`, `software`, `device`, `network`, `action`, `resource`
+- **6 Feature Comportamentali:** `failed_logins`, `hour_of_day`, `is_night`, `session_freq`, `sensitivity_level`, `days_inactive`
+- **Target:** `rischio` (calcolato deterministicamente tramite somma pesata dei fattori di rischio)
 
 ---
 
 ## 3. Addestramento del Trust Model (La Query)
-Ora bisogna "insegnare" a Splunk come valutare il rischio basandosi sulle 6 dimensioni del progetto Zero Trust.
+Ora bisogna "insegnare" a Splunk come valutare il rischio basandosi sulle 6 dimensioni ZTA del progetto **più** le 6 feature comportamentali aggiuntive per la *Continuous Evaluation*.
 
 Esegui questa query esatta:
 ```spl
 | inputlookup simulated_traffic.csv
-| fit RandomForestRegressor "rischio" from user, software, device, network, action, resource into trust_model
+| fit GradientBoostingRegressor "rischio" from user, software, device, network, action, resource, failed_logins, hour_of_day, is_night, session_freq, sensitivity_level, days_inactive into trust_model
 ```
 
 **Cosa fa questa query:**
-- Addestra un algoritmo *RandomForest* a prevedere il valore della colonna "rischio".
+- Addestra un algoritmo *Gradient Boosting* a prevedere il valore della colonna "rischio" utilizzando 12 feature (6 identitarie + 6 comportamentali).
+- Il *GradientBoostingRegressor* è stato scelto al posto del *RandomForestRegressor* perché gestisce in modo superiore le interazioni tra feature categoriche (es. user, device) e numeriche continue (es. `failed_logins`, `session_freq`), catturando pattern complessi come "utente interno + 3 login falliti + orario notturno → rischio altissimo".
 - Salva in automatico il modello matematico all'interno di Splunk chiamandolo `trust_model`.
 - Aggiunge una colonna a schermo `predicted(rischio)` per permetterti di valutare subito la precisione delle predizioni.
 
+**Le 6 feature comportamentali e il loro significato:**
+
+| Feature | Tipo | Significato ZTA |
+|---|---|---|
+| `failed_logins` | int (0-10) | Tentativi di autenticazione falliti nelle ultime 24h |
+| `hour_of_day` | int (0-23) | Ora della richiesta |
+| `is_night` | bool (0/1) | Accesso in orario notturno (22:00-06:00) |
+| `session_freq` | int (1-50) | Sessioni dell'utente nell'ultima ora |
+| `sensitivity_level` | int (1-3) | Sensibilità della risorsa (1=bassa, 3=alta) |
+| `days_inactive` | int (0-365) | Giorni dall'ultima autenticazione riuscita |
+
 Da questo esatto momento, il motore ML è attivo e pronto a ricevere le richieste in tempo reale da OPA!
+
+> **Nota:** Le feature comportamentali vengono calcolate e iniettate in tempo reale dal proxy Web-API (`main.py`) prima di inoltrare la query a Splunk. OPA e `rules.rego` restano invariati e continuano a inviare le 6 dimensioni ZTA originali.
 
 ---
 

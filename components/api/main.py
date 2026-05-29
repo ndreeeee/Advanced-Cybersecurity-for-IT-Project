@@ -1,5 +1,9 @@
 import os
+import re
+import time
 import logging
+from datetime import datetime
+from collections import defaultdict
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
@@ -19,6 +23,130 @@ app.add_middleware(
 )
 
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongodb-resource:27017/")
+
+# ================================================================
+# TRACKER COMPORTAMENTALI IN-MEMORY (per feature ML)
+# ================================================================
+# Ogni entry è una lista di timestamp. Le liste vengono ripulite
+# automaticamente ad ogni accesso (TTL-based eviction).
+
+# Tracker dei login falliti per utente (finestra: 24 ore)
+# Un "login fallito" corrisponde a una predizione il cui risk score
+# finale supera la soglia massima di OPA (50), indicando che la
+# richiesta è stata quasi certamente respinta con DENY.
+failed_login_tracker: dict[str, list[float]] = defaultdict(list)
+FAILED_LOGIN_WINDOW = 86400  # 24 ore in secondi
+
+# Tracker della frequenza di sessione per utente (finestra: 1 ora)
+session_tracker: dict[str, list[float]] = defaultdict(list)
+SESSION_FREQ_WINDOW = 3600  # 1 ora in secondi
+
+# Mappa delle risorse ai livelli di sensibilità (coerente col dataset)
+RESOURCE_SENSITIVITY = {
+    "pazienti": 2,
+    "utenti": 1,
+    "cartelle_cliniche": 3,
+    "system_logs": 2,
+    "config_db": 3,
+}
+
+
+def _cleanup_tracker(tracker: list[float], window: float) -> list[float]:
+    """Rimuove le entry più vecchie della finestra temporale."""
+    cutoff = time.time() - window
+    return [t for t in tracker if t > cutoff]
+
+
+def get_failed_logins(user: str) -> int:
+    """Ritorna il numero di login falliti per l'utente nelle ultime 24h."""
+    failed_login_tracker[user] = _cleanup_tracker(
+        failed_login_tracker[user], FAILED_LOGIN_WINDOW
+    )
+    return len(failed_login_tracker[user])
+
+
+def record_failed_login(user: str):
+    """Registra un login fallito (chiamato quando il risk score è alto)."""
+    failed_login_tracker[user].append(time.time())
+    logger.info(f"[TRACKER] Login fallito registrato per '{user}'. "
+                f"Totale ultime 24h: {len(failed_login_tracker[user])}")
+
+
+def get_session_freq(user: str) -> int:
+    """Ritorna il numero di sessioni dell'utente nell'ultima ora."""
+    session_tracker[user] = _cleanup_tracker(
+        session_tracker[user], SESSION_FREQ_WINDOW
+    )
+    return len(session_tracker[user])
+
+
+def record_session(user: str):
+    """Registra una sessione (ogni richiesta ML conta come sessione)."""
+    session_tracker[user].append(time.time())
+
+
+def get_sensitivity_level(resource: str) -> int:
+    """Ritorna il livello di sensibilità della risorsa (1-3)."""
+    return RESOURCE_SENSITIVITY.get(resource, 1)
+
+
+def extract_user_from_spl(query: str) -> str:
+    """Estrae il valore del campo user dalla query SPL."""
+    match = re.search(r'user="([^"]+)"', query)
+    return match.group(1) if match else "unknown"
+
+
+def extract_resource_from_spl(query: str) -> str:
+    """Estrae il valore del campo resource dalla query SPL."""
+    match = re.search(r'resource="([^"]+)"', query)
+    return match.group(1) if match else "unknown"
+
+
+def enrich_spl_with_behavioral_features(query: str) -> str:
+    """
+    Arricchisce la query SPL generata da OPA con le 6 feature comportamentali.
+
+    OPA genera una query con le 6 dimensioni ZTA originali:
+      | makeresults | eval user="...", software="...", ... | apply trust_model | ...
+
+    Questa funzione inietta le feature aggiuntive nell'eval, prima dell'apply:
+      | makeresults | eval user="...", ..., failed_logins=X, hour_of_day=Y, ... | apply trust_model | ...
+
+    In questo modo OPA e rules.rego restano completamente invariati.
+    """
+    user = extract_user_from_spl(query)
+    resource = extract_resource_from_spl(query)
+
+    # Registra la sessione corrente
+    record_session(user)
+
+    # Calcola le feature comportamentali in tempo reale
+    now = datetime.now()
+    hour_of_day = now.hour
+    is_night = 1 if (hour_of_day >= 22 or hour_of_day < 6) else 0
+    failed_logins = get_failed_logins(user)
+    session_freq = get_session_freq(user)
+    sensitivity_level = get_sensitivity_level(resource)
+    days_inactive = 0  # Default per demo (in produzione: query Splunk per ultimo ALLOW)
+
+    # Costruisci la stringa con le feature aggiuntive
+    behavioral_features = (
+        f', failed_logins={failed_logins}'
+        f', hour_of_day={hour_of_day}'
+        f', is_night={is_night}'
+        f', session_freq={session_freq}'
+        f', sensitivity_level={sensitivity_level}'
+        f', days_inactive={days_inactive}'
+    )
+
+    # Inietta le feature prima del comando '| apply'
+    enriched = query.replace('| apply ', f'{behavioral_features} | apply ')
+
+    logger.info(f"[ENRICH] Feature comportamentali iniettate per user='{user}': "
+                f"failed_logins={failed_logins}, hour={hour_of_day}, night={is_night}, "
+                f"freq={session_freq}, sens={sensitivity_level}, inactive={days_inactive}")
+
+    return enriched
 
 def get_db():
     try:
@@ -94,7 +222,7 @@ def predict_risk(ml_query: MLQuery):
     auth = (splunk_user, splunk_password)
     
     # Mappatura dei valori reali ZTA ai valori del dataset di addestramento Splunk MLTK
-    # L'algoritmo RandomForestRegressor genera un errore FATAL se riceve categorie non viste in fase di fit
+    # L'algoritmo genera un errore FATAL se riceve categorie non viste in fase di fit
     q = ml_query.query
     q = q.replace('user="alice"', 'user="alice.medico"')
     q = q.replace('user="bob"', 'user="mario.rossi"')
@@ -109,7 +237,14 @@ def predict_risk(ml_query: MLQuery):
     q = q.replace('resource="/api/patients/sensitive"', 'resource="cartelle_cliniche"')
     q = q.replace('resource="/api/drop"', 'resource="config_db"')
     
-    logger.info(f"Query ML Mappata: {q}")
+    # ================================================================
+    # ARRICCHIMENTO COMPORTAMENTALE:
+    # Inietta le 6 feature aggiuntive nella query SPL prima di inviarla
+    # a Splunk. OPA e rules.rego restano completamente invariati.
+    # ================================================================
+    q = enrich_spl_with_behavioral_features(q)
+    
+    logger.info(f"Query ML Arricchita: {q}")
     
     data = {
         "search": q,
@@ -129,7 +264,15 @@ def predict_risk(ml_query: MLQuery):
             if line:
                 res_obj = json.loads(line)
                 if "result" in res_obj and "rischio" in res_obj["result"]:
-                    return {"rischio": float(res_obj["result"]["rischio"])}
+                    risk_score = float(res_obj["result"]["rischio"])
+                    
+                    # Se lo score è alto, registra come "login fallito"
+                    # per alimentare il tracker comportamentale
+                    user = extract_user_from_spl(q)
+                    if risk_score > 50:
+                        record_failed_login(user)
+                    
+                    return {"rischio": risk_score}
                     
         raise HTTPException(status_code=500, detail="Risposta di Splunk non contiene 'rischio'")
         
