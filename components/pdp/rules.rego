@@ -135,9 +135,9 @@ l7_dpi_block := true if {
 # La regola di autorizzazione adattiva (Risk-Based & JA3 Fallback)
 # - Se la rete è INTERNA:
 #   - Con TPM: tolleranza rischio <= 50
-#   - Senza TPM (solo JA3): tolleranza rischio <= 30 (più restrittivo)
+#   - Senza TPM (solo JA3): tolleranza rischio <= 8 (Bob viene bloccato sulle API)
 # - Se la rete è ESTERNA:
-#   - Con TPM: tolleranza rischio <= 10
+#   - Con TPM: tolleranza rischio <= 8 (Charlie in smart working viene bloccato sulle API)
 #   - Senza TPM: accesso sempre negato (troppo rischioso da fuori senza hardware)
 
 risk_ok := true if {
@@ -148,17 +148,34 @@ risk_ok := true if {
     is_internal_network
     not is_tpm
     software != "Sconosciuto"
-    splunk_risk_score <= 30
+    splunk_risk_score <= 8
 } else := true if {
     not is_internal_network
     is_tpm
-    splunk_risk_score <= 10
+    splunk_risk_score <= 8
+} else := false
+
+# Definizione delle richieste di autenticazione/login (HTTP o MongoDB)
+is_auth_request := true if {
+    resource == "/api/auth"
+} else := true if {
+    command == "authenticate"
+} else := false
+
+# Blocca l'autenticazione al login se manca il TPM o se si è all'esterno
+is_auth_blocked := true if {
+    is_auth_request
+    not is_tpm
+} else := true if {
+    is_auth_request
+    not is_internal_network
 } else := false
 
 allow := true if {
     # CONDIZIONI DI ACCESSO
     risk_ok
     not l7_dpi_block
+    not is_auth_blocked
     
     # 3. Log di SUCCESSO strutturato in JSON per Splunk
     print("[OPA-PDP]", json.marshal({
