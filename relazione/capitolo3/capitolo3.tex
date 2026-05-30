@@ -1,0 +1,23 @@
+\section{Componenti della Sicurezza}
+\label{sec:componenti}
+
+In questo capitolo vengono illustrati i singoli componenti tecnologici che costituiscono lo stack di sicurezza della nostra architettura.
+
+\subsection{Envoy Proxy -- Policy Enforcement Point (PEP)}
+Intercetta fisicamente il traffico, gestisce l'autenticazione mutua TLS (mTLS), calcola l'impronta JA3 del client e interroga il PDP tramite chiamate gRPC veloci prima di inoltrare qualsiasi pacchetto al backend.
+
+\subsection{Open Policy Agent (OPA) -- Policy Decision Point (PDP)}
+Il cervello decisionale del sistema. Utilizzando il linguaggio dichiarativo Rego, OPA valuta la tupla ZTA a 6 dimensioni:
+\begin{equation}
+    T = (u, d, s, n, a, r)
+\end{equation}
+dove $u$ rappresenta l'utente, $d$ il dispositivo (verifica del chip TPM via OID X.509), $s$ il software (hash JA3), $n$ la rete di provenienza, $a$ l'azione richiesta ed $r$ la risorsa bersaglio.
+
+\subsection{Snort -- Network Intrusion Detection System (NIDS)}
+Snort agisce in modalità passiva condividendo il network namespace di Envoy (Sidecar Pattern). Questo gli permette di analizzare il traffico alla ricerca di scansioni (Nmap) o di tentativi di bypass diretti verso la porta di MongoDB (\texttt{27017}), segnalando tempestivamente anomalie a Splunk.
+
+\subsection{NFTables -- Firewall di Rete L3/L4}
+Implementa le regole di inoltro statico e blocca a monte il traffico non autorizzato a livello di rete, prevenendo attacchi grossolani.
+
+\subsection{Splunk MLTK -- Security Information and Event Management (SIEM)}
+Raccoglie i log di tutti i componenti tramite Fluent Bit. Il Machine Learning Toolkit (MLTK) addestrato con un RandomForestRegressor valuta i comportamenti anomali e assegna un punteggio di rischio dinamico utilizzato da OPA per abbassare o alzare le soglie di accesso.

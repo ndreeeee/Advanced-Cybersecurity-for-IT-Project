@@ -1,0 +1,18 @@
+\section{Simulazione degli Scenari e Validazione}
+\label{sec:scenari}
+
+Per testare l'efficacia del sistema, sono stati simulati diversi scenari d'uso che mettono alla prova la flessibilità del controllo basato sul rischio.
+
+\subsection{Scenario 1: Accesso Legittimo (Alice)}
+Il medico Alice effettua l'accesso dalla rete interna dell'ospedale con un dispositivo dotato di chip TPM valido. Il rischio stimato dal SIEM è minimo. L'accesso alle risorse sensibili viene concesso istantaneamente.
+
+\subsection{Scenario 2: Dispositivo non autorizzato (Bob)}
+Il medico Bob cerca di accedere alla rete interna ma il suo dispositivo non dispone del chip hardware TPM (o presenta un software modificato che altera l'impronta JA3). La soglia di rischio tollerabile si abbassa drasticamente. Se il rischio rilevato da Splunk supera la soglia di tolleranza ristretta per dispositivi non-TPM, la richiesta viene respinta con un errore 403.
+
+\subsection{Scenario 3: Attacco e Rilevamento (Charlie / Hacker)}
+Viene simulato un attaccante esterno che tenta scansioni Nmap o tenta di bypassare Envoy parlando direttamente con MongoDB sulla porta \texttt{27017}. 
+\begin{itemize}
+    \item NFTables blocca o devia le richieste non autorizzate.
+    \item Snort intercetta le impronte di scansione a livello L3/L4 e lancia un allarme.
+    \item I log di allarme fluiscono verso Splunk che innalza il rischio dell'host a 100, bloccando preventivamente ogni futura richiesta legittima da tale IP.
+\end{itemize}

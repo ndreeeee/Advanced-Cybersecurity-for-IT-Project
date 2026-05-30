@@ -1,0 +1,15 @@
+\section{Architettura di Sistema e Microsegmentazione}
+\label{sec:architettura}
+
+L'infrastruttura è stata segregata in quattro reti logiche isolate e protette per garantire un controllo granulare del traffico.
+
+\subsection{Le 4 Reti Segregate}
+\begin{enumerate}
+    \item \textbf{Zona Untrusted (External Network):} Rappresenta la rete esterna da cui possono connettersi client remoti (es. smart working). Questa zona è considerata ostile.
+    \item \textbf{Zona DMZ / Frontend:} Ospita i client locali e i medici (es. Alice e Bob) e il Firewall di rete.
+    \item \textbf{Secure Core (Backend Network):} Il cuore protetto contenente i database sensibili (MongoDB) e le Web API. Non vi è alcuna rotta diretta da questa zona verso l'esterno o il frontend, se non tramite il Proxy.
+    \item \textbf{Management \& Trust Zone (Control Plane):} Rete isolata contenente i sistemi di autorizzazione (OPA), aggregazione log (Fluent Bit) e monitoraggio (Splunk SIEM).
+\end{enumerate}
+
+\subsection{Il Choke-point Obbligato: Envoy Proxy}
+Tutto il traffico verso il Secure Core deve passare obbligatoriamente attraverso il Policy Enforcement Point (PEP) implementato tramite \textbf{Envoy Proxy}. Envoy intercetta le richieste su canali cifrati ed esegue controlli crittografici prima di contattare il PDP.

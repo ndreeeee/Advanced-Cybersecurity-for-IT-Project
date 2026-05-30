@@ -1,0 +1,24 @@
+# Ignora i file ausiliari generati da LaTeX per evitare conflitti su Git
+*.aux
+*.log
+*.toc
+*.out
+*.lof
+*.lot
+*.bbl
+*.blg
+*.pyg
+*.pdf
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.run.xml
+*.bcf
+*.xdv
+
+# File temporanei degli editor LaTeX (es. TeXstudio, Texmaker)
+*.bak
+*.sav
+*.tex.backup
+*.tmp
+*~
