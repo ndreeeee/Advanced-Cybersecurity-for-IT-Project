@@ -1,12 +1,28 @@
-\section{Introduzione e Obiettivi}
+\section{Introduzione e obiettivi}
 \label{sec:introduzione}
+\thispagestyle{plain}
+-----------DA CAMBIARE--------------------------\\
+{\itshape In questo primo capitolo viene presentato il contesto applicativo e metodologico alla base del progetto, definendo le sfide di sicurezza tipiche della gestione di database distribuiti e illustrando i principi teorici del paradigma Zero Trust. Infine, vengono delineati gli obiettivi e la struttura complessiva della relazione.}
 
-In questo capitolo viene introdotto il contesto del progetto, gli obiettivi e la filosofia alla base dello sviluppo del sistema.
+\subsection{La protezione dei dati aziendali e delle risorse critiche}
+Le infrastrutture IT aziendali rappresentano uno dei bersagli più ambiti e critici per gli attori malevoli a livello globale. La digitalizzazione dei servizi e la transizione verso sistemi in cloud hanno introdotto enormi benefici in termini di efficienza operativa, tra cui l'accesso condiviso a risorse sensibili, l'automazione dei flussi e il monitoraggio IoT di asset industriali. Tuttavia, questa evoluzione ha contemporaneamente esteso a dismisura la superficie d'attacco delle organizzazioni.
 
-\subsection{Il Contesto Ospedaliero}
-Il settore ospedaliero gestisce dati altamente sensibili e critici. La protezione delle informazioni cliniche (come cartelle mediche, diagnosi e dati personali dei pazienti) richiede un'infrastruttura robusta e resiliente contro minacce sia interne che esterne.
+La criticità di questo scenario è dettata da molteplici fattori. In primo luogo, vi è la natura estremamente riservata delle informazioni trattate all'interno dei database, che includono dati finanziari, proprietà intellettuali, credenziali e profili di utenti. La perdita di riservatezza o l'alterazione di tali dati viola gravemente le principali normative vigenti sulla protezione dei dati personali e sulla sicurezza delle reti a livello internazionale. In secondo luogo, va considerato l'impatto sulla \textbf{business continuity}: a differenza dei semplici disservizi temporanei, un attacco informatico di tipo ransomware che cripta o altera i database operativi può causare il blocco completo dei servizi, enormi perdite finanziarie e danni reputazionali incalcolabili. Infine, l'eterogeneità degli accessi complica ulteriormente il quadro: gli operatori e gli amministratori devono poter consultare i dati sia dai terminali interni alla rete aziendale, come le workstation d'ufficio, sia da remoto, ad esempio in regime di smart working, introducendo vettori di minaccia esterni non controllati.
 
-\subsection{La Filosofia Zero Trust}
-Il paradigma Zero Trust si basa sul principio fondamentale: \textit{"Never Trust, Always Verify"}. A differenza dei modelli tradizionali basati sul perimetro (modello a ``castello''), il modello Zero Trust non concede alcuna fiducia implicita basata sulla posizione fisica o logica all'interno della rete. 
+\subsection{La filosofia Zero Trust: ``never Trust, always Verify''}
+La sicurezza perimetrale classica, basata sul modello a ``castello'', in cui un firewall protegge una rete interna considerata intrinsecamente sicura da una rete esterna ostile, si è dimostrata obsoleta e inefficace. Una volta che un attaccante riesce a penetrare il perimetro, tramite phishing, exploit o \textbf{insider threat}, ottiene totale libertà di movimento laterale.
 
-Ogni richiesta deve essere esplicitamente autenticata, autorizzata e validata a livello di dispositivo, utente e contesto prima che venga concesso l'accesso.
+Il paradigma \textbf{Zero Trust Architecture} (ZTA), codificato dal NIST nel documento speciale \textit{SP 800-207}, supera questa concezione abbattendo il concetto di fiducia implicita basata sulla localizzazione di rete. I cardini della filosofia ZTA sono tre:
+\begin{enumerate}
+    \item \textbf{Mai fidarsi, verificare sempre (Never Trust, Always Verify):} ogni singola richiesta di accesso ad una risorsa, indipendentemente dalla rete da cui proviene, sia essa interna o esterna, deve essere autenticata, autorizzata e validata crittograficamente prima dell'inoltro.
+    \item \textbf{Accesso con privilegi minimi (Least Privilege):} l'accesso viene concesso in modo estremamente granulare e ristretto solo alle risorse necessarie per lo svolgimento della specifica attività, ad esempio limitando la scrittura e la cancellazione di record sensibili ai soli operatori autorizzati.
+    \item \textbf{Presumere la violazione (Assume Breach):} progettare il sistema assumendo che alcuni segmenti siano già compromessi. Ciò impone l'adozione di microsegmentazione di rete per limitare il raggio d'azione dell'attaccante, crittografia end-to-end per proteggere i dati in transito e sistemi di monitoraggio continuo del traffico.
+\end{enumerate}
+
+\subsection{Obiettivi del progetto}
+Il presente progetto si pone l'obiettivo di realizzare un'architettura Zero Trust completa, funzionante ed integrata per la protezione di un database MongoDB aziendale. Il sistema è progettato per operare una valutazione continua e adattiva del rischio basata sul contesto dell'utente e del suo dispositivo. 
+
+Per raggiungere questo scopo, vengono impiegate diverse tecnologie integrate. In primo luogo, \texttt{envoy} opera come \textbf{Policy Enforcement Point} (PEP), intercettando ogni singola richiesta HTTP o MongoDB in modo sicuro mediante crittografia mutua TLS (\textit{mTLS}) ed eseguendo il fingerprinting software (\textit{JA3}). In secondo luogo, \texttt{open policy agent} (OPA) funge da \textbf{Policy Decision Point} (PDP) decentralizzato, valutando le richieste sulla base delle sei dimensioni Zero Trust (ZTA 6D), rappresentate dai parametri \textit{u}, \textit{d}, \textit{s}, \textit{n}, \textit{a}, \textit{r}. Il monitoraggio e la correlazione sono affidati a \texttt{splunk} SIEM, che integra i log aggregati e calcola un punteggio di rischio dinamico in tempo reale tramite modelli predittivi di machine learning basati sull'algoritmo \textbf{Gradient Boosting}. Infine, a livello di rete, \texttt{nftables} e \texttt{snort} (NIDS) garantiscono rispettivamente la microsegmentazione del traffico a livello L3/L4 e il rilevamento tempestivo di tentativi di movimento laterale o bypass del proxy.
+
+\subsection{Struttura della relazione}
+Il documento è organizzato come segue: il Capitolo \ref{sec:architettura} illustra l'architettura complessiva della topologia di rete a quattro zone. Il Capitolo \ref{sec:componenti} scende nel dettaglio dell'implementazione tecnica di ciascun componente di sicurezza, descrivendo il funzionamento di \texttt{envoy}, OPA, \texttt{splunk}, \texttt{snort} e \texttt{nftables}. Il Capitolo \ref{sec:scenari} descrive la validazione del sistema attraverso la simulazione di scenari d'attacco ed accessi legittimi. Infine, il Capitolo \ref{sec:conclusioni} riassume i risultati e propone futuri sviluppi progettuali.

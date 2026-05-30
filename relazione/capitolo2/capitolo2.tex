@@ -1,15 +1,220 @@
-\section{Architettura di Sistema e Microsegmentazione}
+\section{Architettura di sistema e microsegmentazione}
 \label{sec:architettura}
+\thispagestyle{plain}
 
-L'infrastruttura è stata segregata in quattro reti logiche isolate e protette per garantire un controllo granulare del traffico.
+{\itshape In questo capitolo viene analizzata l'architettura logica e fisica dell'infrastruttura, descrivendo la segmentazione di rete a quattro zone e il ruolo di \texttt{envoy} come unico punto di transito autorizzato per il traffico dati.}
 
-\subsection{Le 4 Reti Segregate}
+\subsection{Le quattro reti segregate}
+La sicurezza dell'infrastruttura si basa sul principio della \textbf{microsegmentazione}, implementata definendo quattro reti virtuali isolate tramite Docker. Questa compartimentazione riduce drasticamente l'area di impatto di un'eventuale compromissione. La segmentazione fisica ed i relativi indirizzamenti IP delle quattro aree protette sono schematizzati visivamente nella Figura \ref{fig:microsegmentazione_reti}, mentre la loro definizione a livello di infrastruttura è dettagliata nella configurazione mostrata nel Listato \ref{lst:docker_networks}.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+    % === STILI ===
+    netbox/.style={draw=#1, fill=#1!5!darkcharcoal, dashed, line width=1pt, rounded corners=6pt, inner sep=12pt},
+    nodebox/.style={draw=copper, fill=darkcharcoal, text=cream, rounded corners=4pt,
+        minimum width=2.0cm, minimum height=1.4cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.15, color=black}},
+    clientbox/.style={draw=terracotta, fill=darkcharcoal, text=cream, rounded corners=4pt,
+        minimum width=2.0cm, minimum height=1.2cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.15, color=black}},
+    corebox/.style={draw=sand, fill=darkcharcoal, text=cream, rounded corners=4pt,
+        minimum width=2.0cm, minimum height=1.4cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.15, color=black}},
+    pepbox/.style={draw=copper, fill=copper, text=white, rounded corners=5pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\bfseries\sffamily,
+        drop shadow={opacity=0.2, color=black}},
+    arrow/.style={-{Stealth[scale=0.8]}, draw=copper, line width=1pt},
+    dashedarrow/.style={-{Stealth[scale=0.7]}, draw=textmuted, dashed, line width=0.8pt},
+    lbl/.style={font=\tiny\bfseries\color{darkcharcoal}, fill=white, inner sep=2pt, rounded corners=2pt}
+]
+
+    % =====================================================================
+    %  RIGA 1 — DATA PLANE  (Y = 0)
+    %  Flusso lineare:  Clients → FW → Envoy PEP → Backend
+    % =====================================================================
+
+    % Col 0 – Clients  (X = 0)
+    \node[clientbox] (charlie) at (0, 1.6)  {\textbf{Charlie}\\{\tiny Esterno}};
+    \node[clientbox] (alice)   at (0, 0)    {\textbf{Alice}\\{\tiny Client TPM}};
+    \node[clientbox] (bob)     at (0,-1.6)  {\textbf{Bob}\\{\tiny No TPM}};
+
+    % Col 1 – Firewall  (X = 3.3)
+    \node[nodebox] (fw) at (3.3, 0) {\textbf{Firewall}\\(nftables)};
+
+    % Col 2 – PEP  (X = 6.6)
+    \node[pepbox] (pep) at (6.6, 0)
+        {\includegraphics[width=0.8cm]{capitolo2/img/envoy.png}\\[0.05cm]Envoy PEP};
+
+    % Col 3 – Backend  (X = 10)
+    \node[corebox] (webapi)  at (10, 1.0)
+        {\includegraphics[width=0.8cm]{capitolo2/img/python.png}\\[0.05cm]\textbf{Web API}};
+    \node[corebox] (mongodb) at (10,-1.0)
+        {\includegraphics[width=0.8cm]{capitolo2/img/mongodb.png}\\[0.05cm]\textbf{MongoDB}};
+
+    % =====================================================================
+    %  RIGA 2 — NIDS SIDECAR  (Y = -3.2)
+    % =====================================================================
+    \node[nodebox] (snort) at (3.3, -3.2)
+        {\includegraphics[width=0.8cm]{capitolo2/img/snort.png}\\[0.05cm]\textbf{Snort NIDS}};
+
+    % =====================================================================
+    %  RIGA 3 — CONTROL PLANE  (Y = -6)
+    % =====================================================================
+    \node[nodebox] (opa) at (3.3, -6)
+        {\includegraphics[width=0.8cm]{capitolo2/img/opa.png}\\[0.05cm]\textbf{OPA PDP}};
+    \node[nodebox] (fluentbit) at (6.6, -6)
+        {\includegraphics[width=0.8cm]{capitolo2/img/fluentbit.png}\\[0.05cm]\textbf{Fluent-Bit}};
+    \node[nodebox] (splunk) at (10, -6)
+        {\includegraphics[width=0.8cm]{capitolo2/img/splunk.png}\\[0.05cm]\textbf{Splunk SIEM}};
+
+    % =====================================================================
+    %  ZONE DI SFONDO  (background layer con fit)
+    % =====================================================================
+    \begin{scope}[on background layer]
+        \node[netbox=copper,     fit=(charlie),
+            label={[font=\tiny\bfseries\color{copper}]above:Untrusted}] {};
+        \node[netbox=terracotta,  fit=(alice)(bob),
+            label={[font=\tiny\bfseries\color{terracotta}]above:DMZ (Frontend)}] {};
+        \node[netbox=sand,        fit=(webapi)(mongodb),
+            label={[font=\tiny\bfseries\color{sand}]above:Secure Core}] {};
+        \node[netbox=textmuted,   fit=(opa)(fluentbit)(splunk),
+            label={[font=\tiny\bfseries\color{textmuted}]below:Control Plane}] {};
+    \end{scope}
+
+    % =====================================================================
+    %  COLLEGAMENTI SOLIDI  — flusso dati (sinistra → destra)
+    % =====================================================================
+
+    % Clients → Firewall  (tre frecce convergono su ancore distinte)
+    \draw[arrow] (charlie.east) -- node[above, lbl, pos=0.5]{mTLS} (fw.north west);
+    \draw[arrow] (alice.east)   -- node[above, lbl, pos=0.5]{mTLS+TPM} (fw.west);
+    \draw[arrow] (bob.east)     -- node[below, lbl, pos=0.5]{mTLS} (fw.south west);
+
+    % Firewall → PEP  (flusso orizzontale principale)
+    \draw[arrow] (fw.east) -- node[above, lbl]{DNAT} (pep.west);
+
+    % PEP → Backend  (ancore distinte: north east e south east)
+    \draw[arrow] (pep.north east) -- node[above, lbl, pos=0.5]{HTTP} (webapi.west);
+    \draw[arrow] (pep.south east) -- node[below, lbl, pos=0.5]{TCP}  (mongodb.west);
+
+    % Firewall → Snort  (DPI — dritto verticale)
+    \draw[arrow] (fw.south) -- node[right, lbl, pos=0.5]{DPI} (snort.north);
+
+    % PEP → OPA  (gRPC — scende a sinistra con angolo ortogonale)
+    \draw[arrow] (pep.south west) -- ++(0,-1.5) -| node[pos=0.25, left, lbl]{gRPC} (opa.north);
+
+    % OPA → Splunk  (Query Risk — orizzontale nel piano di controllo)
+    \draw[arrow] (opa.east) -- node[above, lbl]{Query Risk} (splunk.west);
+
+    % =====================================================================
+    %  COLLEGAMENTI TRATTEGGIATI  — telemetria (verso Fluent-Bit)
+    %  Ogni freccia usa un'ancora di arrivo distinta su fluentbit.
+    % =====================================================================
+
+    % FW Logs: fw.south east → scende → curva destra → fluentbit.west
+    \draw[dashedarrow] (fw.south east) -- ++(0,-1.2) -| node[pos=0.7, above, lbl]{FW Logs} (fluentbit.west);
+
+    % Alert Logs: snort.south → scende → curva destra → fluentbit.north west
+    \draw[dashedarrow] (snort.south) -- ++(0,-0.8) -| node[pos=0.25, above, lbl]{Alerts} (fluentbit.north west);
+
+    % Access Logs: pep.south → verticale dritto → fluentbit.north
+    \draw[dashedarrow] (pep.south) -- node[left, lbl, pos=0.8]{Access Log} (fluentbit.north);
+
+    % DB Logs: mongodb.south → scende → curva sinistra → fluentbit.north east
+    \draw[dashedarrow] (mongodb.south) -- ++(0,-1.5) -| node[pos=0.5, above, lbl]{DB Logs} (fluentbit.north east);
+
+    % Aggregazione: fluentbit.east → splunk.west
+    \draw[dashedarrow] (fluentbit.east) -- node[above, lbl]{Log Fwd} (splunk.west);
+
+\end{tikzpicture}%
+}
+\caption{Topologia di rete dettagliata dell'infrastruttura Zero Trust con indicazione dei flussi logici e di telemetria.}
+\label{fig:microsegmentazione_reti}
+\end{figure}
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{docker-compose.yaml}
+\begin{lstlisting}
+networks:
+  frontend-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.0.1.0/24
+  backend-net:
+    driver: bridge
+  control-plane-net:
+    driver: bridge
+  external-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Definizione delle quattro reti segregate nel file docker-compose.yaml.}\label{lst:docker_networks}
+\end{minipage}
+\end{center}
+\vspace{0.4cm}
+
+La prima area è la \textbf{zona untrusted}, che rappresenta la rete esterna non controllata da cui provengono le richieste di utenti remoti. In questa zona opera il client dell'operatore in smart working. Non vi è alcuna rotta di instradamento che colleghi direttamente questa zona al database o ai servizi interni: l'unico punto di contatto esposto è il listener di \texttt{envoy} protetto da crittografia.
+
+La seconda area è la \textbf{zona DMZ o frontend}, assimilabile alla rete locale fisica dell'azienda. Qui risiedono i client interni utilizzati dal personale d'ufficio e il firewall \texttt{nftables}. Anche in questo caso, i client del frontend non possiedono le rotte di rete per raggiungere il backend: il firewall intercetta tutto il traffico a livello L3/L4 e devia le richieste autorizzate verso il proxy.
+
+La terza area è il \textbf{secure core o backend}, una rete altamente protetta e completamente isolata. All'interno di questa zona sono collocati il database \texttt{mongodb} e le Web API del servizio aziendale. Nessun client esterno o interno può avviare una connessione diretta con queste macchine: l'unico container autorizzato a inoltrare pacchetti nel backend è il proxy, che agisce da intermediario per le sole richieste esplicitamente validate.
+
+La quarta e ultima area è la \textbf{control plane o trust zone}. Si tratta di una rete di gestione isolata in cui risiedono i sistemi decisionali e di monitoraggio, tra cui il motore delle regole OPA, il raccoglitore di log \texttt{fluent-bit} e il SIEM \texttt{splunk}. Questa zona comunica esclusivamente con il proxy per la validazione delle richieste e con tutti i container per la raccolta della telemetria in background.
+
+\subsection{Il choke-point obbligato: envoy proxy}
+Al centro dell'intera topologia si colloca \texttt{envoy}, che agisce come \textbf{Policy Enforcement Point} (PEP) e rappresenta il punto di strozzatura obbligato per tutto il traffico. Qualsiasi tentativo di comunicazione che cerchi di scavalcare questo passaggio viene intercettato e scartato a livello di rete dal firewall. Il posizionamento strategico del PEP e il flusso dei messaggi di autorizzazione verso gli altri moduli sono illustrati nella Figura \ref{fig:architettura_flussi}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm and 2.2cm,
+    zone/.style={draw=copper, fill=darkcharcoal, text=cream, rounded corners, minimum width=2.4cm, minimum height=1.3cm, font=\bfseries\small, align=center, drop shadow},
+    external/.style={draw=terracotta, fill=darkcharcoal, text=cream, rounded corners, minimum width=2.4cm, minimum height=1.3cm, font=\bfseries\small, align=center, drop shadow},
+    pep/.style={draw=copper, fill=copper, text=white, shape=rectangle, rounded corners, minimum width=2.8cm, minimum height=1.6cm, font=\bfseries\large, align=center, drop shadow},
+    arrow/.style={-{Stealth[scale=1.2]}, draw=copper, line width=1.5pt},
+    dashedarrow/.style={-{Stealth[scale=1.2]}, draw=textmuted, dashed, line width=1.2pt}
+]
+    % Nodes
+    \node[external] (client) {Client\\(Smart Working)};
+    \node[pep, right=of client] (envoy) {Envoy Proxy\\(PEP)};
+    \node[zone, above right=of envoy] (opa) {OPA\\(PDP)};
+    \node[zone, below right=of envoy] (splunk) {Splunk\\(SIEM)};
+    \node[zone, right=of envoy] (db) {MongoDB\\(Backend)};
+    
+    % Connections
+    \draw[arrow] (client) -- node[above, font=\tiny\color{cream}]{mTLS} (envoy);
+    \draw[arrow] (envoy) -- node[above, font=\tiny\color{cream}, sloped]{gRPC Authz} (opa);
+    \draw[dashedarrow] (envoy) -- node[below, font=\tiny\color{textmuted}, sloped]{HEC Logs} (splunk);
+    \draw[arrow] (envoy) -- node[above, font=\tiny\color{cream}]{TCP / BSON} (db);
+    
+\end{tikzpicture}
+\caption{Diagramma dei flussi informativi e dei componenti della Zero Trust Architecture.}
+\label{fig:architettura_flussi}
+\end{figure}
+
+Il funzionamento del proxy prevede la separazione dei flussi su porte distinte per gestire in modo sicuro i diversi protocolli. Sulla porta \texttt{8443} viene gestito il traffico HTTP cifrato per le Web API aziendali, mentre sulla porta \texttt{27017} transita il traffico TCP nativo diretto al database. Per ogni connessione, il proxy avvia una negoziazione crittografica pretendendo la presentazione di un certificato client valido. Durante questa fase, viene calcolato l'hash della firma del software client per determinare il fingerprinting \textit{JA3}.
+
+Prima di inoltrare la richiesta verso il backend, il proxy sospende la sessione e interroga OPA tramite una chiamata gRPC. Solo dopo aver ricevuto un responso positivo dal PDP, il proxy provvede a stabilire la connessione con la risorsa richiesta nel backend, garantendo l'applicazione del paradigma Zero Trust per ogni singola transazione.
+
+\subsection{La tupla multidimensionale Zero Trust (ZTA 6D)}
+Il nucleo del motore decisionale risiede nella formalizzazione matematica e logica del contesto di accesso attraverso una tupla a sei dimensioni, definita come:
+\begin{equation}
+T = (u, d, s, n, a, r)
+\end{equation}
+Ciascuna dimensione mappa un attributo specifico estratto dinamicamente a livello L4-L7 e valutato in tempo reale per determinare l'affidabilità della richiesta:
+
 \begin{enumerate}
-    \item \textbf{Zona Untrusted (External Network):} Rappresenta la rete esterna da cui possono connettersi client remoti (es. smart working). Questa zona è considerata ostile.
-    \item \textbf{Zona DMZ / Frontend:} Ospita i client locali e i medici (es. Alice e Bob) e il Firewall di rete.
-    \item \textbf{Secure Core (Backend Network):} Il cuore protetto contenente i database sensibili (MongoDB) e le Web API. Non vi è alcuna rotta diretta da questa zona verso l'esterno o il frontend, se non tramite il Proxy.
-    \item \textbf{Management \& Trust Zone (Control Plane):} Rete isolata contenente i sistemi di autorizzazione (OPA), aggregazione log (Fluent Bit) e monitoraggio (Splunk SIEM).
+    \item \textbf{Utente ($u \in U$)}: l'identità forte del soggetto richiedente, estratta dal campo \texttt{Subject} del certificato client X.509 presentato durante la fase di handshake mTLS (\texttt{DOWNSTREAM\_PEER\_SUBJECT}). Questa dimensione identifica univocamente gli operatori (\textit{Alice}, \textit{Bob}, \textit{Charlie}).
+    \item \textbf{Dispositivo ($d \in D$)}: lo stato di postura dell'hardware. Viene validato verificando la presenza di un'estensione X.509 personalizzata con Object Identifier (OID) specifico \texttt{1.3.6.1.4.1.9999.1}. Tale estensione attesta che la chiave privata del client sia custodita all'interno di un chip \textbf{TPM (Trusted Platform Module)} hardware o emulato, discriminando tra workstation sicure autorizzate e dispositivi non censiti.
+    \item \textbf{Software ($s \in S$)}: il fingerprint crittografico della suite client, calcolato tramite l'algoritmo \textbf{JA3}. Questo consente a Envoy di identificare il software effettivo che avvia la connessione (es. un browser autorizzato vs uno script Python malevolo), prevenendo attacchi basati su spoofing dell'User-Agent.
+    \item \textbf{Contesto di Rete ($n \in N$)}: la provenienza geografica o topologica del pacchetto, classificata in base all'indirizzo IP di origine (\texttt{DOWNSTREAM\_REMOTE\_ADDRESS}). Permette di distinguere le richieste provenienti dalla rete locale interna ospedaliera (\texttt{10.0.1.0/24}) da quelle provenienti dall'esterno (Smart Working tramite la subnet \texttt{192.168.100.0/24}).
+    \item \textbf{Azione ($a \in A$)}: l'operazione richiesta. Nel caso del protocollo HTTP corrisponde al metodo (es. \texttt{GET}, \texttt{POST}), mentre per le connessioni database MongoDB viene estratta a livello L7 dal filtro \texttt{mongo\_proxy} (es. comandi di \texttt{find}, \texttt{insert}, \texttt{update} o \texttt{delete}).
+    \item \textbf{Risorsa ($r \in R$)}: il target dell'azione, rappresentato dall'URI del servizio API HTTP richiesto o dal nome della collezione MongoDB (es. \texttt{patients}, \texttt{medical\_records}) estratta dinamicamente tramite ispezione profonda dei pacchetti (DPI).
 \end{enumerate}
-
-\subsection{Il Choke-point Obbligato: Envoy Proxy}
-Tutto il traffico verso il Secure Core deve passare obbligatoriamente attraverso il Policy Enforcement Point (PEP) implementato tramite \textbf{Envoy Proxy}. Envoy intercetta le richieste su canali cifrati ed esegue controlli crittografici prima di contattare il PDP.

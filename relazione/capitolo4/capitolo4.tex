@@ -1,18 +1,22 @@
-\section{Simulazione degli Scenari e Validazione}
+\section{Simulazione degli scenari e validazione}
 \label{sec:scenari}
+\thispagestyle{plain}
 
-Per testare l'efficacia del sistema, sono stati simulati diversi scenari d'uso che mettono alla prova la flessibilità del controllo basato sul rischio.
+Per verificare la robustezza dell'infrastruttura Zero Trust progettata, sono stati simulati tre scenari operativi principali, ognuno mirato a testare specifiche componenti difensive e logiche del sistema.
 
-\subsection{Scenario 1: Accesso Legittimo (Alice)}
-Il medico Alice effettua l'accesso dalla rete interna dell'ospedale con un dispositivo dotato di chip TPM valido. Il rischio stimato dal SIEM è minimo. L'accesso alle risorse sensibili viene concesso istantaneamente.
+\subsection{Scenario 1: accesso legittimo}
+Il primo scenario analizza il comportamento del sistema di fronte all'accesso di un utente autorizzato dotato di dispositivo aziendale integro, simulato dall'utente Alice. 
 
-\subsection{Scenario 2: Dispositivo non autorizzato (Bob)}
-Il medico Bob cerca di accedere alla rete interna ma il suo dispositivo non dispone del chip hardware TPM (o presenta un software modificato che altera l'impronta JA3). La soglia di rischio tollerabile si abbassa drasticamente. Se il rischio rilevato da Splunk supera la soglia di tolleranza ristretta per dispositivi non-TPM, la richiesta viene respinta con un errore 403.
+Alice effettua la connessione dall'interno della rete aziendale presentando un certificato client contenente l'estensione crittografica del chip TPM. All'arrivo della richiesta, \texttt{envoy} estrae il certificato e calcola il fingerprinting \textit{JA3} del browser, trasmettendo i dati ad OPA. OPA contatta la Web API di \texttt{splunk} che calcola un punteggio di rischio minimo, pari a circa uno, data la totale assenza di anomalie comportamentali. Poiché il rischio è ampiamente inferiore alla soglia massima di tolleranza di cinquanta prevista per i dispositivi sicuri interni, OPA risponde con un responso positivo di \textbf{ALLOW} ed \texttt{envoy} instrada in pochissimi millisecondi la query verso il database, restituendo ad Alice i risultati richiesti con successo.
 
-\subsection{Scenario 3: Attacco e Rilevamento (Charlie / Hacker)}
-Viene simulato un attaccante esterno che tenta scansioni Nmap o tenta di bypassare Envoy parlando direttamente con MongoDB sulla porta \texttt{27017}. 
-\begin{itemize}
-    \item NFTables blocca o devia le richieste non autorizzate.
-    \item Snort intercetta le impronte di scansione a livello L3/L4 e lancia un allarme.
-    \item I log di allarme fluiscono verso Splunk che innalza il rischio dell'host a 100, bloccando preventivamente ogni futura richiesta legittima da tale IP.
-\end{itemize}
+\subsection{Scenario 2: dispositivo non autorizzato}
+Il secondo scenario testa la reazione della politica di sicurezza adattiva di fronte a un tentativo di accesso con credenziali valide ma condotto tramite un dispositivo personale privo di chip TPM hardware, simulato dall'utente Bob.
+
+Bob cerca di collegarsi dalla rete interna dell'azienda usando un certificato valido ma privo dell'estensione TPM. Il proxy intercetta la richiesta ed effettua il calcolo dell'impronta \textit{JA3}. OPA rileva la mancanza della firma hardware ed attiva la regola di fallback software. Questa logica riduce drasticamente la soglia di rischio consentita, portandola da cinquanta a otto. Nel primo tentativo di accesso, Bob ottiene l'autorizzazione di login poiché il suo rischio comportamentale stimato è minimo, pari a circa cinque. Tuttavia, appena Bob prova ad accedere a dati sensibili come la lista dei record protetti, la prima frequenza delle sue sessioni ravvicinate fa salire il punteggio di rischio stimato da \texttt{splunk} a circa nove virgola nove. Superando la soglia restrittiva di otto, il decisore nega la richiesta rispondendo con un \textbf{DENY} immediato ed \texttt{envoy} restituisce a Bob un errore di accesso non autorizzato.
+
+\subsection{Scenario 3: attacco e rilevamento esterno}
+Il terzo scenario riproduce un tentativo di attacco esterno da parte di un utente malintenzionato in smart working, simulato dall'utente Charlie, che tenta inoltre di bypassare il proxy per colpire direttamente il database.
+
+Charlie cerca di autenticarsi con un certificato valido ma proveniendo da una rete esterna non protetta. OPA applica la regola restrittiva per gli accessi remoti, che impone una soglia di tolleranza massima al rischio pari a otto per i dispositivi dotati di TPM (bloccando invece all'istante chiunque provi dall'esterno senza hardware). Al momento del login il rischio di Charlie è di cinque virgola cinque, consentendogli l'autenticazione. Tuttavia, non appena Charlie interroga le API per estrarre i dati dei record, il suo rischio sale a nove virgola nove, provocando l'immediato blocco della sessione da parte di OPA. 
+
+Se l'attaccante prova successivamente a lanciare uno strumento di ricognizione o a connettersi direttamente alla porta del database sulla rete privata aziendale per aggirare il proxy, entra in gioco il firewall \texttt{nftables} che scarta silenziosamente tutti i pacchetti. Contemporaneamente, \texttt{snort} intercetta le impronte delle scansioni a livello L3/L4 e genera allarmi istantanei. I log di allarme vengono recapitati a \texttt{splunk}, provocando l'innalzamento al valore massimo del rischio associato a quell'IP ed escludendo permanentemente l'attaccante da qualsiasi risorsa della rete aziendale.

@@ -1,23 +1,165 @@
-\section{Componenti della Sicurezza}
-\label{sec:componenti}
+\section{Implementazione pratica e configurazione}
+\label{sec:implementazione}
+\thispagestyle{plain}
 
-In questo capitolo vengono illustrati i singoli componenti tecnologici che costituiscono lo stack di sicurezza della nostra architettura.
+{\itshape In questo capitolo viene analizzata l'implementazione pratica dell'architettura Zero Trust, dettagliando le configurazioni dei singoli container e i meccanismi di interazione tra i moduli di controllo e protezione del traffico.}
 
-\subsection{Envoy Proxy -- Policy Enforcement Point (PEP)}
-Intercetta fisicamente il traffico, gestisce l'autenticazione mutua TLS (mTLS), calcola l'impronta JA3 del client e interroga il PDP tramite chiamate gRPC veloci prima di inoltrare qualsiasi pacchetto al backend.
+\subsection{La microsegmentazione e il deploy con docker-compose}
+Il deploy dell'infrastruttura è orchestrato tramite la tecnologia Docker, definendo quattro reti virtuali distinte e isolate nel file \texttt{docker-compose.yaml}. Questa separazione impedisce il routing diretto tra i client esterni o di frontend e il secure core di backend, forzando il transito del traffico attraverso il proxy Envoy. La configurazione delle reti isolate è definita nel file mostrato nel Listato \ref{lst:docker_networks_cfg}.
 
-\subsection{Open Policy Agent (OPA) -- Policy Decision Point (PDP)}
-Il cervello decisionale del sistema. Utilizzando il linguaggio dichiarativo Rego, OPA valuta la tupla ZTA a 6 dimensioni:
-\begin{equation}
-    T = (u, d, s, n, a, r)
-\end{equation}
-dove $u$ rappresenta l'utente, $d$ il dispositivo (verifica del chip TPM via OID X.509), $s$ il software (hash JA3), $n$ la rete di provenienza, $a$ l'azione richiesta ed $r$ la risorsa bersaglio.
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{docker-compose.yaml}
+\begin{lstlisting}
+networks:
+  frontend-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.0.1.0/24
+  backend-net:
+    driver: bridge
+  control-plane-net:
+    driver: bridge
+  external-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Definizione delle quattro reti segregate nel file docker-compose.yaml.}\label{lst:docker_networks_cfg}
+\end{minipage}
+\end{center}
 
-\subsection{Snort -- Network Intrusion Detection System (NIDS)}
-Snort agisce in modalità passiva condividendo il network namespace di Envoy (Sidecar Pattern). Questo gli permette di analizzare il traffico alla ricerca di scansioni (Nmap) o di tentativi di bypass diretti verso la porta di MongoDB (\texttt{27017}), segnalando tempestivamente anomalie a Splunk.
+\subsection{La configurazione di Envoy Proxy come PEP}
+Il proxy \texttt{envoy} funge da Policy Enforcement Point (PEP) ed è configurato per intercettare e autenticare in modo trasparente e sicuro tutto il traffico dati. La configurazione del proxy, definita nel file \texttt{envoy.yaml}, implementa due listener principali:
 
-\subsection{NFTables -- Firewall di Rete L3/L4}
-Implementa le regole di inoltro statico e blocca a monte il traffico non autorizzato a livello di rete, prevenendo attacchi grossolani.
+\begin{itemize}
+    \item \textbf{Listener database (\texttt{mongodb\_listener})}: opera sulla porta \texttt{27017} e impone l'uso del protocollo mTLS obbligatorio per tutti i client che tentano di connettersi al database MongoDB.
+    \item \textbf{Listener HTTP (\texttt{http\_listener})}: opera sulla porta \texttt{8443} per il traffico diretto alle Web API ospedaliere.
+\end{itemize}
 
-\subsection{Splunk MLTK -- Security Information and Event Management (SIEM)}
-Raccoglie i log di tutti i componenti tramite Fluent Bit. Il Machine Learning Toolkit (MLTK) addestrato con un RandomForestRegressor valuta i comportamenti anomali e assegna un punteggio di rischio dinamico utilizzato da OPA per abbassare o alzare le soglie di accesso.
+Per estrarre le metriche necessarie alla valutazione del rischio e all'ispezione DPI, Envoy utilizza una catena di filtri specializzati. In particolare, il filtro \texttt{tls\_inspector} esegue il calcolo in tempo reale dell'impronta digitale \textit{JA3} durante la negoziazione TLS, mentre il filtro \texttt{mongo\_proxy} analizza i comandi applicativi eseguiti sui socket TCP. L'integrazione con OPA è gestita tramite il filtro \texttt{ext\_authz}, il quale sospende la sessione TCP o HTTP per inviare un payload gRPC contenente i metadati estratti e i certificati client al PDP. Un estratto significativo della configurazione di Envoy per il listener del database è mostrato nel Listato \ref{lst:envoy_config_pep}.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{envoy.yaml}
+\begin{lstlisting}[language=XML]
+static_resources:
+  listeners:
+  - name: mongodb_listener
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 27017
+    listener_filters:
+    - name: envoy.filters.listener.tls_inspector
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector
+        enable_ja3_fingerprinting: true
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.mongo_proxy
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.mongo_proxy.v3.MongoProxy
+          stat_prefix: mongodb
+          emit_dynamic_metadata: true
+      - name: envoy.filters.network.ext_authz
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.ext_authz.v3.ExtAuthz
+          stat_prefix: OPA_authz
+          transport_api_version: V3
+          grpc_service:
+            envoy_grpc:
+              cluster_name: OPA_cluster
+            timeout: 45s
+          include_peer_certificate: true
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Estratto della configurazione del listener MongoDB in envoy.yaml.}\label{lst:envoy_config_pep}
+\end{minipage}
+\end{center}
+
+\subsection{Il motore decisionale OPA (PDP) e l'integrazione Splunk MLTK}
+Il Policy Decision Point (PDP) riceve la tupla $T$ da Envoy ed esegue la valutazione delle regole scritte in Rego all'interno del file \texttt{rules.rego}. Per supportare decisioni adattive basate sul contesto, OPA invia una query predittiva sincrona via HTTP all'API predittiva di Splunk MLTK. 
+
+La query SPL, mostrata nel Listato \ref{lst:splunk_query_pdp}, viene assemblata dinamicamente con le variabili contestuali correnti ed inviata al SIEM per ottenere il punteggio di rischio aggiornato dell'utente.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{Splunk SPL Query (Dynamically Generated by OPA)}
+\begin{lstlisting}[language=SQL]
+| makeresults 
+| eval user="Alice", software="JA3_HASH", device="Workstation Ospedaliera (TPM)", network="10.0.1.5", action="find", resource="patients" 
+| apply trust_model 
+| rename "predicted(rischio)" as rischio 
+| table rischio
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Struttura della query Splunk MLTK generata dinamicamente da OPA.}\label{lst:splunk_query_pdp}
+\end{minipage}
+\end{center}
+
+Accanto alla valutazione adattiva, OPA implementa controlli di sicurezza L7 stringenti (DPI) per intercettare query MongoDB dannose prima che raggiungano il backend, come mostrato nel frammento di codice del Listato \ref{lst:rego_dpi_rules}.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{rules.rego}
+\begin{lstlisting}
+# L7 DPI: Regole di blocco esplicite per query pericolose
+default l7_dpi_block := false
+l7_dpi_block := true if {
+    # Blocca query che contengono termini sensibili o distruttivi
+    contains(lower(db_query), "sensitive_notes")
+} else := true if {
+    contains(lower(db_query), "dropdatabase")
+} else := true if {
+    contains(lower(db_query), "deleteall")
+}
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Regole di ispezione profonda L7 DPI implementate nel file rules.rego.}\label{lst:rego_dpi_rules}
+\end{minipage}
+\end{center}
+
+\subsection{Regole di network protection e tracciamento su nftables}
+Il firewall, basato sulla tecnologia \texttt{nftables}, blinda la rete forzando l'instradamento obbligatorio verso il proxy Envoy e gestendo una trappola attiva per rilevare e bloccare i tentativi di bypass.
+
+All'avvio del container tramite lo script \texttt{start.sh}, il firewall esegue quattro compiti principali:
+\begin{enumerate}
+    \item \textbf{Risoluzione dinamica}: interroga il DNS interno di Docker per ottenere l'IP del container Envoy (\texttt{zta-envoy}).
+    \item \textbf{Port forwarding L4}: reindirizza tutto il traffico TCP legittimo diretto alla porta del servizio verso l'IP di Envoy sulla porta \texttt{8443} tramite regola DNAT e applica il mascheramento SNAT.
+    \item \textbf{Trappola di bypass}: intercetta i tentativi di connessione diretta alle porte di backend non autorizzate (es. porta \texttt{8000}), invia i dettagli del pacchetto al demone di logging \texttt{ulogd2} con il prefisso \texttt{[NFT-BLOCK]} e scarta istantaneamente il traffico (\texttt{drop}).
+    \item \textbf{Denylist dinamica}: crea un set di indirizzi IP bloccati, gestito in tempo reale da un'API di management in Python che consente di aggiungere o rimuovere IP in base alle anomalie rilevate.
+\end{enumerate}
+
+La configurazione delle catene e delle regole nftables applicate all'avvio del firewall è mostrata nel Listato \ref{lst:firewall_rules_sh}.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{start.sh}
+\begin{lstlisting}[language=bash]
+# --- Inizializzazione Base NFTables ---
+nft flush ruleset
+nft add table ip filter
+nft add set ip filter denylist { type ipv4_addr \; }
+nft add chain ip filter forward { type filter hook forward priority 0 \; policy accept \; }
+# Regole di DROP per gli IP bannati
+nft add rule ip filter forward ip saddr @denylist counter drop
+
+# --- Port Forwarding (DNAT) verso Envoy ---
+nft add table ip nat
+nft add chain ip nat prerouting { type nat hook prerouting priority -100 \; }
+nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
+nft add rule ip nat prerouting tcp dport 8443 counter dnat to $ENVOY_IP:8443
+nft add rule ip nat postrouting ip daddr $ENVOY_IP tcp dport 8443 counter masquerade
+
+# --- TRAPPOLA: Log e Drop del traffico diretto al backend ---
+nft add rule ip nat prerouting tcp dport 8000 log group 0 prefix "[NFT-BLOCK] " counter
+nft add rule ip nat prerouting tcp dport 8000 drop
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Configurazione delle catene di filtering e NAT nello script di avvio del firewall.}\label{lst:firewall_rules_sh}
+\end{minipage}
+\end{center}

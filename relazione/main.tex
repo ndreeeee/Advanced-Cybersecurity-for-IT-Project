@@ -1,10 +1,10 @@
-\documentclass[12pt,letterpaper]{article}
+\documentclass[12pt,a4paper]{article}
 
 % --- PACKAGES ---
 \usepackage[utf8]{inputenc}
 \usepackage[italian]{babel}
 \usepackage{geometry}
-\geometry{a4paper, margin=2.5cm}
+\geometry{a4paper, margin=2.5cm, headheight=25pt}
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{listings}
@@ -15,75 +15,164 @@
 \usepackage{fancyhdr}
 \usepackage{titlesec}
 \usepackage{csquotes}
+\usepackage{caption}
 
-% --- COLOR DEFINITIONS ---
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
-\definecolor{navyblue}{RGB}{0, 32, 96}
 
-% --- CONFIGURATIONS ---
+% --- DIAGRAMS (TikZ) ---
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, shadows, fit, backgrounds}
+
+% --- FONTS (Inter / JetBrains Mono Lookalike in LaTeX) ---
+\usepackage{helvet} % Carattere Sans-Serif moderno per il testo, simile a Inter
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{inconsolata} % Carattere Monospace di alta qualità per il codice
+
+% --- PALETTE COLORI (Presentazione ZTA: Deep Charcoal & Copper) ---
+\definecolor{bgpage}{HTML}{161515}       % Sfondo scuro della presentazione
+\definecolor{darkcharcoal}{HTML}{221F20} % Sfondo delle card e del codice
+\definecolor{copper}{HTML}{8C473B}       % Accento Copper principale
+\definecolor{terracotta}{HTML}{B96A59}   % Accento secondario
+\definecolor{sand}{HTML}{D9A07E}         % Accento sabbia per keyword
+\definecolor{cream}{HTML}{F2D1B3}        % Accento crema per codice
+\definecolor{textmuted}{HTML}{807A76}    % Testo disattivato/grigio
+
+% --- CONFIGURAZIONE HYPERREF ---
 \hypersetup{
     colorlinks=true,
-    linkcolor=navyblue,
-    filecolor=magenta,      
-    urlcolor=cyan,
+    linkcolor=copper,      % I link interni usano l'accento Copper
+    filecolor=terracotta,      
+    urlcolor=terracotta,   % I link web usano l'accento Terracotta
     pdftitle={Relazione Progetto Zero Trust Architecture 2026},
     pdfpagemode=FullScreen,
 }
 
+% --- FORMATTAZIONE TITOLI (titlesec) ---
+\titleformat{\section}[display]
+  {\normalfont\bfseries}
+  {\Large\bfseries\color{terracotta}CAPITOLO \thesection}
+  {1ex}
+  {\Huge\color{copper}}
+  [\vspace{0.2cm}{\color{copper}\hrule height 3pt}\vspace{0.2cm}]
+\titleformat{\subsection}
+  {\color{terracotta}\normalfont\large\bfseries}
+  {\thesubsection}{1em}{}
+\titleformat{\subsubsection}
+  {\color{sand}\normalfont\normalsize\bfseries}
+  {\thesubsubsection}{1em}{}
+
+% Rimuove intestazione (header) sulle pagine iniziali di ciascun capitolo
+\assignpagestyle{\section}{plain}
+
+% --- STILE CODICE LISTINGS (Stile Dark "code-block" della Presentazione) ---
 \lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
+    commentstyle=\color{textmuted}\itshape,
+    keywordstyle=\color{sand}\bfseries,
+    numberstyle=\tiny\color{copper},
+    stringstyle=\color{terracotta},
+    basicstyle=\ttfamily\color{cream}\footnotesize,
     breakatwhitespace=false,         
     breaklines=true,                 
     captionpos=b,                    
     keepspaces=true,                 
     numbers=left,                    
-    numbersep=5pt,                  
+    numbersep=10pt,                  
     showspaces=false,                
     showstringspaces=false,
     showtabs=false,                  
-    tabsize=2
+    tabsize=2,
+    frame=none, % Rimosso frame nativo listings per usare la cornice arrotondata di tcolorbox
+    xleftmargin=12pt,
 }
 \lstset{style=mystyle}
+\captionsetup[lstlisting]{labelfont={color=copper,bf},textfont={color=darkcharcoal,small},position=bottom,skip=8pt}
 
-% --- HEADER AND FOOTER ---
+
+% --- CONTENITORE CODICE PREMIUM (tcolorbox con look Terminale macOS) ---
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{listings, skins}
+
+\newtcolorbox{ztacodebox}[2][]{
+  enhanced,
+  arc=8pt,
+  outer arc=8pt,
+  boxrule=1.5pt,
+  colback=darkcharcoal,
+  colframe=copper,
+  colupper=cream,
+  drop shadow={opacity=0.35, color=black},
+  attach boxed title to top left={yshift=-3.5mm, xshift=6mm},
+  boxed title style={
+    colframe=copper,
+    colback=darkcharcoal,
+    arc=4pt,
+    outer arc=4pt,
+    boxrule=1.5pt,
+    top=3pt, bottom=3pt, left=8pt, right=8pt
+  },
+  title={%
+    \tikz[baseline=-0.6ex, xshift=-1mm]{
+      \fill[red!75!black] (0,0) circle (3pt);
+      \fill[yellow!75!black] (0.22,0) circle (3pt);
+      \fill[green!75!black] (0.44,0) circle (3pt);
+    }\hspace{0.8em}\texttt{#2}%
+  },
+  colbacktitle=darkcharcoal,
+  coltitle=cream,
+  fonttitle=\bfseries\small\sffamily,
+  top=12pt,
+  bottom=12pt,
+  left=5pt,
+  right=12pt,
+  #1
+}
+
+% --- INTESTAZIONI E PIÈ DI PAGINA (fancyhdr) ---
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\textcolor{codegray}{ZTA 2026 -- Cybersecurity Project}}
-\fancyhead[R]{\textcolor{codegray}{\leftmark}}
-\fancyfoot[C]{\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{\textcolor{textmuted}{\small ZTA 2026 -- Cybersecurity Project}}
+\fancyhead[R]{\textcolor{textmuted}{\small\leftmark}}
+\fancyfoot[C]{\textcolor{textmuted}{\thepage}}
+% Linea di intestazione colorata in Copper
+\renewcommand{\headrule}{\hbox to\headwidth{\color{copper}\leaders\hrule height 0.6pt\hfill}}
+\renewcommand{\footrulewidth}{0pt}
 
-% --- DOCUMENT ---
+% Ridefinizione dello stile plain per rimuovere completamente l'header sulle pagine di avvio capitolo/indice
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \fancyfoot[C]{\textcolor{textmuted}{\thepage}}
+  \renewcommand{\headrule}{} % Cancella la linea colorata custom per lo stile plain
+}
+
+% --- DOCUMENTO ---
 \begin{document}
 
-% --- COVER PAGE ---
+% --- COPERTINA (Design System: Copper Accent Line) ---
 \begin{titlepage}
     \centering
     \vspace*{1.5cm}
     
     {\scshape\LARGE Università degli Studi \par}
-    \vspace{1cm}
+    \vspace{0.4cm}
     {\scshape\Large Corso di Laurea in Informatica / Sicurezza Informatica\par}
-    \vspace{1.5cm}
-    
-    {\huge\bfseries Progetto Zero Trust Architecture 2026\par}
-    \vspace{0.5cm}
-    {\large\itshape Sicurezza Avanzata per il Dominio Ospedaliero\par}
     
     \vspace{2cm}
+    
+    % Barra d'accento colorata Copper
+    {\color{copper}\hrule height 3pt}
+    \vspace{0.6cm}
+    {\huge\bfseries\color{copper} Progetto Zero Trust Architecture 2026 \par}
+    \vspace{0.4cm}
+    {\large\itshape\color{textmuted} Protezione Adattiva di Database e API con Verifica Continua, \\ Machine Learning e Micro-Segmentazione \par}
+    \vspace{0.6cm}
+    {\color{copper}\hrule height 1pt}
+    
+    \vspace{2.5cm}
     
     \begin{minipage}[t]{0.45\textwidth}
         \begin{flushleft}
             \large
-            \textbf{Candidati:}\\
+            \textbf{\color{copper} Candidati:}\\
+            \vspace{0.2cm}
             Nome Cognome (Matr. XXXXXX)\\
             Nome Cognome (Matr. YYYYYY)
         \end{flushleft}
@@ -92,7 +181,8 @@
     \begin{minipage}[t]{0.45\textwidth}
         \begin{flushright}
             \large
-            \textbf{Docente:}\\
+            \textbf{\color{copper} Docente:}\\
+            \vspace{0.2cm}
             Chiar.mo Prof. Nome Cognome
         \end{flushright}
     \end{minipage}
@@ -100,17 +190,15 @@
     \vfill
     
     \vspace{1.5cm}
-    {\large Anno Accademico 2025/2026 \par}
+    {\large\color{textmuted} Anno Accademico 2025/2026 \par}
 \end{titlepage}
 
 \newpage
+\thispagestyle{plain}
 \tableofcontents
 \newpage
 
-% --- CHAPTERS (Inclusi come file separati per evitare conflitti Git!) ---
-% Ciascun autore può modificare un file differente sotto la propria cartella capitoloX 
-% senza causare conflitti di merge su main.tex.
-
+% --- CAPITOLI COINVOLTI ---
 \input{capitolo1/capitolo1.tex}
 \newpage
 

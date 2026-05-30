@@ -1,16 +1,13 @@
-\section{Conclusioni e Sviluppi Futuri}
+\section{Conclusioni e sviluppi futuri}
 \label{sec:conclusioni}
+\thispagestyle{plain}
 
-L'architettura progettata dimostra come sia possibile integrare strumenti open-source moderni ed eterogenei per creare un ecosistema Zero Trust coeso ed estremamente sicuro.
+L'architettura progettata dimostra come sia possibile integrare strumenti open-source moderni ed eterogenei per creare un ecosistema Zero Trust coeso ed estremamente sicuro per la tutela dei dati aziendali e delle risorse critiche.
 
-\subsection{Obiettivi Raggiunti}
-Il sistema soddisfa appieno i requisiti di:
-\begin{itemize}
-    \item \textbf{Microsegmentazione:} Isolamento delle aree critiche.
-    \item \textbf{Autenticazione forte:} mTLS a livello hardware tramite TPM.
-    \item \textbf{Analisi Comportamentale:} Valutazione dinamica del rischio basata su modelli predittivi.
-    \item \textbf{Deep Packet Inspection (DPI):} Ispezione L7 sui protocolli HTTP e MongoDB.
-\end{itemize}
+\subsection{Obiettivi raggiunti}
+Il sistema soddisfa appieno i requisiti del paradigma Zero Trust applicato alle infrastrutture informatiche aziendali. L'isolamento delle aree sensibili tramite microsegmentazione impedisce efficacemente qualsiasi tentativo di movimento laterale non autorizzato. L'adozione dell'autenticazione mutua a livello di trasporto garantisce una forte verifica dell'identità, legando crittograficamente i dispositivi al chip hardware TPM. 
 
-\subsection{Sviluppi Futuri}
-Tra le possibili evoluzioni del progetto si annoverano l'integrazione di sistemi di Identity Management federati (come Keycloak) e il raffinamento dei modelli di Machine Learning per ridurre i falsi positivi durante le ore di picco del personale ospedaliero.
+Inoltre, il continuo monitoraggio comportamentale in tempo reale basato su algoritmi predittivi di machine learning e gestito dal SIEM garantisce una valutazione dinamica della salute e della credibilità di ciascun client, prevenendo minacce interne di attori originariamente fidati ma potenzialmente compromessi. Infine, l'ispezione profonda dei pacchetti al livello applicativo assicura la protezione mirata dei database bloccando query BSON malevole prima del loro arrivo alle collezioni protette.
+
+\subsection{Sviluppi futuri}
+Tra le possibili evoluzioni del progetto si annoverano l'integrazione di sistemi di federazione dell'identità centralizzati (come l'utilizzo dello standard SPIFFE/SPIRE per la rotazione dinamica dei certificati) e il raffinamento dei modelli predittivi di machine learning per incluirsi un numero maggiore di feature comportamentali in produzione. Un altro sviluppo interessante potrebbe includere l'adozione di politiche di rimedio automatiche, che consentano ad OPA di comandare direttamente al firewall \texttt{nftables} l'inserimento istantaneo dell'IP di un client in una denylist di blocco temporaneo appena viene registrata un'anomalia grave.

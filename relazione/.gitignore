@@ -22,3 +22,8 @@
 *.tex.backup
 *.tmp
 *~
+
+# Escludi file di regole per la scrittura della tesi/relazione
+regole tesi.md
+regole_tesi.md
+regole-tesi.md
