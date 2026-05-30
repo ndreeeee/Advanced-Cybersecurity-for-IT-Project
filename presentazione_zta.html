@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zero Trust Architecture 2026 — Presentazione Progetto</title>
+<meta name="description" content="Presentazione del progetto Zero Trust Architecture 2026 per il dominio ospedaliero. Envoy, OPA, Splunk MLTK, NFTables, Snort.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN SYSTEM — DEEP CHARCOAL & COPPER
+   ============================================================ */
+:root {
+  /* Core Palette */
+  --bg-page: #161515;
+  --bg-white: #221F20;
+  --border: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  
+  /* Typography */
+  --text-heading: #FFFFFF;
+  --text-body: #B0A8A4;
+  --text-muted: #807A76;
+
+  /* Accent Palette */
+  --accent-copper: #8C473B;
+  --accent-terracotta: #B96A59;
+  --accent-sand: #D9A07E;
+  --accent-cream: #F2D1B3;
+
+  /* Status (adjusted to fit tone) */
+  --status-green: #597A5E;
+  --status-red: #A34848;
+  --status-amber: #B5844A;
+  --status-blue: #4A6E8C;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { 
+  scroll-behavior: smooth; 
+  scroll-snap-type: y mandatory; 
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-body);
+  overflow-x: hidden;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+code, .code-block, .pill, .slide-number, .bar-fill {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ---- BACKGROUND IMAGES ---- */
+.bg-cover {
+  background-image: linear-gradient(rgba(22,21,21,0.88), rgba(22,21,21,0.88)), url('https://images.unsplash.com/photo-1614064641938-3bbee52942c7?auto=format&fit=crop&w=1920&q=80');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+.bg-net {
+  background-image: linear-gradient(rgba(22,21,21,0.92), rgba(22,21,21,0.92)), url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1920&q=80');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+.bg-log {
+  background-image: linear-gradient(rgba(22,21,21,0.92), rgba(22,21,21,0.92)), url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1920&q=80');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* ---- PROGRESS BAR & BTN ---- */
+#progress-bar {
+  position: fixed;
+  top: 0; left: 0; height: 4px;
+  background: var(--accent-copper);
+  width: 0%;
+  z-index: 1001;
+  transition: width 0.1s ease-out;
+}
+#fs-btn {
+  position: fixed;
+  bottom: 24px; left: 24px;
+  background: var(--bg-white);
+  color: var(--text-body);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  width: 48px; height: 48px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.2s ease;
+  display: flex; align-items: center; justify-content: center;
+}
+#fs-btn:hover {
+  background: var(--accent-copper);
+  color: #FFF;
+  border-color: var(--accent-copper);
+}
+
+/* ---- SLIDE CONTAINER ---- */
+.slide {
+  min-height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 100px 60px 80px;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+.slide-number {
+  position: absolute;
+  bottom: 30px; right: 80px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.top-logo {
+  position: absolute;
+  top: 30px; right: 80px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: var(--accent-copper);
+}
+
+/* ---- TYPOGRAPHY ---- */
+.slide-header { margin-bottom: 32px; }
+h1 {
+  font-size: clamp(3rem, 5vw, 4rem);
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  color: var(--text-heading);
+}
+h2 {
+  font-size: clamp(2rem, 3vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--text-heading);
+  margin-bottom: 8px;
+}
+.subtitle {
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--text-body);
+  max-width: 800px;
+}
+.slide-divider {
+  border: 0;
+  height: 1px;
+  background: var(--border-strong);
+  margin-top: 24px;
+  width: 100%;
+}
+h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-heading);
+  margin-bottom: 12px;
+}
+p, li { font-size: 0.95rem; }
+
+/* ---- CARDS & LAYOUTS ---- */
+.card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  padding: 32px; 
+  border-radius: 4px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.card:hover {
+  border-color: var(--border-strong);
+}
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+
+/* ---- CODE BLOCK ---- */
+.code-block {
+  background: var(--bg-page);
+  border: 1px solid var(--border-strong);
+  padding: 24px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  position: relative;
+  color: var(--text-body);
+}
+.code-block .code-label {
+  position: absolute;
+  top: 0; right: 0;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  background: var(--bg-white);
+  padding: 4px 10px;
+  border-bottom-left-radius: 4px;
+  border-left: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+}
+.kw { color: var(--accent-sand); font-weight: 600; }
+.fn { color: var(--accent-cream); }
+.str { color: var(--accent-terracotta); }
+.cm { color: var(--text-muted); font-style: italic; }
+.num { color: var(--accent-copper); }
+.op, .var { color: var(--text-heading); }
+code {
+  background: var(--bg-white);
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--accent-cream);
+  font-size: 0.85em;
+}
+
+/* ---- TAGS & BADGES ---- */
+.tag {
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: var(--border-strong);
+  color: var(--text-heading);
+  border-radius: 20px;
+}
+.icon-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 16px;
+  font-size: 0.8rem; font-weight: 600;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-white);
+  color: var(--text-heading);
+  border-radius: 20px;
+}
+
+/* ---- SVG DIAGRAM ---- */
+.diagram-container {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  padding: 32px;
+  text-align: center;
+  border-radius: 4px;
+}
+.diagram-container svg { max-width: 100%; height: auto; max-height: 50vh; }
+.flow-line {
+  stroke-dasharray: 6 4;
+  animation: flow 1s linear infinite;
+}
+@keyframes flow { to { stroke-dashoffset: -10; } }
+
+/* ---- TABLE ---- */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.data-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #FFF;
+  background: var(--accent-copper);
+  border-bottom: 1px solid var(--accent-copper);
+}
+.data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--text-body);
+}
+.data-table tr:nth-child(even) td {
+  background: rgba(255,255,255,0.02);
+}
+
+/* ---- STATUS PILLS ---- */
+.pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px;
+  font-size: 0.75rem; font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 4px;
+}
+.pill-green { background: rgba(89,122,94,0.15); color: var(--status-green); border: 1px solid var(--status-green); }
+.pill-amber { background: rgba(181,132,74,0.15); color: var(--status-amber); border: 1px solid var(--status-amber); }
+.pill-red { background: rgba(163,72,72,0.15); color: var(--status-red); border: 1px solid var(--status-red); }
+.pill-blue { background: rgba(74,110,140,0.15); color: var(--status-blue); border: 1px solid var(--status-blue); }
+
+/* ---- BAR CHART ---- */
+.bar-chart { display: flex; flex-direction: column; gap: 16px; }
+.bar-row { display: flex; align-items: center; gap: 16px; }
+.bar-label {
+  flex: 0 0 160px;
+  font-size: 0.85rem; font-weight: 600;
+  color: var(--text-heading); text-align: right;
+}
+.bar-track {
+  flex: 1; height: 24px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px; overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 12px;
+  font-size: 0.75rem; font-weight: 700; color: #FFF;
+  transition: width 1s ease-out; width: 0%;
+}
+.fill-copper { background: var(--accent-copper); }
+.fill-terracotta { background: var(--accent-terracotta); }
+.fill-sand { background: var(--accent-sand); color: var(--bg-page); }
+.fill-cream { background: var(--accent-cream); color: var(--bg-page); }
+
+/* ---- HORIZONTAL TIMELINE (Slides 5 & 23) ---- */
+.horiz-timeline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  margin: 40px 0;
+  padding: 40px 20px;
+}
+.timeline-line {
+  position: absolute;
+  top: 50%; left: 40px; right: 40px;
+  height: 2px;
+  background: var(--border-strong);
+  z-index: 1;
+}
+.timeline-nodes {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  z-index: 2;
+}
+.t-node {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  width: 120px; position: relative;
+}
+.t-node.down { flex-direction: column-reverse; }
+.t-circle {
+  width: 24px; height: 24px;
+  background: var(--accent-copper);
+  border-radius: 50%;
+  border: 4px solid var(--bg-page);
+  box-shadow: 0 0 0 1px var(--accent-copper);
+}
+.t-text { text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--text-heading); }
+.t-sub { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
+
+/* ---- LISTS ---- */
+ul.feature-list, ul.check-list { list-style: none; padding: 0; }
+ul.feature-list li, ul.check-list li {
+  padding: 6px 0; padding-left: 24px; position: relative;
+}
+ul.feature-list li::before {
+  content: ''; position: absolute; left: 4px; top: 12px;
+  width: 6px; height: 6px; background: var(--accent-sand); border-radius: 50%;
+}
+ul.check-list li::before {
+  content: '✓'; position: absolute; left: 2px;
+  color: var(--accent-copper); font-weight: 900; font-size: 1rem;
+}
+
+/* ---- DOTS NAVIGATION ---- */
+.dots-nav {
+  position: fixed; right: 24px; top: 50%;
+  transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 10px; z-index: 1000;
+}
+.dot {
+  width: 8px; height: 8px;
+  background: var(--border-strong);
+  border-radius: 50%;
+  transition: all 0.3s; cursor: pointer;
+}
+.dot:hover { background: var(--accent-sand); transform: scale(1.5); }
+.dot.active { background: var(--accent-copper); transform: scale(1.5); }
+.dot::after {
+  content: attr(title); position: absolute; right: 20px; top: 50%;
+  transform: translateY(-50%); background: var(--bg-white);
+  color: var(--text-body); padding: 4px 10px; font-size: 11px;
+  border: 1px solid var(--border); border-radius: 4px;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  white-space: nowrap;
+}
+.dot:hover::after { opacity: 1; }
+
+/* ---- ANIMATIONS ---- */
+.animate-in-up {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s cubic-bezier(.16, 1, .3, 1), transform 0.7s cubic-bezier(.16, 1, .3, 1);
+}
+.animate-in-up.visible { opacity: 1; transform: translateY(0); }
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 1024px) {
+  .slide { padding: 40px 60px 40px 30px; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .horiz-timeline { flex-direction: column; padding: 20px; margin: 20px 0; }
+  .timeline-line { top: 40px; bottom: 40px; left: 50%; right: auto; width: 2px; height: auto; }
+  .timeline-nodes { flex-direction: column; align-items: center; gap: 40px; }
+  .t-node, .t-node.down { flex-direction: row; width: auto; text-align: left; }
+}
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+<button id="fs-btn" title="Toggle Fullscreen">⛶</button>
+
+<!-- NAV DOTS -->
+<nav class="dots-nav" id="navbar">
+  <a href="#slide-0" title="Home" class="dot"></a>
+  <a href="#slide-1" title="Contesto" class="dot"></a>
+  <a href="#slide-2" title="Architettura" class="dot"></a>
+  <a href="#slide-3" title="6 Dimensioni" class="dot"></a>
+  <a href="#slide-4" title="Envoy Listener" class="dot"></a>
+  <a href="#slide-5" title="Envoy Pipeline" class="dot"></a>
+  <a href="#slide-6" title="OPA Regole" class="dot"></a>
+  <a href="#slide-7" title="OPA Rischio" class="dot"></a>
+  <a href="#slide-8" title="Splunk Modello" class="dot"></a>
+  <a href="#slide-9" title="Splunk Integrazione" class="dot"></a>
+  <a href="#slide-10" title="NFTables" class="dot"></a>
+  <a href="#slide-11" title="Snort Regole" class="dot"></a>
+  <a href="#slide-12" title="Snort Architettura" class="dot"></a>
+  <a href="#slide-13" title="PKI Certificati" class="dot"></a>
+  <a href="#slide-14" title="PKI Verifica" class="dot"></a>
+  <a href="#slide-15" title="Reti Zone" class="dot"></a>
+  <a href="#slide-16" title="Reti Matrice" class="dot"></a>
+  <a href="#slide-17" title="Log Sorgenti" class="dot"></a>
+  <a href="#slide-18" title="Log Architettura" class="dot"></a>
+  <a href="#slide-19" title="MongoDB" class="dot"></a>
+  <a href="#slide-20" title="DPI L7" class="dot"></a>
+  <a href="#slide-21" title="DPI Confronto" class="dot"></a>
+  <a href="#slide-22" title="Scenari 1/2" class="dot"></a>
+  <a href="#slide-23" title="Scenari 2/2" class="dot"></a>
+  <a href="#slide-24" title="Risultati" class="dot"></a>
+  <a href="#slide-25" title="Sviluppi Futuri" class="dot"></a>
+</nav>
+
+<!-- ============================================================
+     SLIDE 0 — HERO (BG Unsplash)
+     ============================================================ -->
+<section class="slide bg-cover" id="slide-0">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="animate-in-up">
+    <div style="margin-bottom:16px;">
+      <span class="tag">Politecnica delle Marche — 25/26</span>
+    </div>
+    <h1 style="color:var(--accent-cream); margin-bottom: 12px;">Zero Trust Architecture</h1>
+    <p class="subtitle" style="color:var(--text-heading); font-size: 1.3rem;">Protezione di un Database Ospedaliero con Verifica Continua, Machine Learning e Micro-Segmentazione.</p>
+    <div style="margin-top:40px; display:flex; gap:12px; flex-wrap:wrap;">
+      <span class="icon-badge">Envoy PEP</span>
+      <span class="icon-badge">Open Policy Agent</span>
+      <span class="icon-badge">Splunk MLTK</span>
+      <span class="icon-badge">Snort NIDS</span>
+    </div>
+  </div>
+  <span class="slide-number">00 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 1 — INTRODUZIONE (BG Unsplash)
+     ============================================================ -->
+<section class="slide bg-cover" id="slide-1">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Perché Zero Trust?</h2>
+    <p class="subtitle">Il confine di rete tradizionale è dissolto. Un approccio data-centrico è mandatorio.</p>
+    <hr class="slide-divider">
+  </div>
+  
+  <div class="grid-2">
+    <div class="card animate-in-up">
+      <h3>Il Caso di Studio</h3>
+      <p>Protezione di un <strong>database MongoDB ospedaliero</strong> contenente cartelle cliniche. Accesso richiesto da rete interna e smart working.</p>
+      <ul class="feature-list" style="margin-top:14px;">
+        <li>Dati sanitari critici (Compliance GDPR, NIS2)</li>
+        <li>Connessioni da reti eterogenee</li>
+        <li>Rischio costante di insider threat</li>
+      </ul>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s;">
+      <h3>Il Paradigma Zero Trust</h3>
+      <p style="color:var(--accent-cream); font-weight:600; margin-bottom:12px;">"Never Trust, Always Verify"</p>
+      <ul class="feature-list">
+        <li>Nessun attore è implicitamente fidato</li>
+        <li>Autorizzazione per-request continua</li>
+        <li>Analisi contestuale dinamica e telemetria</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number">01 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 2 — ARCHITETTURA (BG Net)
+     ============================================================ -->
+<section class="slide bg-net" id="slide-2">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Topologia a 4 Zone</h2>
+    <p class="subtitle">Segmentazione fisica Docker. Envoy opera come choke-point tra tutte le DMZ.</p>
+    <hr class="slide-divider">
+  </div>
+
+  <div class="diagram-container animate-in-up">
+    <!-- Clean Minimalist SVG for Deep Charcoal Theme -->
+    <svg viewBox="0 0 1100 560" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif">
+      <rect x="20" y="20" width="240" height="200" fill="#1A1919" stroke="var(--border-strong)" stroke-width="2" rx="4"/>
+      <text x="40" y="50" fill="var(--text-heading)" font-size="13" font-weight="600">UNTRUSTED ZONE</text>
+      
+      <rect x="20" y="240" width="240" height="300" fill="#1A1919" stroke="var(--border-strong)" stroke-width="2" rx="4"/>
+      <text x="40" y="270" fill="var(--text-heading)" font-size="13" font-weight="600">FRONTEND DMZ</text>
+
+      <rect x="380" y="20" width="340" height="520" fill="#1A1919" stroke="var(--accent-copper)" stroke-width="2" rx="4"/>
+      <text x="400" y="50" fill="var(--accent-copper)" font-size="13" font-weight="600">CORE ZTA ENGINE</text>
+
+      <rect x="780" y="20" width="300" height="280" fill="#1A1919" stroke="var(--border-strong)" stroke-width="2" rx="4"/>
+      <text x="800" y="50" fill="var(--text-heading)" font-size="13" font-weight="600">CONTROL PLANE</text>
+
+      <rect x="780" y="320" width="300" height="220" fill="#1A1919" stroke="var(--border-strong)" stroke-width="2" rx="4"/>
+      <text x="800" y="350" fill="var(--text-heading)" font-size="13" font-weight="600">BACKEND DATA</text>
+
+      <!-- Nodes -->
+      <g transform="translate(60, 90)">
+        <rect width="160" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+        <text x="80" y="25" fill="var(--text-body)" font-size="12" text-anchor="middle">Charlie (Remote)</text>
+      </g>
+      
+      <g transform="translate(60, 310)">
+        <rect width="160" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+        <text x="80" y="25" fill="var(--text-body)" font-size="12" text-anchor="middle">Alice (TPM)</text>
+      </g>
+
+      <g transform="translate(60, 380)">
+        <rect width="160" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+        <text x="80" y="25" fill="var(--text-body)" font-size="12" text-anchor="middle">Bob (No TPM)</text>
+      </g>
+
+      <g transform="translate(60, 460)">
+        <rect width="160" height="40" fill="var(--bg-white)" stroke="var(--accent-terracotta)" rx="4"/>
+        <text x="80" y="25" fill="#FFF" font-size="12" text-anchor="middle">NFTables FW</text>
+      </g>
+
+      <g transform="translate(440, 180)">
+        <rect width="220" height="60" fill="var(--accent-copper)" rx="4"/>
+        <text x="110" y="25" fill="#FFF" font-size="14" font-weight="600" text-anchor="middle">Envoy Proxy</text>
+        <text x="110" y="45" fill="#FFF" font-size="10" opacity="0.8" text-anchor="middle">mTLS / JA3 / DPI</text>
+      </g>
+
+      <g transform="translate(440, 270)">
+        <rect width="220" height="40" fill="var(--bg-page)" stroke="var(--border-strong)" stroke-dasharray="4 4" rx="4"/>
+        <text x="110" y="25" fill="var(--text-body)" font-size="12" text-anchor="middle">Snort NIDS</text>
+      </g>
+
+      <g transform="translate(820, 80)">
+        <rect width="220" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+        <text x="110" y="25" fill="var(--text-body)" font-size="12" text-anchor="middle">OPA (PDP)</text>
+      </g>
+
+      <g transform="translate(820, 150)">
+        <rect width="220" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+        <text x="110" y="25" fill="var(--text-body)" font-size="12" text-anchor="middle">Splunk MLTK</text>
+      </g>
+      
+      <g transform="translate(820, 220)">
+        <rect width="220" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+        <text x="110" y="25" fill="var(--text-body)" font-size="12" text-anchor="middle">Fluent Bit</text>
+      </g>
+
+      <g transform="translate(820, 380)">
+        <rect width="220" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+        <text x="110" y="25" fill="var(--text-body)" font-size="12" text-anchor="middle">MongoDB</text>
+      </g>
+      
+      <g transform="translate(820, 450)">
+        <rect width="220" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+        <text x="110" y="25" fill="var(--text-body)" font-size="12" text-anchor="middle">API Proxy</text>
+      </g>
+
+      <!-- Arrows -->
+      <line class="flow-line" x1="220" y1="110" x2="140" y2="460" stroke="var(--text-muted)" stroke-width="2"/>
+      <line class="flow-line" x1="220" y1="330" x2="140" y2="460" stroke="var(--text-muted)" stroke-width="2"/>
+      <line class="flow-line" x1="220" y1="400" x2="140" y2="460" stroke="var(--text-muted)" stroke-width="2"/>
+      
+      <line class="flow-line" x1="220" y1="480" x2="440" y2="210" stroke="var(--accent-cream)" stroke-width="2" marker-end="url(#arw)"/>
+      <line class="flow-line" x1="660" y1="200" x2="820" y2="100" stroke="var(--text-muted)" stroke-width="2" marker-end="url(#arw)"/>
+      <line class="flow-line" x1="660" y1="210" x2="820" y2="400" stroke="var(--text-muted)" stroke-width="2" marker-end="url(#arw)"/>
+
+      <defs>
+        <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+  <span class="slide-number">02 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 3 — LE 6 DIMENSIONI
+     ============================================================ -->
+<section class="slide" id="slide-3">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Le 6 Dimensioni Zero Trust</h2>
+    <p class="subtitle">Ogni richiesta è un vettore analizzato dal PDP.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-3">
+    <div class="card animate-in-up">
+      <h3>👤 User (u)</h3>
+      <p>Estrazione dell'identità tramite Common Name del cert mTLS.</p>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s;">
+      <h3>🖥️ Device (d)</h3>
+      <p>Hard-token verification tramite OID TPM <code>1.3.6...1</code>.</p>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.2s;">
+      <h3>💻 Software (s)</h3>
+      <p>Fingerprint JA3 tramite hashing del client hello (TLS).</p>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.3s;">
+      <h3>🌐 Network (n)</h3>
+      <p>Provenienza geografica o di rete (IP translation Envoy).</p>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.4s;">
+      <h3>⚡ Action (a)</h3>
+      <p>Comando API o verbo BSON MongoDB richiesto.</p>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.5s;">
+      <h3>📁 Resource (r)</h3>
+      <p>Target finale dell'azione (Collection o Path HTTP).</p>
+    </div>
+  </div>
+  <span class="slide-number">03 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 4 — ENVOY LISTENER
+     ============================================================ -->
+<section class="slide" id="slide-4">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Envoy Proxy: Listener Config</h2>
+    <p class="subtitle">Ingegneria dei flussi in ingresso sulle porte esposte.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up">
+      <h3>Porta 27017 (MongoDB)</h3>
+      <ul class="check-list">
+        <li>TLS Inspector & JA3 Fingerprinting</li>
+        <li>mTLS Strict enforcement</li>
+        <li>BSON L7 parsing via <code>mongo_proxy</code></li>
+        <li>Autorizzazione gRPC esterna verso OPA</li>
+      </ul>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s;">
+      <h3>Porta 8443 (HTTP API)</h3>
+      <ul class="check-list">
+        <li>Iniezione Header dinamica per JA3</li>
+        <li>Filtro Lua inline per drop rapido</li>
+        <li>Validazione gRPC estesa (PDP)</li>
+        <li>Log JSON destrutturato</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number">04 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 5 — ENVOY PIPELINE (Timeline Layout)
+     ============================================================ -->
+<section class="slide" id="slide-5">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Envoy Proxy: Filter Pipeline</h2>
+    <p class="subtitle">Flusso d'ispezione sequenziale dei pacchetti.</p>
+    <hr class="slide-divider">
+  </div>
+
+  <div class="horiz-timeline animate-in-up">
+    <div class="timeline-line"></div>
+    <div class="timeline-nodes">
+      <div class="t-node up">
+        <div class="t-text">TLS INSP</div>
+        <div class="t-sub">JA3 hash</div>
+        <div class="t-circle"></div>
+      </div>
+      <div class="t-node down">
+        <div class="t-circle"></div>
+        <div class="t-text">mTLS</div>
+        <div class="t-sub">Cert Auth</div>
+      </div>
+      <div class="t-node up">
+        <div class="t-text">BSON</div>
+        <div class="t-sub">L7 Parse</div>
+        <div class="t-circle"></div>
+      </div>
+      <div class="t-node down">
+        <div class="t-circle"></div>
+        <div class="t-text">AUTHZ</div>
+        <div class="t-sub">gRPC OPA</div>
+      </div>
+      <div class="t-node up">
+        <div class="t-text">ROUTER</div>
+        <div class="t-sub">Upstream</div>
+        <div class="t-circle"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="code-block animate-in-up" style="transition-delay:0.2s;">
+    <span class="code-label">envoy.yaml</span>
+<pre><span class="var">filters</span>:
+  - <span class="var">name</span>: <span class="str">envoy.filters.network.ext_authz</span>
+    <span class="var">include_peer_certificate</span>: <span class="num">true</span>
+    <span class="var">grpc_service</span>:
+      <span class="var">cluster_name</span>: <span class="str">opa_cluster</span></pre>
+  </div>
+  <span class="slide-number">05 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 6 — OPA REGOLE
+     ============================================================ -->
+<section class="slide" id="slide-6">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>OPA: Motore Decisionale Rego</h2>
+    <p class="subtitle">Analisi stateless e crittografica sui certificati inoltrati da Envoy.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up">
+      <h3>Logica Declarativa</h3>
+      <ul class="feature-list">
+        <li>Costrutto <code>default allow = false</code>.</li>
+        <li>Parsing X.509 ASN.1 tramite Rego.</li>
+        <li>Ispezione di estensioni custom (TPM OID).</li>
+        <li>Interrogazione WebAPI (Splunk) in tempo reale via <code>http.send</code>.</li>
+      </ul>
+    </div>
+    <div class="code-block animate-in-up" style="transition-delay:0.1s;">
+      <span class="code-label">rules.rego</span>
+<pre><span class="cm"># Validazione chip TPM hardware</span>
+<span class="var">is_tpm</span> := <span class="num">true</span> <span class="kw">if</span> {
+  <span class="var">cert_pem</span> := <span class="fn">urlquery.decode</span>(<span class="var">cert_raw</span>)
+  <span class="var">certs</span> := <span class="fn">crypto.x509.parse_certificates</span>(<span class="var">cert_pem</span>)
+  <span class="kw">some</span> <span class="var">ext</span> <span class="kw">in</span> <span class="var">certs</span>[<span class="num">0</span>].Extensions
+  <span class="var">ext</span>.Id == [<span class="num">1,3,6,1,4,1,9999,1</span>]
+}</pre>
+    </div>
+  </div>
+  <span class="slide-number">06 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 7 — OPA RISCHIO ADATTIVO
+     ============================================================ -->
+<section class="slide" id="slide-7">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>OPA: Soglie di Rischio Adattive</h2>
+    <p class="subtitle">La tolleranza diminuisce in base a location di rete e stato del dispositivo.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="code-block animate-in-up">
+      <span class="code-label">rules.rego</span>
+<pre><span class="var">risk_ok</span> := <span class="num">true</span> <span class="kw">if</span> {
+    <span class="var">is_internal</span>; <span class="var">is_tpm</span>;
+    <span class="var">splunk_risk</span> <= <span class="num">50</span>
+} <span class="kw">else</span> := <span class="num">true</span> <span class="kw">if</span> {
+    <span class="kw">not</span> <span class="var">is_internal</span>; <span class="var">is_tpm</span>;
+    <span class="var">splunk_risk</span> <= <span class="num">10</span>
+}</pre>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s;">
+      <h3>Tolleranza Rischio</h3>
+      <div class="bar-chart" style="margin-top:24px;">
+        <div class="bar-row">
+          <div class="bar-label">Int + TPM</div>
+          <div class="bar-track"><div class="bar-fill fill-cream" data-width="100%">≤50</div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Int + No TPM</div>
+          <div class="bar-track"><div class="bar-fill fill-sand" data-width="60%">≤30</div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Ext + TPM</div>
+          <div class="bar-track"><div class="bar-fill fill-terracotta" data-width="20%">≤10</div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Ext + No TPM</div>
+          <div class="bar-track"><div class="bar-fill fill-copper" data-width="3%">∅</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <span class="slide-number">07 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 8 — SPLUNK MLTK
+     ============================================================ -->
+<section class="slide" id="slide-8">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Splunk MLTK: Modello RandomForest</h2>
+    <p class="subtitle">Comportamento analizzato basato su 10k record storici aggregati.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up">
+      <h3>Machine Learning Pipeline</h3>
+      <ul class="feature-list" style="margin-top:16px;">
+        <li><strong>Dataset</strong>: Traffico simulato (<code>simulated.csv</code>).</li>
+        <li><strong>Algoritmo</strong>: RandomForestRegressor per interpolazione del trust continuo.</li>
+        <li><strong>Feature</strong>: Le 6 dimensioni catturate dai log di Envoy.</li>
+        <li><strong>Deploy</strong>: Esposto tramite macro <code>| apply</code> e FastAPI Proxy.</li>
+      </ul>
+    </div>
+    <div class="code-block animate-in-up" style="transition-delay:0.1s;">
+      <span class="code-label">SPL Search</span>
+<pre><span class="cm"># Addestramento modello</span>
+<span class="op">|</span> <span class="fn">inputlookup</span> simulated_traffic.csv
+<span class="op">|</span> <span class="fn">fit</span> <span class="var">RandomForestRegressor</span>
+    <span class="str">"rischio"</span>
+    <span class="kw">from</span> user, software, device,
+         network, action, resource
+    <span class="kw">into</span> <span class="var">trust_model</span></pre>
+    </div>
+  </div>
+  <span class="slide-number">08 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 9 — SPLUNK INTEGRAZIONE
+     ============================================================ -->
+<section class="slide" id="slide-9">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Splunk MLTK: Inferenza e Features</h2>
+    <p class="subtitle">L'importanza delle variabili nel determinare il rischio calcolato.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up">
+      <h3>Feature Importance</h3>
+      <div class="bar-chart" style="margin-top:24px;">
+        <div class="bar-row"><div class="bar-label">Action (a)</div><div class="bar-track"><div class="bar-fill fill-cream" data-width="85%">34%</div></div></div>
+        <div class="bar-row"><div class="bar-label">Device (d)</div><div class="bar-track"><div class="bar-fill fill-sand" data-width="60%">24%</div></div></div>
+        <div class="bar-row"><div class="bar-label">Network (n)</div><div class="bar-track"><div class="bar-fill fill-terracotta" data-width="45%">18%</div></div></div>
+        <div class="bar-row"><div class="bar-label">Resource (r)</div><div class="bar-track"><div class="bar-fill fill-copper" data-width="30%">12%</div></div></div>
+      </div>
+    </div>
+    <div class="code-block animate-in-up" style="transition-delay:0.1s;">
+      <span class="code-label">rules.rego</span>
+<pre><span class="cm"># API Fetch verso il Bridge ML</span>
+<span class="var">resp</span> := <span class="fn">http.send</span>({
+  <span class="str">"method"</span>: <span class="str">"POST"</span>,
+  <span class="str">"url"</span>: <span class="str">"http://api:8000/api/ml"</span>,
+  <span class="str">"body"</span>: {<span class="str">"query"</span>: <span class="var">query</span>}
+})
+<span class="var">risk</span> := <span class="fn">to_number</span>(<span class="var">resp</span>.body.rischio)</pre>
+    </div>
+  </div>
+  <span class="slide-number">09 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 10 — NFTABLES
+     ============================================================ -->
+<section class="slide" id="slide-10">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>NFTables: Perimetro L3/L4</h2>
+    <p class="subtitle">Difesa perimetrale iniziale ed enforcement del routing forzato.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up">
+      <h3>Policy Base</h3>
+      <ul class="check-list">
+        <li><strong>DNAT</strong>: Dirottamento del traffico autorizzato verso Envoy.</li>
+        <li><strong>Masquerading</strong>: SNAT per le risposte interne.</li>
+        <li><strong>Drop & Log</strong>: Blocco silenzioso e logging per bypass API diretti.</li>
+      </ul>
+    </div>
+    <div class="code-block animate-in-up" style="transition-delay:0.1s;">
+      <span class="code-label">start.sh</span>
+<pre><span class="cm"># Routing sicuro verso Envoy (PEP)</span>
+<span class="fn">nft</span> add rule ip nat prerouting \
+  tcp dport <span class="num">8443</span> counter dnat to $ENVOY:<span class="num">8443</span>
+
+<span class="cm"># Prevenzione bypass verso backend ML</span>
+<span class="fn">nft</span> add rule ip nat prerouting \
+  tcp dport <span class="num">8000</span> drop</pre>
+    </div>
+  </div>
+  <span class="slide-number">10 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 11 — SNORT REGOLE (BG Log)
+     ============================================================ -->
+<section class="slide bg-log" id="slide-11">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Snort: NIDS & Anomalie</h2>
+    <p class="subtitle">Intrusion Detection System per l'analisi passiva della rete.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up" style="background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
+      <h3>Regole e Rilevazioni</h3>
+      <p>Snort lavora in promiscuous mode per tracciare comportamenti malevoli trasversali (Nmap scans, bypass tentati verso la porta del database).</p>
+      <div style="margin-top:16px;">
+        <span class="pill pill-amber">Nmap Detect</span>
+        <span class="pill pill-red">DB Bypass</span>
+      </div>
+    </div>
+    <div class="code-block animate-in-up" style="transition-delay:0.1s; background:rgba(22,21,21,0.85); backdrop-filter:blur(8px);">
+      <span class="code-label">local.rules</span>
+<pre><span class="cm"># Rilevamento TCP SYN Scan</span>
+<span class="kw">alert</span> tcp any any -> any any (
+  msg:<span class="str">"ZTA ALERT: Scansione Rete"</span>;
+  flags:<span class="num">S</span>;
+  threshold: track by_src, count <span class="num">20</span>;
+  sid:<span class="num">1000001</span>;
+)</pre>
+    </div>
+  </div>
+  <span class="slide-number">11 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 12 — SNORT ARCHITETTURA (BG Log)
+     ============================================================ -->
+<section class="slide bg-log" id="slide-12">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Snort: Network Sidecar Pattern</h2>
+    <p class="subtitle">Condivisione dello stack di rete Docker per visibilità zero-overhead.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="diagram-container animate-in-up" style="background:rgba(34,31,32,0.85); backdrop-filter:blur(8px); border-color:transparent;">
+    <svg viewBox="0 0 700 120" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif" style="max-width:600px; margin:24px auto;">
+      <rect x="20" y="20" width="140" height="70" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+      <text x="90" y="60" fill="var(--text-heading)" font-size="12" text-anchor="middle">Client Esterno</text>
+
+      <rect x="220" y="20" width="140" height="70" fill="var(--accent-copper)" stroke="none" rx="4"/>
+      <text x="290" y="50" fill="#FFF" font-size="12" font-weight="600" text-anchor="middle">Envoy PEP</text>
+      <text x="290" y="70" fill="#FFF" font-size="10" opacity="0.8" text-anchor="middle">+ Snort (stesso ns)</text>
+
+      <rect x="420" y="20" width="140" height="70" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+      <text x="490" y="60" fill="var(--text-heading)" font-size="12" text-anchor="middle">OPA PDP</text>
+
+      <rect x="580" y="20" width="100" height="70" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+      <text x="630" y="60" fill="var(--text-heading)" font-size="12" text-anchor="middle">MongoDB</text>
+
+      <line class="flow-line" x1="160" y1="55" x2="220" y2="55" stroke="var(--text-muted)" stroke-width="2" marker-end="url(#arw2)"/>
+      <line class="flow-line" x1="360" y1="45" x2="420" y2="45" stroke="var(--text-muted)" stroke-width="2" marker-end="url(#arw2)"/>
+      <line class="flow-line" x1="420" y1="65" x2="360" y2="65" stroke="var(--text-muted)" stroke-width="2" marker-end="url(#arw2)"/>
+      <line class="flow-line" x1="360" y1="55" x2="580" y2="55" stroke="var(--text-muted)" stroke-width="2"/>
+
+      <defs>
+        <marker id="arw2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)"/>
+        </marker>
+      </defs>
+    </svg>
+    <p style="font-size:0.9rem; color:var(--text-body); max-width:500px; margin:0 auto;">Implementato usando `network_mode: service:envoy` in Docker Compose.</p>
+  </div>
+  <span class="slide-number">12 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 13 — PKI CERTIFICATI
+     ============================================================ -->
+<section class="slide" id="slide-13">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>PKI e Crittografia mTLS</h2>
+    <p class="subtitle">Identità crittografiche rilasciate tramite Root CA privata.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="card animate-in-up">
+    <table class="data-table">
+      <thead>
+        <tr><th>Entità</th><th>TPM OID Presente</th><th>Subject (CN)</th><th>Trust Base</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Envoy Proxy</strong></td><td>—</td><td>envoy.zta.local</td><td><span class="pill pill-blue">System</span></td></tr>
+        <tr><td><strong>Alice</strong></td><td><span class="pill pill-green">Sì (1.3.6...1)</span></td><td>alice</td><td><span class="pill pill-green">Alto</span></td></tr>
+        <tr><td><strong>Bob</strong></td><td><span class="pill pill-red">No</span></td><td>bob</td><td><span class="pill pill-amber">Medio-Basso</span></td></tr>
+        <tr><td><strong>Charlie</strong></td><td><span class="pill pill-green">Sì (1.3.6...1)</span></td><td>charlie</td><td><span class="pill pill-amber">Medio</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <span class="slide-number">13 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 14 — PKI VERIFICA
+     ============================================================ -->
+<section class="slide" id="slide-14">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>PKI: Standard SPIFFE e Estensioni</h2>
+    <p class="subtitle">Attestazione hardware iniettata nei certificati X.509.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up">
+      <h3>SPIFFE Federation</h3>
+      <p style="margin-bottom:12px;">URL standardizzato nel Subject Alternative Name (SAN):</p>
+      <div class="code-block">
+<pre>spiffe://zta.hospital/ns/default/sa/alice</pre>
+      </div>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s;">
+      <h3>X.509 Extensions</h3>
+      <p style="margin-bottom:12px;">Validazione dell'OID in Rego:</p>
+      <div class="code-block">
+<pre><span class="kw">some</span> <span class="var">ext</span> <span class="kw">in</span> <span class="var">certs</span>[<span class="num">0</span>].Extensions
+<span class="var">ext</span>.Id == [<span class="num">1,3,6,1,4,1,9999,1</span>]</pre>
+      </div>
+    </div>
+  </div>
+  <span class="slide-number">14 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 15 — RETI ZONE (BG Net)
+     ============================================================ -->
+<section class="slide bg-net" id="slide-15">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Micro-Segmentazione: 4 Zone</h2>
+    <p class="subtitle">Isolamento drastico basato su Docker Bridge networks.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-4" style="margin-top:16px;">
+    <div class="card animate-in-up" style="background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
+      <h3 style="color:var(--accent-cream)">frontend</h3>
+      <p style="font-family:'JetBrains Mono'; font-size:0.75rem; margin-bottom:10px; color:var(--text-muted)">10.0.1.0/24</p>
+      <ul class="feature-list"><li>Alice</li><li>Bob</li><li>NFTables</li></ul>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s; background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
+      <h3 style="color:var(--accent-sand)">backend</h3>
+      <p style="font-family:'JetBrains Mono'; font-size:0.75rem; margin-bottom:10px; color:var(--text-muted)">Bridge isolato</p>
+      <ul class="feature-list"><li>MongoDB</li><li>Web API</li><li>Envoy Proxy</li></ul>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.2s; background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
+      <h3 style="color:var(--accent-terracotta)">control</h3>
+      <p style="font-family:'JetBrains Mono'; font-size:0.75rem; margin-bottom:10px; color:var(--text-muted)">Bridge isolato</p>
+      <ul class="feature-list"><li>OPA</li><li>Splunk</li><li>Fluent Bit</li></ul>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.3s; background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
+      <h3 style="color:var(--accent-copper)">external</h3>
+      <p style="font-family:'JetBrains Mono'; font-size:0.75rem; margin-bottom:10px; color:var(--text-muted)">192.168.100.0/24</p>
+      <ul class="feature-list"><li>Charlie</li><li>Simulazione</li></ul>
+    </div>
+  </div>
+  <span class="slide-number">15 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 16 — MATRICE CONNETTIVITA' (BG Net)
+     ============================================================ -->
+<section class="slide bg-net" id="slide-16">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Micro-Segmentazione: Matrice</h2>
+    <p class="subtitle">Le regole di visibilità e routing interno tra i componenti.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="card animate-in-up" style="background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
+    <table class="data-table">
+      <thead>
+        <tr><th>Entità</th><th>Rete Frontend</th><th>Rete Backend</th><th>Rete Control Plane</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Utenti (Alice/Bob)</strong></td><td><span class="pill pill-green">Sì</span></td><td><span class="pill pill-red">No</span></td><td><span class="pill pill-red">No</span></td></tr>
+        <tr><td><strong>Envoy Proxy</strong></td><td><span class="pill pill-green">Sì</span></td><td><span class="pill pill-green">Sì</span></td><td><span class="pill pill-green">Sì</span></td></tr>
+        <tr><td><strong>OPA / Splunk</strong></td><td><span class="pill pill-red">No</span></td><td><span class="pill pill-red">No</span></td><td><span class="pill pill-green">Sì</span></td></tr>
+        <tr><td><strong>MongoDB</strong></td><td><span class="pill pill-red">No</span></td><td><span class="pill pill-green">Sì</span></td><td><span class="pill pill-red">No</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <span class="slide-number">16 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 17 — LOGGING SORGENTI (BG Log)
+     ============================================================ -->
+<section class="slide bg-log" id="slide-17">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Logging Pipeline: Aggregazione</h2>
+    <p class="subtitle">Raccolta centralizzata via Fluent Bit.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up" style="background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
+      <h3>Volumi Persistenti</h3>
+      <p style="margin-bottom: 12px">Log raccolti da directory condivise sul filesystem host.</p>
+      <ul class="feature-list">
+        <li><code>/var/log/snort/</code></li>
+        <li><code>/var/log/mongodb/</code></li>
+        <li><code>/var/log/envoy/</code></li>
+        <li><code>/var/log/opa/</code></li>
+        <li><code>/var/log/nftables/</code></li>
+      </ul>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s; background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
+      <h3>Fluent Bit Parsing</h3>
+      <ul class="check-list" style="margin-top:16px;">
+        <li>Lettura in `tail` continua su file multipli.</li>
+        <li>Filtraggio regex e parsing JSON.</li>
+        <li>Aggregazione e forward sicuro verso Splunk HEC (HTTP Event Collector).</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number">17 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 18 — LOGGING ARCHITETTURA (BG Log)
+     ============================================================ -->
+<section class="slide bg-log" id="slide-18">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Logging Pipeline: Struttura</h2>
+    <p class="subtitle">Il flusso dei dati telemetrici verso il SIEM.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="diagram-container animate-in-up" style="background:rgba(34,31,32,0.85); backdrop-filter:blur(8px); border-color:transparent;">
+    <svg viewBox="0 0 500 380" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif" style="margin:0 auto; max-width:400px;">
+      <rect x="20" y="20" width="110" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+      <text x="75" y="45" fill="var(--text-heading)" font-size="12" text-anchor="middle">Snort</text>
+      
+      <rect x="20" y="80" width="110" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+      <text x="75" y="105" fill="var(--text-heading)" font-size="12" text-anchor="middle">Envoy</text>
+      
+      <rect x="20" y="140" width="110" height="40" fill="var(--bg-white)" stroke="var(--border-strong)" rx="4"/>
+      <text x="75" y="165" fill="var(--text-heading)" font-size="12" text-anchor="middle">OPA</text>
+
+      <rect x="220" y="60" width="150" height="80" fill="var(--accent-terracotta)" stroke="none" rx="4"/>
+      <text x="295" y="105" fill="#FFF" font-size="16" font-weight="600" text-anchor="middle">Fluent Bit</text>
+
+      <line class="flow-line" x1="130" y1="40" x2="220" y2="80" stroke="var(--text-muted)" stroke-width="2"/>
+      <line class="flow-line" x1="130" y1="100" x2="220" y2="100" stroke="var(--text-muted)" stroke-width="2"/>
+      <line class="flow-line" x1="130" y1="160" x2="220" y2="120" stroke="var(--text-muted)" stroke-width="2"/>
+
+      <line class="flow-line" x1="295" y1="140" x2="295" y2="240" stroke="var(--text-muted)" stroke-width="2" marker-end="url(#arw3)"/>
+
+      <rect x="220" y="240" width="150" height="60" fill="var(--accent-copper)" stroke="none" rx="4"/>
+      <text x="295" y="275" fill="#FFF" font-size="16" font-weight="600" text-anchor="middle">Splunk HEC</text>
+
+      <defs>
+        <marker id="arw3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+  <span class="slide-number">18 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 19 — MONGODB
+     ============================================================ -->
+<section class="slide" id="slide-19">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>MongoDB: La Risorsa Protetta</h2>
+    <p class="subtitle">Storage dei dati sensibili isolato e blindato.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up">
+      <h3>Collection Schema</h3>
+      <table class="data-table" style="margin-top:16px;">
+        <thead><tr><th>Collection</th><th>Dati Contenuti</th></tr></thead>
+        <tbody>
+          <tr><td><code>patients</code></td><td>Cartelle cliniche, note sensibili</td></tr>
+          <tr><td><code>identities</code></td><td>Identity store (trust base)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s;">
+      <h3>Hardening</h3>
+      <ul class="check-list" style="margin-top:16px;">
+        <li>Utente <code>zta_service</code> limitato (Least Privilege).</li>
+        <li>Accesso consentito esclusivamente tramite socket da Envoy Proxy.</li>
+        <li>Nessuna esposizione port mapping lato Docker host.</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number">19 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 20 — DPI L7
+     ============================================================ -->
+<section class="slide" id="slide-20">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Ispezione Deep Packet L7 (DPI)</h2>
+    <p class="subtitle">Difesa multilivello tra Proxy e PDP.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up">
+      <h3>Lua (Inline HTTP)</h3>
+      <p style="margin-bottom:12px;">Eseguito da Envoy per risposte immediate (Edge Drop):</p>
+      <div class="code-block">
+<pre><span class="kw">if</span> <span class="var">path</span> == <span class="str">"/api/patients/sensitive"</span> <span class="kw">then</span>
+  request_handle:respond({[<span class="str">":status"</span>] = <span class="str">"403"</span>})
+<span class="kw">end</span></pre>
+      </div>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s;">
+      <h3>Rego (BSON Payload)</h3>
+      <p style="margin-bottom:12px;">Eseguito da OPA sul traffico BSON destrutturato:</p>
+      <div class="code-block">
+<pre><span class="var">l7_dpi_block</span> := <span class="num">true</span> <span class="kw">if</span> {
+  <span class="fn">contains</span>(<span class="fn">lower</span>(<span class="var">db_query</span>), <span class="str">"sensitive_notes"</span>)
+}</pre>
+      </div>
+    </div>
+  </div>
+  <span class="slide-number">20 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 21 — DPI CONFRONTO
+     ============================================================ -->
+<section class="slide" id="slide-21">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>DPI: Confronto Tecniche</h2>
+    <p class="subtitle">Differenze architetturali nei filtri applicati.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="card animate-in-up">
+    <table class="data-table">
+      <thead>
+        <tr><th>Caratteristica</th><th>DPI Lua (HTTP)</th><th>DPI OPA (MongoDB BSON)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Architettura</strong></td><td>Inline (dentro Envoy PEP)</td><td>Esterna (OPA PDP via gRPC)</td></tr>
+        <tr><td><strong>Overhead</strong></td><td>Quasi Nullo</td><td>Basso (Network Call)</td></tr>
+        <tr><td><strong>Analisi</strong></td><td>Headers, Metodi, URI Path</td><td>Payload, Collection, Query JSON</td></tr>
+        <tr><td><strong>Target Esempio</strong></td><td>Blocco metodo <code>DELETE</code></td><td>Blocco filtro <code>sensitive_notes</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <span class="slide-number">21 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 22 — SCENARI 1 (BG Unsplash)
+     ============================================================ -->
+<section class="slide bg-cover" id="slide-22">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Scenari Operativi (1/2)</h2>
+    <p class="subtitle">Casi d'uso reali affrontati dal motore Zero Trust.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up" style="background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
+      <h3 style="color:var(--accent-cream)">Accesso Legittimo</h3>
+      <p><strong>Alice</strong> usa device aziendale (TPM ✓).</p>
+      <p style="margin-top:6px;">Il modello Splunk calcola Risk=15. <br>Soglia consentita: ≤50.</p>
+      <p style="margin-top:10px;"><span class="pill pill-green">GRANT ALLOW</span></p>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s; background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
+      <h3 style="color:var(--accent-terracotta)">Insider Threat (Anomalia)</h3>
+      <p>Alice esegue una query distruttiva insolita (<code>DROP patients</code>).</p>
+      <p style="margin-top:6px;">Splunk ML rileva devianza dal baseline: Risk=97.</p>
+      <p style="margin-top:10px;"><span class="pill pill-red">IMMEDIATE DENY</span></p>
+    </div>
+  </div>
+  <span class="slide-number">22 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 23 — SCENARI 2 (Timeline BG)
+     ============================================================ -->
+<section class="slide bg-cover" id="slide-23">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Scenari Operativi (2/2)</h2>
+    <p class="subtitle">Timeline dell'Adaptive Risk su connessioni Remote.</p>
+    <hr class="slide-divider">
+  </div>
+
+  <div class="horiz-timeline animate-in-up" style="background:rgba(34,31,32,0.85); backdrop-filter:blur(8px); border-radius:4px; padding:60px 40px;">
+    <div class="timeline-line" style="border-top:1px solid rgba(255,255,255,0.1); background:transparent;"></div>
+    <div class="timeline-nodes">
+      <div class="t-node up">
+        <div class="t-text" style="color:var(--accent-cream)">Charlie</div>
+        <div class="t-sub">Connessione</div>
+        <div class="t-circle"></div>
+      </div>
+      <div class="t-node down">
+        <div class="t-circle"></div>
+        <div class="t-text" style="color:var(--accent-sand)">Risk = 15</div>
+        <div class="t-sub">Calcolato ML</div>
+      </div>
+      <div class="t-node up">
+        <div class="t-text" style="color:var(--status-green)">ALLOW In-Office</div>
+        <div class="t-sub">Soglia ≤50</div>
+        <div class="t-circle"></div>
+      </div>
+      <div class="t-node down">
+        <div class="t-circle" style="background:var(--accent-terracotta); box-shadow:0 0 0 1px var(--accent-terracotta)"></div>
+        <div class="t-text" style="color:var(--accent-terracotta)">Cambio Rete</div>
+        <div class="t-sub">Ext / No VPN</div>
+      </div>
+      <div class="t-node up">
+        <div class="t-text" style="color:var(--status-red)">DENY Smart</div>
+        <div class="t-sub">Soglia ≤10</div>
+        <div class="t-circle" style="background:var(--status-red); box-shadow:0 0 0 1px var(--status-red)"></div>
+      </div>
+    </div>
+  </div>
+  <span class="slide-number">23 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 24 — RISULTATI
+     ============================================================ -->
+<section class="slide" id="slide-24">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Risultati Raggiunti</h2>
+    <p class="subtitle">Sintesi dei target architetturali centrati.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="card animate-in-up">
+    <div class="grid-2">
+      <ul class="check-list">
+        <li>Architettura basata su 10 microservizi containerizzati.</li>
+        <li>Isolamento e Micro-segmentazione in 4 zone.</li>
+        <li>Valutazione identità su 6 dimensioni per-request.</li>
+        <li>mTLS + TPM Hardware check via Rego.</li>
+      </ul>
+      <ul class="check-list">
+        <li>DPI parallelo L7 BSON e HTTP.</li>
+        <li>Calcolo del trust in tempo reale tramite MLTK.</li>
+        <li>Logging centralizzato e filtrato con Fluent Bit.</li>
+        <li>Difesa multilivello (NIDS, FW L3, PEP L7).</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number">24 / 25</span>
+</section>
+
+<!-- ============================================================
+     SLIDE 25 — SVILUPPI & STACK
+     ============================================================ -->
+<section class="slide" id="slide-25">
+  <div class="top-logo">CYBER SECURITY</div>
+  <div class="slide-header animate-in-up">
+    <h2>Sviluppi Futuri e Stack Finale</h2>
+    <p class="subtitle">Evoluzione prevista del modello architetturale.</p>
+    <hr class="slide-divider">
+  </div>
+  <div class="grid-2">
+    <div class="card animate-in-up">
+      <h3>Roadmap Evolutiva</h3>
+      <ul class="feature-list" style="margin-top:16px;">
+        <li>Integrazione Identity Provider (OIDC/Keycloak).</li>
+        <li>Addestramento modelli LSTM per anomalie sequenziali.</li>
+        <li>Decadimento temporale del trust (Continuous Eval).</li>
+        <li>Threat Intelligence Integration (es. VirusTotal API).</li>
+      </ul>
+    </div>
+    <div class="card animate-in-up" style="transition-delay:0.1s;">
+      <h3>Ecosistema</h3>
+      <div class="bar-chart" style="margin-top:24px;">
+        <div class="bar-row"><div class="bar-label">Envoy (PEP)</div><div class="bar-track"><div class="bar-fill fill-copper" data-width="95%">Core</div></div></div>
+        <div class="bar-row"><div class="bar-label">OPA (PDP)</div><div class="bar-track"><div class="bar-fill fill-terracotta" data-width="90%">Policy</div></div></div>
+        <div class="bar-row"><div class="bar-label">Splunk (ML)</div><div class="bar-track"><div class="bar-fill fill-sand" data-width="85%">Intel</div></div></div>
+        <div class="bar-row"><div class="bar-label">NFTables (FW)</div><div class="bar-track"><div class="bar-fill fill-cream" data-width="70%">Edge</div></div></div>
+      </div>
+    </div>
+  </div>
+  <span class="slide-number">25 / 25</span>
+</section>
+
+<!-- ============================================================
+     JAVASCRIPT — UX & Animations
+     ============================================================ -->
+<script>
+// Progress Bar
+window.addEventListener('scroll', () => {
+  const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+  const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  const progress = (scrollTop / scrollHeight) * 100;
+  document.getElementById('progress-bar').style.width = progress + '%';
+});
+
+// Fullscreen
+document.getElementById('fs-btn').addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(err => {
+      console.log(`Error: ${err.message}`);
+    });
+  } else {
+    if (document.exitFullscreen) document.exitFullscreen();
+  }
+});
+
+// Bar Chart Animation
+const barObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const targetWidth = entry.target.getAttribute('data-width');
+      if(targetWidth) entry.target.style.width = targetWidth;
+    } else {
+      entry.target.style.width = '0%';
+    }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.bar-fill').forEach(el => barObserver.observe(el));
+
+// Fade-in-up Animations
+const fadeObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) entry.target.classList.add('visible');
+  });
+}, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+document.querySelectorAll('.animate-in-up').forEach(el => fadeObserver.observe(el));
+
+// Dots Navigation Sync
+const sections = document.querySelectorAll('.slide');
+const dots = document.querySelectorAll('.dots-nav .dot');
+
+const navObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.getAttribute('id');
+      dots.forEach(dot => {
+        dot.classList.remove('active');
+        if (dot.getAttribute('href') === `#${id}`) dot.classList.add('active');
+      });
+    }
+  });
+}, { threshold: 0.5 });
+sections.forEach(section => navObserver.observe(section));
+
+// Keyboard
+document.addEventListener('keydown', (e) => {
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const currentSlide = slides.find(s => {
+    const rect = s.getBoundingClientRect();
+    return rect.top >= -100 && rect.top <= window.innerHeight / 2;
+  });
+  const currentIndex = slides.indexOf(currentSlide);
+
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+    e.preventDefault();
+    const next = slides[Math.min(currentIndex + 1, slides.length - 1)];
+    if (next) next.scrollIntoView({ behavior: 'smooth' });
+  } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const prev = slides[Math.max(currentIndex - 1, 0)];
+    if (prev) prev.scrollIntoView({ behavior: 'smooth' });
+  }
+});
+</script>
+
+</body>
+</html>
