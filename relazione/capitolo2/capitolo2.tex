@@ -9,128 +9,115 @@ La sicurezza dell'infrastruttura si basa sul principio della \textbf{microsegmen
 
 \begin{figure}[htbp]
 \centering
-\resizebox{\linewidth}{!}{%
+\resizebox{0.95\linewidth}{!}{%
 \begin{tikzpicture}[
-    % === STILI ===
-    netbox/.style={draw=#1, fill=#1!5!darkcharcoal, dashed, line width=1pt, rounded corners=6pt, inner sep=12pt},
-    nodebox/.style={draw=copper, fill=darkcharcoal, text=cream, rounded corners=4pt,
-        minimum width=2.0cm, minimum height=1.4cm, align=center, font=\scriptsize\sffamily,
-        drop shadow={opacity=0.15, color=black}},
-    clientbox/.style={draw=terracotta, fill=darkcharcoal, text=cream, rounded corners=4pt,
-        minimum width=2.0cm, minimum height=1.2cm, align=center, font=\scriptsize\sffamily,
-        drop shadow={opacity=0.15, color=black}},
-    corebox/.style={draw=sand, fill=darkcharcoal, text=cream, rounded corners=4pt,
-        minimum width=2.0cm, minimum height=1.4cm, align=center, font=\scriptsize\sffamily,
-        drop shadow={opacity=0.15, color=black}},
-    pepbox/.style={draw=copper, fill=copper, text=white, rounded corners=5pt,
+    % === ZONE BACKGROUNDS ===
+    zonebox/.style 2 args={
+        fill=#1!15!darkcharcoal, draw=#1, solid, line width=1.2pt,
+        rounded corners=6pt, inner sep=12pt,
+        label={[font=\footnotesize\bfseries\sffamily, text=#1]#2}
+    },
+    % === NODE STYLES (Colorati e differenziati per Settore) ===
+    untrustedbox/.style={draw=copper, fill=copper!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.0cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    dmzbox/.style={draw=terracotta, fill=terracotta!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.0cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    fwbox/.style={draw=copper, fill=copper!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    corebox/.style={draw=sand, fill=sand!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    controlbox/.style={draw=textmuted, fill=textmuted!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    pepbox/.style={draw=copper, fill=copper, text=white, rounded corners=4pt,
         minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\bfseries\sffamily,
-        drop shadow={opacity=0.2, color=black}},
-    arrow/.style={-{Stealth[scale=0.8]}, draw=copper, line width=1pt},
-    dashedarrow/.style={-{Stealth[scale=0.7]}, draw=textmuted, dashed, line width=0.8pt},
-    lbl/.style={font=\tiny\bfseries\color{darkcharcoal}, fill=white, inner sep=2pt, rounded corners=2pt}
+        drop shadow={opacity=0.18, color=black}},
+    % === ARROWS ===
+    arr/.style={-{Stealth[scale=0.8]}, draw=copper, line width=1pt},
+    darr/.style={-{Stealth[scale=0.7]}, draw=textmuted, densely dashed, line width=0.7pt},
+    lbl/.style={font=\tiny\bfseries\sffamily}
 ]
 
-    % =====================================================================
-    %  RIGA 1 — DATA PLANE  (Y = 0)
-    %  Flusso lineare:  Clients → FW → Envoy PEP → Backend
-    % =====================================================================
+    % ==================== DATA PLANE (Y = 0) ====================
 
-    % Col 0 – Clients  (X = 0)
-    \node[clientbox] (charlie) at (0, 1.6)  {\textbf{Charlie}\\{\tiny Esterno}};
-    \node[clientbox] (alice)   at (0, 0)    {\textbf{Alice}\\{\tiny Client TPM}};
-    \node[clientbox] (bob)     at (0,-1.6)  {\textbf{Bob}\\{\tiny No TPM}};
+    % Untrusted
+    \node[untrustedbox] (charlie) at (2, 2.2) {\includegraphics[height=0.55cm]{capitolo2/img/charlie.png}\\[0.05cm]\textbf{Charlie}};
 
-    % Col 1 – Firewall  (X = 3.3)
-    \node[nodebox] (fw) at (3.3, 0) {\textbf{Firewall}\\(nftables)};
+    % DMZ (Frontend)
+    \node[dmzbox] (alice) at (2, 0)  {\includegraphics[height=0.55cm]{capitolo2/img/alice.png}\\[0.05cm]\textbf{Alice}};
+    \node[dmzbox] (bob)   at (2,-2)  {\includegraphics[height=0.55cm]{capitolo2/img/bob.png}\\[0.05cm]\textbf{Bob}};
+    \node[fwbox]   (fw)    at (6, 0)    {\includegraphics[width=0.7cm]{capitolo2/img/nftables.png}\\[0.03cm]\textbf{Firewall}};
 
-    % Col 2 – PEP  (X = 6.6)
-    \node[pepbox] (pep) at (6.6, 0)
-        {\includegraphics[width=0.8cm]{capitolo2/img/envoy.png}\\[0.05cm]Envoy PEP};
+    % PEP — choke-point (non appartiene a nessuna zona)
+    \node[pepbox] (pep) at (10, 0)
+        {\includegraphics[width=0.7cm]{capitolo2/img/envoy.png}\\[0.03cm]Envoy};
 
-    % Col 3 – Backend  (X = 10)
-    \node[corebox] (webapi)  at (10, 1.0)
-        {\includegraphics[width=0.8cm]{capitolo2/img/python.png}\\[0.05cm]\textbf{Web API}};
-    \node[corebox] (mongodb) at (10,-1.0)
-        {\includegraphics[width=0.8cm]{capitolo2/img/mongodb.png}\\[0.05cm]\textbf{MongoDB}};
+    % Secure Core (Backend)
+    \node[corebox] (webapi)  at (14, 1.2)
+        {\includegraphics[width=0.7cm]{capitolo2/img/python.png}\\[0.03cm]\textbf{Web API}};
+    \node[corebox] (mongodb) at (14,-1.2)
+        {\includegraphics[width=0.7cm]{capitolo2/img/mongodb.png}\\[0.03cm]\textbf{MongoDB}};
 
-    % =====================================================================
-    %  RIGA 2 — NIDS SIDECAR  (Y = -3.2)
-    % =====================================================================
-    \node[nodebox] (snort) at (3.3, -3.2)
-        {\includegraphics[width=0.8cm]{capitolo2/img/snort.png}\\[0.05cm]\textbf{Snort NIDS}};
+    % ==================== CONTROL PLANE ====================
 
-    % =====================================================================
-    %  RIGA 3 — CONTROL PLANE  (Y = -6)
-    % =====================================================================
-    \node[nodebox] (opa) at (3.3, -6)
-        {\includegraphics[width=0.8cm]{capitolo2/img/opa.png}\\[0.05cm]\textbf{OPA PDP}};
-    \node[nodebox] (fluentbit) at (6.6, -6)
-        {\includegraphics[width=0.8cm]{capitolo2/img/fluentbit.png}\\[0.05cm]\textbf{Fluent-Bit}};
-    \node[nodebox] (splunk) at (10, -6)
-        {\includegraphics[width=0.8cm]{capitolo2/img/splunk.png}\\[0.05cm]\textbf{Splunk SIEM}};
+    \node[controlbox] (snort) at (3.5, -5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/snort.png}\\[0.03cm]\textbf{Snort}};
+    \node[controlbox] (splunk) at (3.5, -7.5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/splunk.png}\\[0.03cm]\textbf{Splunk}};
+    \node[controlbox] (fluentbit) at (8, -7.5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/fluentbit.png}\\[0.03cm]\textbf{Fluent-Bit}};
+    \node[controlbox] (opa) at (12.5, -7.5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/opa.png}\\[0.03cm]\textbf{OPA}};
 
-    % =====================================================================
-    %  ZONE DI SFONDO  (background layer con fit)
-    % =====================================================================
+    % ==================== ZONE BACKGROUNDS ====================
     \begin{scope}[on background layer]
-        \node[netbox=copper,     fit=(charlie),
-            label={[font=\tiny\bfseries\color{copper}]above:Untrusted}] {};
-        \node[netbox=terracotta,  fit=(alice)(bob),
-            label={[font=\tiny\bfseries\color{terracotta}]above:DMZ (Frontend)}] {};
-        \node[netbox=sand,        fit=(webapi)(mongodb),
-            label={[font=\tiny\bfseries\color{sand}]above:Secure Core}] {};
-        \node[netbox=textmuted,   fit=(opa)(fluentbit)(splunk),
-            label={[font=\tiny\bfseries\color{textmuted}]below:Control Plane}] {};
+        \node[zonebox={copper}{above:Rete Esterna}, inner sep=7pt]          [fit=(charlie)] {};
+        \node[zonebox={terracotta}{below:Rete Interna}, inner sep=7pt]  [fit=(alice)(bob)] {};
+        \node[zonebox={sand}{above:Risorse Protette}]           [fit=(webapi)(mongodb)] {};
+        \node[zonebox={textmuted}{below:Piano di Controllo}]    [fit=(opa)(fluentbit)(splunk)] {};
     \end{scope}
 
-    % =====================================================================
-    %  COLLEGAMENTI SOLIDI  — flusso dati (sinistra → destra)
-    % =====================================================================
+    % ==================== FRECCE DATI (solide) ====================
 
-    % Clients → Firewall  (tre frecce convergono su ancore distinte)
-    \draw[arrow] (charlie.east) -- node[above, lbl, pos=0.5]{mTLS} (fw.north west);
-    \draw[arrow] (alice.east)   -- node[above, lbl, pos=0.5]{mTLS+TPM} (fw.west);
-    \draw[arrow] (bob.east)     -- node[below, lbl, pos=0.5]{mTLS} (fw.south west);
+    % Tutti i client → Firewall (tutte le frecce finiscono sullo stesso punto: fw.west)
+    \draw[arr] (charlie.east) -- node[above, lbl, color=copper]{mTLS} (fw.west);
+    \draw[arr] (alice.east)   -- node[above, lbl, pos=0.5, color=terracotta]{mTLS+TPM} (fw.west);
+    \draw[arr] (bob.east)     -- node[below, lbl, pos=0.5, color=terracotta]{mTLS} (fw.west);
 
-    % Firewall → PEP  (flusso orizzontale principale)
-    \draw[arrow] (fw.east) -- node[above, lbl]{DNAT} (pep.west);
+    % Firewall → PEP
+    \draw[arr] (fw.east) -- node[above, lbl, color=copper]{DNAT} (pep.west);
 
-    % PEP → Backend  (ancore distinte: north east e south east)
-    \draw[arrow] (pep.north east) -- node[above, lbl, pos=0.5]{HTTP} (webapi.west);
-    \draw[arrow] (pep.south east) -- node[below, lbl, pos=0.5]{TCP}  (mongodb.west);
+    % PEP → Backend (frecce partono dallo stesso punto: pep.east)
+    \draw[arr] (pep.east) -- node[above, lbl, pos=0.5, color=sand]{HTTP} (webapi.west);
+    \draw[arr] (pep.east) -- node[below, lbl, pos=0.5, color=sand]{TCP} (mongodb.west);
 
-    % Firewall → Snort  (DPI — dritto verticale)
-    \draw[arrow] (fw.south) -- node[right, lbl, pos=0.5]{DPI} (snort.north);
+    % Firewall → Snort (L-shape: giù poi a sinistra)
+    \draw[arr] (fw.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=textmuted]{DPI} (snort.north);
 
-    % PEP → OPA  (gRPC — scende a sinistra con angolo ortogonale)
-    \draw[arrow] (pep.south west) -- ++(0,-1.5) -| node[pos=0.25, left, lbl]{gRPC} (opa.north);
+    % PEP → OPA (L-shape: giù poi a destra, nel gap fra data e control plane)
+    \draw[arr] (pep.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=textmuted]{gRPC} (opa.north);
 
-    % OPA → Splunk  (Query Risk — orizzontale nel piano di controllo)
-    \draw[arrow] (opa.east) -- node[above, lbl]{Query Risk} (splunk.west);
+    % OPA → Splunk (L-shape sotto, passa sotto Fluent-Bit senza incrociarlo)
+    \draw[arr] (opa.south) -- ++(0,-1.4) -| node[pos=0.5, above, lbl, color=textmuted]{Query Risk} (splunk.south);
 
-    % =====================================================================
-    %  COLLEGAMENTI TRATTEGGIATI  — telemetria (verso Fluent-Bit)
-    %  Ogni freccia usa un'ancora di arrivo distinta su fluentbit.
-    % =====================================================================
+    % ==================== TELEMETRIA (Frecce Eleganti e Curve → Fluent-Bit) ====================
+    % Frecce curve e fluide che confluiscono armoniosamente tutte in un unico punto: fluentbit.north
 
-    % FW Logs: fw.south east → scende → curva destra → fluentbit.west
-    \draw[dashedarrow] (fw.south east) -- ++(0,-1.2) -| node[pos=0.7, above, lbl]{FW Logs} (fluentbit.west);
+    \draw[darr] (fw.south)      to [bend right=15] node[right, lbl, pos=0.7, color=textmuted]{Logs} (fluentbit.north);
+    \draw[darr] (snort.east)    to [bend left=15]  node[above, lbl, pos=0.5, color=textmuted]{Logs} (fluentbit.north);
+    \draw[darr] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=textmuted]{Logs} (fluentbit.north);
+    \draw[darr] (mongodb.south) to [bend left=15]  node[left, lbl, pos=0.4, color=textmuted]{Logs}  (fluentbit.north);
 
-    % Alert Logs: snort.south → scende → curva destra → fluentbit.north west
-    \draw[dashedarrow] (snort.south) -- ++(0,-0.8) -| node[pos=0.25, above, lbl]{Alerts} (fluentbit.north west);
-
-    % Access Logs: pep.south → verticale dritto → fluentbit.north
-    \draw[dashedarrow] (pep.south) -- node[left, lbl, pos=0.8]{Access Log} (fluentbit.north);
-
-    % DB Logs: mongodb.south → scende → curva sinistra → fluentbit.north east
-    \draw[dashedarrow] (mongodb.south) -- ++(0,-1.5) -| node[pos=0.5, above, lbl]{DB Logs} (fluentbit.north east);
-
-    % Aggregazione: fluentbit.east → splunk.west
-    \draw[dashedarrow] (fluentbit.east) -- node[above, lbl]{Log Fwd} (splunk.west);
+    % Fluent-Bit → Splunk (da destra a sinistra)
+    \draw[darr] (fluentbit.west) -- node[above, lbl, color=cream]{Inoltro Log} (splunk.east);
 
 \end{tikzpicture}%
 }
-\caption{Topologia di rete dettagliata dell'infrastruttura Zero Trust con indicazione dei flussi logici e di telemetria.}
+\caption{Topologia di rete dell'infrastruttura Zero Trust con flussi logici e di telemetria.}
 \label{fig:microsegmentazione_reti}
 \end{figure}
 
@@ -218,3 +205,13 @@ Ciascuna dimensione mappa un attributo specifico estratto dinamicamente a livell
     \item \textbf{Azione ($a \in A$)}: l'operazione richiesta. Nel caso del protocollo HTTP corrisponde al metodo (es. \texttt{GET}, \texttt{POST}), mentre per le connessioni database MongoDB viene estratta a livello L7 dal filtro \texttt{mongo\_proxy} (es. comandi di \texttt{find}, \texttt{insert}, \texttt{update} o \texttt{delete}).
     \item \textbf{Risorsa ($r \in R$)}: il target dell'azione, rappresentato dall'URI del servizio API HTTP richiesto o dal nome della collezione MongoDB (es. \texttt{patients}, \texttt{medical\_records}) estratta dinamicamente tramite ispezione profonda dei pacchetti (DPI).
 \end{enumerate}
+
+\subsection{Orchestrazione e Isolamento dei Container}
+L'intera architettura è stata implementata e ingegnerizzata utilizzando \textbf{Docker} e \textbf{Docker Compose}, per garantire la massima portabilità e un isolamento rigoroso a livello di sistema operativo. Come mostrato nel \texttt{docker-compose.yaml}, l'infrastruttura è composta da diversi container, ognuno con un ruolo specifico e confinato in base al principio del minimo privilegio.
+
+
+
+Le reti virtuali agiscono come veri e propri \textit{VLAN tagging} all'interno dello stack Docker. Ad esempio, il container \texttt{zta-mongodb} è collegato esclusivamente alla rete \texttt{backend-net}, rendendolo inaccessibile a chiunque non possieda un'interfaccia sulla stessa rete (come \texttt{envoy}). Analogamente, il \texttt{zta-firewall} espone un'interfaccia su \texttt{frontend-net}, \texttt{backend-net} ed \texttt{external-net}, fungendo da gateway per instradare o droppare i pacchetti ancor prima che raggiungano il livello applicativo.
+
+L'isolamento non è limitato solo alla rete, ma si estende ai namespace e ai privilegi: il container \texttt{zta-snort} (IDS) condivide lo stesso \textit{network namespace} di Envoy (\texttt{network\_mode: "service:envoy-pep"}), permettendogli di intercettare passivamente tutto il traffico che transita per il proxy, senza però avere la possibilità di interferire o bloccare direttamente la comunicazione.
+
