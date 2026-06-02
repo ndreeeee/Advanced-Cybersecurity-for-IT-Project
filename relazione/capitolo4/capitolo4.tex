@@ -222,12 +222,10 @@ Bob riesce a connettersi alla rete ospedaliera locale con il proprio computer pe
 \label{fig:scenario_bob}
 \end{figure}
 
-\subsection{Scenario 3: attacco e rilevamento esterno}
-Il terzo scenario analizza la gestione dell'accesso remoto (Smart Working) e la protezione dell'infrastruttura contro tentativi di bypass del perimetro. Charlie è un operatore legittimo dell'ospedale, dotato di credenziali valide e di un dispositivo autorizzato provvisto di chip TPM, che tenta di connettersi da casa (rete esterna non protetta).
+\subsection{Scenario 3: accesso remoto negato}
+Il terzo scenario analizza la gestione dell'accesso remoto (Smart Working). Charlie è un operatore legittimo dell'ospedale, dotato di credenziali valide e di un dispositivo autorizzato provvisto di chip TPM, che tenta di connettersi da casa (rete esterna non protetta).
 
 Quando Charlie cerca di autenticarsi, OPA applica le regole restrittive per gli accessi remoti: poiché la richiesta di login proviene da una rete esterna (\texttt{not is\_internal\_network}), la policy ne impone il blocco preventivo impostando lo stato di \texttt{is\_auth\_blocked} a \texttt{true}. Di conseguenza, la richiesta di autenticazione di Charlie viene respinta immediatamente al login da Envoy su ordine di OPA, impedendo l'accesso remoto per motivi di sicurezza legati al contesto di rete.
-
-Successivamente, qualora un attaccante esterno (o un container compromesso nella rete esterna) cercasse di aggirare il proxy Envoy per connettersi direttamente alla porta del database o alle API di backend per eludere i controlli L7, entra in azione il firewall. \texttt{nftables} rileva la connessione diretta non autorizzata e applica la regola della trappola attiva, eseguendo il \texttt{DROP} silente dei pacchetti. Contemporaneamente, \texttt{snort} intercetta la firma del pacchetto di attacco e genera un allarme di intrusione. I log di alert vengono centralizzati da Fluent-Bit ed inoltrati a Splunk SIEM, il quale imposta al valore massimo il rischio e segnala ad OPA di inserire permanentemente l'IP sorgente nella denylist di blocco della rete.
 
 \begin{figure}[H]
 \centering
@@ -328,6 +326,153 @@ Successivamente, qualora un attaccante esterno (o un container compromesso nella
 
 \end{tikzpicture}%
 }
-\caption{Mappatura logica dei flussi nello Scenario 3 (Tentativo di bypass e isolamento di Charlie).}
+\caption{Mappatura logica dei flussi nello Scenario 3 (Blocco al login di Charlie da remoto).}
 \label{fig:scenario_charlie}
+\end{figure}
+
+\subsection{Scenario 4: tentativo di bypass L4 e rilevamento attivo}
+Il quarto scenario simula un tentativo di attacco in cui un utente esterno (o un dispositivo compromesso nella rete esterna, come Charlie) tenta di aggirare completamente il proxy Envoy (PEP) per connettersi direttamente al database o alle API di backend.
+
+L'attaccante esegue una richiesta diretta tramite lo strumento \texttt{curl} dal proprio terminale verso la porta delle API:
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{curl\_bypass.sh}
+\begin{lstlisting}[language=bash]
+$ docker exec -it zta-client-charlie curl -v --connect-timeout 3 http://zta-firewall:8000/api/patients
+* Host zta-firewall:8000 was resolved.
+*   Trying 192.168.100.4:8000...
+* Connection timed out after 3002 milliseconds
+* closing connection #0
+curl: (28) Connection timed out after 3002 milliseconds
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Simulazione di attacco bypass diretto tramite curl dal terminale di Charlie.}\label{lst:curl_bypass}
+\end{minipage}
+\end{center}
+
+Come previsto, la connessione va in timeout poiché entra in azione il firewall. \texttt{nftables} rileva la connessione diretta non autorizzata e applica la regola della trappola attiva, eseguendo il \texttt{DROP} silente dei pacchetti. Tale evento viene registrato nei log del firewall (mostrati nel Listato~\ref{lst:nftables_block_log}), evidenziando l'etichetta \texttt{[NFT-BLOCK]} e tutti i parametri del pacchetto TCP bloccato sulla porta di destinazione \texttt{8000} (DPT) proveniente dal client (\texttt{SRC=10.0.1.4}).
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{nftables.log}
+\begin{lstlisting}[language=bash]
+Jun  2 17:03:04 f020514ab776 [NFT-BLOCK]  IN=eth2 OUT= MAC=e6:27:66:d6:b7:c9:06:c9:5e:11:ef:c1:08:00 SRC=10.0.1.4 DST=10.0.1.5 LEN=60 TOS=00 PREC=0x00 TTL=64 ID=15717 DF PROTO=TCP SPT=58384 DPT=8000 SEQ=1187313041 ACK=0 WINDOW=64240 SYN URGP=0 MARK=0
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Dettaglio del log di blocco generato da nftables per il tentativo di bypass.}\label{lst:nftables_block_log}
+\end{minipage}
+\end{center}
+
+I log del firewall, insieme alle telemetrie di sistema, vengono raccolti e centralizzati in tempo reale da Fluent-Bit ed inoltrati al SIEM Splunk. La Figura~\ref{fig:splunk_logs} mostra la schermata del pannello di ricerca di Splunk Search \& Reporting, in cui si può riscontrare l'avvenuta indicizzazione dell'evento di blocco \texttt{[NFT-BLOCK]} generato dall'host \texttt{zta-firewall}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{capitolo4/img/splunk_logs.png}
+\caption{Schermata del pannello di ricerca di Splunk che mostra il log di blocco \texttt{[NFT-BLOCK]} indicizzato.}
+\label{fig:splunk_logs}
+\end{figure}
+
+Contemporaneamente, la sonda NIDS \texttt{snort} intercetta la firma del pacchetto di attacco ed esegue l'ispezione DPI, generando un allarme di intrusione. I log di alert vengono centralizzati da Fluent-Bit ed inoltrati a Splunk SIEM, il quale imposta al valore massimo il rischio e segnala ad OPA di inserire permanentemente l'IP sorgente nella denylist di blocco della rete.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.75\linewidth}{!}{%
+\begin{tikzpicture}[
+    % === ZONE BACKGROUNDS ===
+    zonebox/.style 2 args={
+        fill=#1!15!darkcharcoal, draw=#1, solid, line width=1.2pt,
+        rounded corners=6pt, inner sep=12pt,
+        label={[font=\footnotesize\bfseries\sffamily, text=#1]#2}
+    },
+    % === NODE STYLES ===
+    untrustedbox/.style={draw=copper, fill=copper!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.0cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    dmzbox/.style={draw=terracotta, fill=terracotta!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.0cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    fwbox/.style={draw=copper, fill=copper!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    corebox/.style={draw=sand, fill=sand!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    controlbox/.style={draw=textmuted, fill=textmuted!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    pepbox/.style={draw=copper, fill=copper, text=white, rounded corners=4pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\bfseries\sffamily,
+        drop shadow={opacity=0.18, color=black}},
+    % === ARROWS ===
+    arr/.style={-{Stealth[scale=0.8]}, draw=copper, line width=1pt},
+    attackarr/.style={-{Stealth[scale=0.85]}, draw=red!90!black, line width=1.5pt},
+    alertarr/.style={-{Stealth[scale=0.8]}, draw=orange!90!black, line width=1.2pt},
+    blockarr/.style={-{Stealth[scale=0.7]}, draw=red!60!black, line width=1.5pt, dashed},
+    darr/.style={-{Stealth[scale=0.7]}, draw=textmuted, densely dashed, line width=0.7pt},
+    lbl/.style={font=\tiny\bfseries\sffamily}
+]
+
+    % ==================== DATA PLANE (Y = 0) ====================
+    % Untrusted (Charlie attivo/Attaccante)
+    \node[untrustedbox, draw=red!80!black, line width=2pt] (charlie) at (2, 2.2) 
+        {\includegraphics[height=0.55cm]{capitolo2/img/charlie.png}\\[0.05cm]\textbf{Charlie}};
+
+    % DMZ (Inattivi)
+    \node[dmzbox, draw=textmuted, text=textmuted] (alice) at (2, 0)  
+        {\includegraphics[height=0.55cm]{capitolo2/img/alice.png}\\[0.05cm]\textbf{Alice}};
+    \node[dmzbox, draw=textmuted, text=textmuted] (bob)   at (2,-2)  
+        {\includegraphics[height=0.55cm]{capitolo2/img/bob.png}\\[0.05cm]\textbf{Bob}};
+    \node[fwbox, draw=red!80!black, line width=1.5pt]   (fw)    at (6, 0)    
+        {\includegraphics[width=0.7cm]{capitolo2/img/nftables.png}\\[0.03cm]\textbf{Firewall}};
+
+    % PEP (Bypassed - Inattivo)
+    \node[pepbox, draw=textmuted, text=textmuted] (pep) at (10, 0)
+        {\includegraphics[width=0.7cm]{capitolo2/img/envoy.png}\\[0.03cm]Envoy};
+
+    % Secure Core (Backend Protected)
+    \node[corebox, draw=textmuted, text=textmuted] (webapi)  at (14, 1.2)
+        {\includegraphics[width=0.7cm]{capitolo2/img/python.png}\\[0.03cm]\textbf{Web API}};
+    \node[corebox, draw=red!80!black, line width=1.5pt] (mongodb) at (14,-1.2)
+        {\includegraphics[width=0.7cm]{capitolo2/img/mongodb.png}\\[0.03cm]\textbf{MongoDB}};
+
+    % ==================== CONTROL PLANE ====================
+    \node[controlbox, draw=orange!90!black, line width=1.5pt] (snort) at (3.5, -5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/snort.png}\\[0.03cm]\textbf{Snort}};
+    \node[controlbox, draw=red!80!black, line width=1.5pt] (splunk) at (3.5, -7.5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/splunk.png}\\[0.03cm]\textbf{Splunk}};
+    \node[controlbox, draw=orange!90!black, line width=1.2pt] (fluentbit) at (8, -7.5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/fluentbit.png}\\[0.03cm]\textbf{Fluent-Bit}};
+    \node[controlbox, draw=red!80!black, line width=1.5pt] (opa) at (12.5, -7.5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/opa.png}\\[0.03cm]\textbf{OPA}};
+
+    % ==================== ETICHETTE ESTERNE DI STATO ====================
+    \node[below=0.02cm of fw, font=\scriptsize\bfseries\sffamily\color{red!80!black}] {DROP};
+    \node[below=0.02cm of snort, font=\scriptsize\bfseries\sffamily\color{orange!80!black}] {Alert Scansione};
+    \node[below=0.02cm of splunk, font=\scriptsize\bfseries\sffamily\color{red!80!black}] {Rischio Max};
+    \node[below=0.02cm of opa, font=\scriptsize\bfseries\sffamily\color{red!80!black}] {Denylist IP};
+    \node[below=0.02cm of mongodb, font=\scriptsize\bfseries\sffamily\color{red!80!black}] {Bloccato};
+
+    % ==================== ZONE BACKGROUNDS ====================
+    \begin{scope}[on background layer]
+        \node[zonebox={copper}{above:Rete Esterna}, inner sep=7pt]          [fit=(charlie)] {};
+        \node[zonebox={terracotta}{below:Rete Interna}, inner sep=7pt]  [fit=(alice)(bob)] {};
+        \node[zonebox={sand}{above:Risorse Protette}]           [fit=(webapi)(mongodb)] {};
+        \node[zonebox={textmuted}{below:Piano di Controllo}]    [fit=(opa)(fluentbit)(splunk)] {};
+    \end{scope}
+
+    % ==================== FLUSSI ATTACCO / BYPASS ====================
+    % L'attaccante tenta la connessione diretta bypassando Envoy
+    \draw[attackarr] (charlie.east) -- node[above, lbl, pos=0.5, color=red!90!black]{TCP 8000 (Bypass)} (fw.west);
+    
+    % Deviazione e Alert
+    \draw[attackarr] (fw.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=red!80!black]{Ispezione DPI} (snort.north);
+    \draw[alertarr] (snort.east) to [bend left=15] node[above, lbl, color=orange!80!black]{Alert snort.alerts} (fluentbit.north);
+    \draw[alertarr] (fluentbit.west) -- node[above, lbl, color=red!70!black]{HEC Critico} (splunk.east);
+    \draw[alertarr] (splunk.south) -- ++(0,-0.8) -| node[pos=0.5, below, lbl, color=red!70!black]{Aggiorna Denylist} (opa.south);
+
+\end{tikzpicture}%
+}
+\caption{Mappatura logica dei flussi nello Scenario 4 (Tentativo di bypass e isolamento).}
+\label{fig:scenario_bypass}
 \end{figure}
