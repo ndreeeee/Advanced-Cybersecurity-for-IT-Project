@@ -15,6 +15,7 @@
 \usepackage{fancyhdr}
 \usepackage{titlesec}
 \usepackage{csquotes}
+\usepackage{float}
 \usepackage{caption}
 
 
@@ -35,6 +36,15 @@
 \definecolor{sand}{HTML}{D9A07E}         % Accento sabbia per keyword
 \definecolor{cream}{HTML}{F2D1B3}        % Accento crema per codice
 \definecolor{textmuted}{HTML}{807A76}    % Testo disattivato/grigio
+
+% --- COLORI AGGIUNTIVI PER SINTASSI CODICE (Stile Monokai/Dracula) ---
+\definecolor{codecomment}{HTML}{75715E}      % Grigio-verde per i commenti
+\definecolor{codekeyword}{HTML}{F92672}      % Fucsia brillante per keyword principali
+\definecolor{codekeywordalt}{HTML}{E69F66}   % Arancione caldo per keyword secondarie
+\definecolor{codestring}{HTML}{A6E22E}       % Verde brillante per stringhe
+\definecolor{codenumber}{HTML}{AE81FF}       % Viola per numeri e costanti
+\definecolor{codeyamlkey}{HTML}{66D9EF}      % Celeste/Azzurro per chiavi YAML/XML e proprietà
+\definecolor{codefunction}{HTML}{66D9EF}     % Celeste/Azzurro per funzioni e tipi
 
 % --- CONFIGURAZIONE HYPERREF ---
 \hypersetup{
@@ -64,12 +74,12 @@
 % Rimuove intestazione (header) sulle pagine iniziali di ciascun capitolo
 \assignpagestyle{\section}{plain}
 
-% --- STILE CODICE LISTINGS (Stile Dark "code-block" della Presentazione) ---
+% --- STILE CODICE LISTINGS (Stile Dark Moderno "code-block") ---
 \lstdefinestyle{mystyle}{
-    commentstyle=\color{textmuted}\itshape,
-    keywordstyle=\color{sand}\bfseries,
+    commentstyle=\color{codecomment}\itshape,
+    keywordstyle=\color{codekeyword}\bfseries,
     numberstyle=\tiny\color{copper},
-    stringstyle=\color{terracotta},
+    stringstyle=\color{codestring},
     basicstyle=\ttfamily\color{cream}\footnotesize,
     breakatwhitespace=false,         
     breaklines=true,                 
@@ -85,6 +95,55 @@
     xleftmargin=12pt,
 }
 \lstset{style=mystyle}
+\renewcommand{\lstlistlistingname}{Elenco dei listati}
+
+% --- DEFINIZIONE LINGUAGGI CUSTOM IN LISTINGS ---
+
+% 1. Definizione YAML per docker-compose ed envoy config
+\lstdefinelanguage{YAML}{
+  keywords={true,false,null,y,n,networks,driver,ipam,config,subnet,static_resources,listeners,address,socket_address,filter_chains,filters,grpc_service,envoy_grpc},
+  keywordstyle=\color{codekeyword}\bfseries,
+  ndkeywords={name,driver,ipam,config,subnet,port_value,address,enable_ja3_fingerprinting,stat_prefix,emit_dynamic_metadata,transport_api_version,cluster_name,timeout,include_peer_certificate,typed_config},
+  ndkeywordstyle=\color{codeyamlkey}\bfseries,
+  sensitive=false,
+  comment=[l]{\#},
+  commentstyle=\color{codecomment}\itshape,
+  stringstyle=\color{codestring},
+  morestring=[b]',
+  morestring=[b]",
+}
+
+% 2. Definizione Rego per OPA policies
+\lstdefinelanguage{Rego}{
+  keywords={package,import,default,allow,if,else,not,some,in,every,contains},
+  keywordstyle=\color{codekeyword}\bfseries,
+  ndkeywords={true,false,null},
+  ndkeywordstyle=\color{codenumber}\bfseries,
+  sensitive=true,
+  comment=[l]{\#},
+  commentstyle=\color{codecomment}\itshape,
+  stringstyle=\color{codestring},
+  morestring=[b]',
+  morestring=[b]",
+  morekeywords=[2]{input,data,urlquery,crypto,x509},
+  keywordstyle=[2]\color{codefunction}\bfseries,
+}
+
+% 3. Definizione Snort per regole NIDS
+\lstdefinelanguage{Snort}{
+  keywords={alert,log,pass,activate,dynamic,drop,reject,sdrop},
+  keywordstyle=\color{codekeyword}\bfseries,
+  ndkeywords={tcp,udp,icmp,ip,any},
+  ndkeywordstyle=\color{codefunction}\bfseries,
+  sensitive=false,
+  comment=[l]{\#},
+  commentstyle=\color{codecomment}\itshape,
+  stringstyle=\color{codestring},
+  morestring=[b]",
+  morekeywords=[2]{msg,flags,threshold,track,count,seconds,sid,rev},
+  keywordstyle=[2]\color{codekeywordalt}\bfseries,
+}
+
 \captionsetup[lstlisting]{labelfont={color=copper,bf},textfont={color=darkcharcoal,small},position=bottom,skip=8pt}
 
 
@@ -152,9 +211,9 @@
     \centering
     \vspace*{1.5cm}
     
-    {\scshape\LARGE Università degli Studi \par}
+    {\scshape\LARGE Università Politecnica delle Marche \par}
     \vspace{0.4cm}
-    {\scshape\Large Corso di Laurea in Informatica / Sicurezza Informatica\par}
+    {\scshape\Large Corso di Laurea Magistrale in Ingegneria Informatica e dell'Automazione \par}
     
     \vspace{2cm}
     
@@ -169,22 +228,25 @@
     
     \vspace{2.5cm}
     
-    \begin{minipage}[t]{0.45\textwidth}
+    \begin{minipage}[t]{0.55\textwidth}
         \begin{flushleft}
             \large
             \textbf{\color{copper} Candidati:}\\
             \vspace{0.2cm}
-            Nome Cognome (Matr. XXXXXX)\\
-            Nome Cognome (Matr. YYYYYY)
+            Andrea Flaiani (Matr. 1126928)\\
+            Andrea Altieri (Matr. 1128865)\\
+            Niccolò de Pascali (Matr. 1123958)\\
+            Matteo Risolo (Matr. 1122743)\\
+            Simone Murazzo (Matr. 1113295)
         \end{flushleft}
     \end{minipage}
     \hfill
-    \begin{minipage}[t]{0.45\textwidth}
+    \begin{minipage}[t]{0.40\textwidth}
         \begin{flushright}
             \large
             \textbf{\color{copper} Docente:}\\
             \vspace{0.2cm}
-            Chiar.mo Prof. Nome Cognome
+            Prof. Luca Spalazzi
         \end{flushright}
     \end{minipage}
     
@@ -197,6 +259,14 @@
 \newpage
 \thispagestyle{plain}
 \tableofcontents
+\newpage
+
+\thispagestyle{plain}
+\listoffigures
+\newpage
+
+\thispagestyle{plain}
+\lstlistoflistings
 \newpage
 
 % --- CAPITOLI COINVOLTI ---

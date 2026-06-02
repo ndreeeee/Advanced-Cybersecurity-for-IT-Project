@@ -10,7 +10,7 @@ Il deploy dell'infrastruttura è orchestrato tramite la tecnologia Docker, defin
 \begin{center}
 \begin{minipage}{\linewidth}
 \begin{ztacodebox}{docker-compose.yaml}
-\begin{lstlisting}
+\begin{lstlisting}[language=YAML]
 networks:
   frontend-net:
     driver: bridge
@@ -45,7 +45,7 @@ Per estrarre le metriche necessarie alla valutazione del rischio e all'ispezione
 \begin{center}
 \begin{minipage}{\linewidth}
 \begin{ztacodebox}{envoy.yaml}
-\begin{lstlisting}[language=XML]
+\begin{lstlisting}[language=YAML]
 static_resources:
   listeners:
   - name: mongodb_listener
@@ -106,7 +106,7 @@ Accanto alla valutazione adattiva, OPA implementa controlli di sicurezza L7 stri
 \begin{center}
 \begin{minipage}{\linewidth}
 \begin{ztacodebox}{rules.rego}
-\begin{lstlisting}
+\begin{lstlisting}[language=Rego]
 # L7 DPI: Regole di blocco esplicite per query pericolose
 default l7_dpi_block := false
 l7_dpi_block := true if {
@@ -203,7 +203,7 @@ A livello di policy, OPA estrae e valida questa estensione in tempo reale decodi
 \begin{center}
 \begin{minipage}{\linewidth}
 \begin{ztacodebox}{rules.rego}
-\begin{lstlisting}
+\begin{lstlisting}[language=Rego]
 # C. DISPOSITIVO E TPM
 default is_tpm := false
 is_tpm := true if {
@@ -235,7 +235,7 @@ All'avvio, Snort viene lanciato in ascolto sull'interfaccia principale del names
 \begin{center}
 \begin{minipage}{\linewidth}
 \begin{ztacodebox}{local.rules}
-\begin{lstlisting}
+\begin{lstlisting}[language=Snort]
 # 1. Rileva una scansione Nmap (SYN Scan) verso Envoy o DB
 alert tcp any any -> any any (msg:"ZTA ALERT: Rilevata Scansione
   di Rete (Possibile Nmap)"; flags:S; threshold:type both,
@@ -262,6 +262,7 @@ La configurazione, definita nel file \texttt{fluent-bit.conf}, implementa una pi
 \centering
 \caption{Pipeline di raccolta log di Fluent-Bit: sorgenti e tag associati.}
 \label{tab:fluentbit_sources}
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{llll}
 \toprule
 \textbf{Sorgente} & \textbf{Tag} & \textbf{Percorso Volume} & \textbf{Host Iniettato} \\
@@ -272,7 +273,8 @@ Envoy PEP          & \texttt{envoy.access}    & \texttt{/var/log/envoy/access.lo
 OPA PDP            & \texttt{opa.decisions}   & \texttt{/var/log/opa/decision.log}        & \texttt{zta-opa}      \\
 NFTables Firewall  & \texttt{nftables.kernel}  & \texttt{/var/log/nftables/firewall.log}   & \texttt{zta-firewall} \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 L'architettura sfrutta i \textbf{volumi Docker condivisi} come meccanismo di trasporto: ogni container scrive i propri log in un volume dedicato (es. \texttt{envoy\_logs}, \texttt{snort\_logs}) e Fluent-Bit li legge in modalità \texttt{tail} dal percorso montato. Per i log strutturati di OPA, Fluent-Bit applica una catena di filtri dedicata: un primo filtro \texttt{grep} seleziona solo le righe contenenti il marcatore \texttt{[OPA-PDP]}, un parser con espressione regolare estrae il payload JSON dalla stringa di log, e un secondo parser deserializza il JSON strutturato contenente la decisione, il risk score e le sei dimensioni ZTA.
