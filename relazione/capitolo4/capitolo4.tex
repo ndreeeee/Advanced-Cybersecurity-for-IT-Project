@@ -2,12 +2,26 @@
 \label{sec:scenari}
 \thispagestyle{plain}
 
-Per verificare la robustezza dell'infrastruttura Zero Trust progettata, sono stati simulati tre scenari operativi principali, ognuno mirato a testare specifiche componenti difensive e logiche del sistema.
+Per verificare la robustezza dell'infrastruttura Zero Trust progettata, sono stati simulati cinque scenari operativi principali, ognuno mirato a testare specifiche componenti difensive e logiche del sistema. Tutti gli utenti ed operatori si interfacciano inizialmente con lo stesso portale web centralizzato, protetto da autenticazione forte e controlli contestuali (mostrato in Figura~\ref{fig:login_page}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{capitolo4/img/login_page.png}
+\caption{Schermata del portale di login protetto dell'ospedale San Raffaele.}
+\label{fig:login_page}
+\end{figure}
 
 \subsection{Scenario 1: accesso legittimo}
 Il primo scenario analizza il comportamento del sistema di fronte all'accesso di un utente autorizzato dotato di dispositivo aziendale integro, simulato dall'utente Alice. 
 
-Alice effettua la connessione dall'interno della rete aziendale presentando un certificato client contenente l'estensione crittografica del chip TPM. All'arrivo della richiesta, \texttt{envoy} estrae il certificato e calcola il fingerprinting \textit{JA3} del browser, trasmettendo i dati ad OPA. OPA contatta la Web API di \texttt{splunk} che calcola un punteggio di rischio minimo, pari a circa uno, data la totale assenza di anomalie comportamentali. Poiché il rischio è ampiamente inferiore alla soglia massima di tolleranza di cinquanta prevista per i dispositivi sicuri interni, OPA risponde con un responso positivo di \textbf{ALLOW} ed \texttt{envoy} instrada in pochissimi millisecondi la query verso il database, restituendo ad Alice i risultati richiesti con successo.
+Alice effettua la connessione dall'interno della rete aziendale presentando un certificato client contenente l'estensione crittografica del chip TPM. All'arrivo della richiesta, \texttt{envoy} estrae il certificato e calcola il fingerprinting \textit{JA3} del browser, trasmettendo i dati ad OPA. OPA contatta la Web API di \texttt{splunk} che calcola un punteggio di rischio minimo, pari a circa uno, data la totale assenza di anomalie comportamentali. Poiché il rischio è ampiamente inferiore alla soglia massima di tolleranza di cinquanta prevista per i dispositivi sicuri interni, OPA risponde con un responso positivo di \textbf{ALLOW} ed \texttt{envoy} instrada in pochissimi millisecondi la query verso il database, restituendo ad Alice i risultati richiesti con successo (mostrati in Figura~\ref{fig:alice_dashboard}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{capitolo4/img/alice_dashboard.png}
+\caption{Interfaccia del database pazienti visualizzata con successo da Alice dopo validazione TPM e rischio minimo.}
+\label{fig:alice_dashboard}
+\end{figure}
 
 \begin{figure}[H]
 \centering
@@ -117,7 +131,14 @@ Alice effettua la connessione dall'interno della rete aziendale presentando un c
 \subsection{Scenario 2: dispositivo non autorizzato}
 Il secondo scenario testa la reazione della politica di sicurezza di fronte a un tentativo di accesso con credenziali valide ma condotto tramite un dispositivo personale privo di chip TPM hardware, simulato dall'utente Bob.
 
-Bob riesce a connettersi alla rete ospedaliera locale con il proprio computer personale e, conoscendo le credenziali di Alice, tenta di effettuare l'autenticazione. Tuttavia, il certificato presentato dal suo dispositivo è privo dell'estensione di attestazione hardware TPM. All'arrivo della richiesta di login (\texttt{is\_auth\_request}), Envoy inoltra i dettagli del certificato ad OPA. Il PDP rileva la mancanza della firma hardware (\texttt{not is\_tpm}) e, in conformità alle regole di sicurezza impostate, definisce la variabile di blocco dell'autenticazione (\texttt{is\_auth\_blocked}) come \texttt{true}. Di conseguenza, la richiesta di Bob viene rigettata sul nascere con un responso di \textbf{DENY} immediato al login, impedendogli l'accesso alla sessione ed a qualsiasi risorsa protetta.
+Bob riesce a connettersi alla rete ospedaliera locale con il proprio computer personale e, conoscendo le credenziali di Alice, tenta di effettuare l'autenticazione. Tuttavia, il certificato presentato dal suo dispositivo è privo dell'estensione di attestazione hardware TPM. All'arrivo della richiesta di login (\texttt{is\_auth\_request}), Envoy inoltra i dettagli del certificato ad OPA. Il PDP rileva la mancanza della firma hardware (\texttt{not is\_tpm}) e, in conformità alle regole di sicurezza impostate, definisce la variabile di blocco dell'autenticazione (\texttt{is\_auth\_blocked}) come \texttt{true}. Di conseguenza, la richiesta di Bob viene rigettata sul nascere con un responso di \textbf{DENY} immediato al login, impedendogli l'accesso alla sessione ed a qualsiasi risorsa protetta, mostrando a schermo una pagina di diniego dell'accesso (Figura~\ref{fig:bob_blocked}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{capitolo4/img/bob_blocked.png}
+\caption{Schermata di errore 403 Forbidden mostrata a Bob per mancata attestazione hardware del chip TPM.}
+\label{fig:bob_blocked}
+\end{figure}
 
 \begin{figure}[H]
 \centering
@@ -225,7 +246,14 @@ Bob riesce a connettersi alla rete ospedaliera locale con il proprio computer pe
 \subsection{Scenario 3: accesso remoto negato}
 Il terzo scenario analizza la gestione dell'accesso remoto (Smart Working). Charlie è un operatore legittimo dell'ospedale, dotato di credenziali valide e di un dispositivo autorizzato provvisto di chip TPM, che tenta di connettersi da casa (rete esterna non protetta).
 
-Quando Charlie cerca di autenticarsi, OPA applica le regole restrittive per gli accessi remoti: poiché la richiesta di login proviene da una rete esterna (\texttt{not is\_internal\_network}), la policy ne impone il blocco preventivo impostando lo stato di \texttt{is\_auth\_blocked} a \texttt{true}. Di conseguenza, la richiesta di autenticazione di Charlie viene respinta immediatamente al login da Envoy su ordine di OPA, impedendo l'accesso remoto per motivi di sicurezza legati al contesto di rete.
+Quando Charlie cerca di autenticarsi, OPA applica le regole restrittive per gli accessi remoti: poiché la richiesta di login proviene da una rete esterna (\texttt{not is\_internal\_network}), la policy ne impone il blocco preventivo impostando lo stato di \texttt{is\_auth\_blocked} a \texttt{true}. Di conseguenza, la richiesta di autenticazione di Charlie viene respinta immediatamente al login da Envoy su ordine di OPA, impedendo l'accesso remoto per motivi di sicurezza legati al contesto di rete, come illustrato in Figura~\ref{fig:charlie_blocked}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{capitolo4/img/charlie_blocked.png}
+\caption{Schermata di errore 403 Forbidden mostrata a Charlie a causa del tentativo di login remoto non consentito.}
+\label{fig:charlie_blocked}
+\end{figure}
 
 \begin{figure}[H]
 \centering
@@ -475,4 +503,124 @@ Contemporaneamente, la sonda NIDS \texttt{snort} intercetta la firma del pacchet
 }
 \caption{Mappatura logica dei flussi nello Scenario 4 (Tentativo di bypass e isolamento).}
 \label{fig:scenario_bypass}
+\end{figure}
+
+\subsection{Scenario 5: protezione dai payload dannosi a livello applicativo (L7)}
+Il quinto scenario analizza il livello di sicurezza applicativo (L7) del reverse proxy Envoy. Si ipotizza il caso in cui un utente legittimo e autorizzato (come Alice, dotata di attestazione TPM valida e autenticata con successo nel sistema) sia vittima di un attacco, o che un malintenzionato tenti di eseguire comandi distruttivi o non autorizzati sul database tramite l'interfaccia di ricerca web.
+
+Nel test effettuato, l'utente simula una SQL/NoSQL Injection inserendo la parola chiave \texttt{DROP} (o comandi simili come \texttt{deleteall}) nel campo di ricerca dell'interfaccia pazienti, con l'obiettivo di alterare o eliminare collezioni nel database MongoDB.
+
+Il traffico verso il database viene intercettato ed ispezionato a livello L7 dal filtro di rete \texttt{mongo\_proxy} di Envoy. Quest'ultimo estrae i dettagli e i metadati della query di ricerca (\texttt{db\_query}) e li trasmette sincronicamente ad OPA. La policy di OPA (esaminata nel Capitolo 3) controlla il payload: se rileva parole chiave vietate (come \texttt{dropdatabase} o \texttt{deleteall}), imposta la variabile di blocco a \texttt{true}.
+
+Come mostrato in Figura~\ref{fig:alice_sql_blocked}, Envoy blocca immediatamente l'inoltro della richiesta a livello L7, impedendo che qualsiasi query dannosa raggiunga il database MongoDB e restituendo sul browser dell'utente una pagina di errore \textbf{403 Forbidden - Access Denied}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{capitolo4/img/alice_sql_blocked.png}
+\caption{Schermata di errore 403 Forbidden visualizzata a seguito del blocco di una query MongoDB dannosa a livello L7.}
+\label{fig:alice_sql_blocked}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.75\linewidth}{!}{%
+\begin{tikzpicture}[
+    % === ZONE BACKGROUNDS ===
+    zonebox/.style 2 args={
+        fill=#1!15!darkcharcoal, draw=#1, solid, line width=1.2pt,
+        rounded corners=6pt, inner sep=12pt,
+        label={[font=\footnotesize\bfseries\sffamily, text=#1]#2}
+    },
+    % === NODE STYLES ===
+    untrustedbox/.style={draw=copper, fill=copper!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.0cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    dmzbox/.style={draw=terracotta, fill=terracotta!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.0cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    fwbox/.style={draw=copper, fill=copper!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    corebox/.style={draw=sand, fill=sand!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    controlbox/.style={draw=textmuted, fill=textmuted!8!darkcharcoal, text=cream, rounded corners=3pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\sffamily,
+        drop shadow={opacity=0.12, color=black}},
+    pepbox/.style={draw=copper, fill=copper, text=white, rounded corners=4pt,
+        minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\bfseries\sffamily,
+        drop shadow={opacity=0.18, color=black}},
+    % === ARROWS ===
+    arr/.style={-{Stealth[scale=0.8]}, draw=copper, line width=1pt},
+    successarr/.style={-{Stealth[scale=0.85]}, draw=green!70!black, line width=1.5pt},
+    failarr/.style={-{Stealth[scale=0.85]}, draw=red!70!black, line width=1.5pt},
+    blockarr/.style={-{Stealth[scale=0.7]}, draw=red!60!black, line width=1.5pt, dashed},
+    darr/.style={-{Stealth[scale=0.7]}, draw=textmuted, densely dashed, line width=0.7pt},
+    lbl/.style={font=\tiny\bfseries\sffamily}
+]
+
+    % ==================== DATA PLANE (Y = 0) ====================
+    % Untrusted (Inattivo)
+    \node[untrustedbox, draw=textmuted, text=textmuted] (charlie) at (2, 2.2) 
+        {\includegraphics[height=0.55cm]{capitolo2/img/charlie.png}\\[0.05cm]\textbf{Charlie}};
+
+    % DMZ (Alice attiva con payload dannoso, Bob inattivo)
+    \node[dmzbox, draw=green!80!black, line width=2pt] (alice) at (2, 0)  
+        {\includegraphics[height=0.55cm]{capitolo2/img/alice.png}\\[0.05cm]\textbf{Alice}};
+    \node[dmzbox, draw=textmuted, text=textmuted] (bob)   at (2,-2)  
+        {\includegraphics[height=0.55cm]{capitolo2/img/bob.png}\\[0.05cm]\textbf{Bob}};
+    \node[fwbox, draw=green!80!black, line width=1.5pt]   (fw)    at (6, 0)    
+        {\includegraphics[width=0.7cm]{capitolo2/img/nftables.png}\\[0.03cm]\textbf{Firewall}};
+
+    % PEP (Envoy blocca la query L7)
+    \node[pepbox, draw=red!80!black, line width=2pt] (pep) at (10, 0)
+        {\includegraphics[width=0.7cm]{capitolo2/img/envoy.png}\\[0.03cm]Envoy};
+
+    % Secure Core (Backend - MongoDB non raggiunto)
+    \node[corebox, draw=textmuted, text=textmuted] (webapi)  at (14, 1.2)
+        {\includegraphics[width=0.7cm]{capitolo2/img/python.png}\\[0.03cm]\textbf{Web API}};
+    \node[corebox, draw=red!80!black, line width=1.5pt] (mongodb) at (14,-1.2)
+        {\includegraphics[width=0.7cm]{capitolo2/img/mongodb.png}\\[0.03cm]\textbf{MongoDB}};
+
+    % ==================== CONTROL PLANE ====================
+    \node[controlbox] (snort) at (3.5, -5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/snort.png}\\[0.03cm]\textbf{Snort}};
+    \node[controlbox, draw=red!80!black, line width=1.5pt] (splunk) at (3.5, -7.5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/splunk.png}\\[0.03cm]\textbf{Splunk}};
+    \node[controlbox] (fluentbit) at (8, -7.5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/fluentbit.png}\\[0.03cm]\textbf{Fluent-Bit}};
+    \node[controlbox, draw=red!80!black, line width=1.5pt] (opa) at (12.5, -7.5)
+        {\includegraphics[width=0.7cm]{capitolo2/img/opa.png}\\[0.03cm]\textbf{OPA}};
+
+    % ==================== ETICHETTE ESTERNE DI STATO ====================
+    \node[below=0.02cm of alice, font=\scriptsize\bfseries\sffamily\color{green!80!black}] {TPM Validato};
+    \node[above=0.02cm of pep, font=\scriptsize\bfseries\sffamily\color{red!80!black}] {DENY L7: Query DROP};
+    \node[below=0.02cm of mongodb, font=\scriptsize\bfseries\sffamily\color{red!80!black}] {Bloccato};
+    \node[below=0.02cm of splunk, font=\scriptsize\bfseries\sffamily\color{red!80!black}] {Allarme Query};
+    \node[below=0.02cm of opa, font=\scriptsize\bfseries\sffamily\color{red!80!black}] {db\_query blocked};
+
+    % ==================== ZONE BACKGROUNDS ====================
+    \begin{scope}[on background layer]
+        \node[zonebox={copper}{above:Rete Esterna}, inner sep=7pt]          [fit=(charlie)] {};
+        \node[zonebox={terracotta}{below:Rete Interna}, inner sep=7pt]  [fit=(alice)(bob)] {};
+        \node[zonebox={sand}{above:Risorse Protette}]           [fit=(webapi)(mongodb)] {};
+        \node[zonebox={textmuted}{below:Piano di Controllo}]    [fit=(opa)(fluentbit)(splunk)] {};
+    \end{scope}
+
+    % ==================== FLUSSI DATI ====================
+    \draw[successarr] (alice.east)   -- node[above, lbl, pos=0.5, color=terracotta]{mTLS+TPM} (fw.west);
+    \draw[successarr] (fw.east) -- node[above, lbl, color=copper]{DNAT} (pep.west);
+
+    % ==================== CONTROL PLANE ====================
+    \draw[failarr] (pep.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=red!70!black]{Verifica gRPC} (opa.north);
+    \draw[failarr] (opa.south) -- ++(0,-1.4) -| node[pos=0.5, above, lbl, color=red!70!black]{Log di Blocco} (splunk.south);
+
+    % ==================== TELEMETRIA ====================
+    \draw[darr, draw=red!70!black] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=red!70!black]{Logs} (fluentbit.north);
+    \draw[darr, draw=red!70!black] (fluentbit.west) -- node[above, lbl, color=red!70!black]{Inoltro Log} (splunk.east);
+
+\end{tikzpicture}%
+}
+\caption{Mappatura logica dei flussi nello Scenario 5 (Blocco di una query MongoDB dannosa a livello L7).}
+\label{fig:scenario_l7_blocked}
 \end{figure}
