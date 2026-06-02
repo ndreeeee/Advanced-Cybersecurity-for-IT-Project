@@ -8,5 +8,5 @@
 \contentsline {lstlisting}{\numberline {8}{\ignorespaces Validazione dell'estensione TPM nel certificato client da parte di OPA.}}{17}{lstlisting.8}%
 \contentsline {lstlisting}{\numberline {9}{\ignorespaces Regole di rilevamento personalizzate per Snort.}}{18}{lstlisting.9}%
 \contentsline {lstlisting}{\numberline {10}{\ignorespaces Query SPL per l'addestramento del modello Gradient Boosting su Splunk MLTK.}}{19}{lstlisting.10}%
-\contentsline {lstlisting}{\numberline {11}{\ignorespaces Simulazione di attacco bypass diretto tramite curl dal terminale di Charlie.}}{26}{lstlisting.11}%
-\contentsline {lstlisting}{\numberline {12}{\ignorespaces Dettaglio del log di blocco generato da nftables per il tentativo di bypass.}}{26}{lstlisting.12}%
+\contentsline {lstlisting}{\numberline {11}{\ignorespaces Simulazione di attacco bypass diretto tramite curl dal terminale di Charlie.}}{27}{lstlisting.11}%
+\contentsline {lstlisting}{\numberline {12}{\ignorespaces Dettaglio del log di blocco generato da nftables per il tentativo di bypass.}}{28}{lstlisting.12}%

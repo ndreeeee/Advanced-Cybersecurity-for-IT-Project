@@ -93,7 +93,7 @@ La sicurezza dell'infrastruttura si basa sul principio della \textbf{microsegmen
 
     % PEP → Backend (frecce partono dallo stesso punto: pep.east)
     \draw[arr] (pep.east) -- node[above, lbl, pos=0.5, color=sand]{HTTP} (webapi.west);
-    \draw[arr] (pep.east) -- node[below, lbl, pos=0.5, color=sand]{TCP} (mongodb.west);
+    \draw[arr] (webapi.south) -- node[right, lbl, color=sand]{TCP} (mongodb.north);
 
     % Firewall → Snort (L-shape: giù poi a sinistra)
     \draw[arr] (fw.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=textmuted]{DPI} (snort.north);

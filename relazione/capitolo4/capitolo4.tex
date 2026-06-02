@@ -14,13 +14,20 @@ Per verificare la robustezza dell'infrastruttura Zero Trust progettata, sono sta
 \subsection{Scenario 1: accesso legittimo}
 Il primo scenario analizza il comportamento del sistema di fronte all'accesso di un utente autorizzato dotato di dispositivo aziendale integro, simulato dall'utente Alice. 
 
-Alice effettua la connessione dall'interno della rete aziendale presentando un certificato client contenente l'estensione crittografica del chip TPM. All'arrivo della richiesta, \texttt{envoy} estrae il certificato e calcola il fingerprinting \textit{JA3} del browser, trasmettendo i dati ad OPA. OPA contatta la Web API di \texttt{splunk} che calcola un punteggio di rischio minimo, pari a circa uno, data la totale assenza di anomalie comportamentali. Poiché il rischio è ampiamente inferiore alla soglia massima di tolleranza di cinquanta prevista per i dispositivi sicuri interni, OPA risponde con un responso positivo di \textbf{ALLOW} ed \texttt{envoy} instrada in pochissimi millisecondi la query verso il database, restituendo ad Alice i risultati richiesti con successo (mostrati in Figura~\ref{fig:alice_dashboard}).
+Alice effettua la connessione dall'interno della rete aziendale presentando un certificato client contenente l'estensione crittografica del chip TPM. All'arrivo della richiesta, \texttt{envoy} estrae il certificato e calcola il fingerprinting \textit{JA3} del browser, trasmettendo i dati ad OPA. OPA contatta la Web API di \texttt{splunk} che calcola un punteggio di rischio minimo, pari a circa uno, data la totale assenza di anomalie comportamentali. Poiché il rischio è ampiamente inferiore alla soglia massima di tolleranza di cinquanta prevista per i dispositivi sicuri interni, OPA risponde con un responso positivo di \textbf{ALLOW} ed \texttt{envoy} instrada in pochissimi millisecondi la query verso il database, restituendo ad Alice i risultati richiesti con successo (mostrati in Figura~\ref{fig:alice_dashboard}). Il relativo log di OPA, indicizzato in Splunk, conferma l'esito positivo dell'operazione, la postura integra del dispositivo e il rischio complessivo calcolato (Figura~\ref{fig:splunk_alice_allowed}).
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{capitolo4/img/alice_dashboard.png}
 \caption{Interfaccia del database pazienti visualizzata con successo da Alice dopo validazione TPM e rischio minimo.}
 \label{fig:alice_dashboard}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{capitolo4/img/splunk_alice_allowed.png}
+\caption{Log di autorizzazione (ALLOW) per l'accesso di Alice indicizzato in Splunk, comprensivo del risk score comportamentale calcolato ($\approx 9.96$).}
+\label{fig:splunk_alice_allowed}
 \end{figure}
 
 \begin{figure}[H]
@@ -77,7 +84,7 @@ Alice effettua la connessione dall'interno della rete aziendale presentando un c
         {\includegraphics[width=0.7cm]{capitolo2/img/envoy.png}\\[0.03cm]Envoy};
 
     % Secure Core (Backend)
-    \node[corebox] (webapi)  at (14, 1.2)
+    \node[corebox, draw=green!80!black, line width=1.5pt] (webapi)  at (14, 1.2)
         {\includegraphics[width=0.7cm]{capitolo2/img/python.png}\\[0.03cm]\textbf{Web API}};
     \node[corebox, draw=green!80!black, line width=1.5pt] (mongodb) at (14,-1.2)
         {\includegraphics[width=0.7cm]{capitolo2/img/mongodb.png}\\[0.03cm]\textbf{MongoDB}};
@@ -110,7 +117,8 @@ Alice effettua la connessione dall'interno della rete aziendale presentando un c
     % ==================== FLUSSI DATI (solide) ====================
     \draw[successarr] (alice.east)   -- node[above, lbl, pos=0.5, color=terracotta]{mTLS+TPM} (fw.west);
     \draw[successarr] (fw.east) -- node[above, lbl, color=copper]{DNAT} (pep.west);
-    \draw[successarr] (pep.east) -- (mongodb.west);
+    \draw[successarr] (pep.east) -- node[above, lbl, pos=0.5, color=sand]{HTTP} (webapi.west);
+    \draw[successarr] (webapi.south) -- node[right, lbl, color=sand]{TCP} (mongodb.north);
 
     % ==================== CONTROL PLANE ====================
     \draw[successarr] (pep.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=green!80!black]{Verifica gRPC} (opa.north);
@@ -131,13 +139,20 @@ Alice effettua la connessione dall'interno della rete aziendale presentando un c
 \subsection{Scenario 2: dispositivo non autorizzato}
 Il secondo scenario testa la reazione della politica di sicurezza di fronte a un tentativo di accesso con credenziali valide ma condotto tramite un dispositivo personale privo di chip TPM hardware, simulato dall'utente Bob.
 
-Bob riesce a connettersi alla rete ospedaliera locale con il proprio computer personale e, conoscendo le credenziali di Alice, tenta di effettuare l'autenticazione. Tuttavia, il certificato presentato dal suo dispositivo è privo dell'estensione di attestazione hardware TPM. All'arrivo della richiesta di login (\texttt{is\_auth\_request}), Envoy inoltra i dettagli del certificato ad OPA. Il PDP rileva la mancanza della firma hardware (\texttt{not is\_tpm}) e, in conformità alle regole di sicurezza impostate, definisce la variabile di blocco dell'autenticazione (\texttt{is\_auth\_blocked}) come \texttt{true}. Di conseguenza, la richiesta di Bob viene rigettata sul nascere con un responso di \textbf{DENY} immediato al login, impedendogli l'accesso alla sessione ed a qualsiasi risorsa protetta, mostrando a schermo una pagina di diniego dell'accesso (Figura~\ref{fig:bob_blocked}).
+Bob riesce a connettersi alla rete ospedaliera locale con il proprio computer personale e, conoscendo le credenziali di Alice, tenta di effettuare l'autenticazione. Tuttavia, il certificato presentato dal suo dispositivo è privo dell'estensione di attestazione hardware TPM. All'arrivo della richiesta di login (\texttt{is\_auth\_request}), Envoy inoltra i dettagli del certificato ad OPA. Il PDP rileva la mancanza della firma hardware (\texttt{not is\_tpm}) e, in conformità alle regole di sicurezza impostate, definisce la variabile di blocco dell'autenticazione (\texttt{is\_auth\_blocked}) come \texttt{true}. Di conseguenza, la richiesta di Bob viene rigettata sul nascere con un responso di \textbf{DENY} immediato al login, impedendogli l'accesso alla sessione ed a qualsiasi risorsa protetta, mostrando a schermo una pagina di diniego dell'accesso (Figura~\ref{fig:bob_blocked}). Il relativo log di blocco registrato in Splunk (Figura~\ref{fig:splunk_bob_blocked}) evidenzia la componente chiave dell'approccio Zero Trust: nonostante Bob presenti un punteggio di rischio estremamente basso ($\approx 5.5$, inferiore al punteggio di Alice nello Scenario 1), l'accesso viene comunque negato a causa della mancata conformità hardware del dispositivo (\texttt{tpm\_present: false}). Ciò dimostra come la postura del dispositivo costituisca un vincolo forte e non compensabile da altri fattori contestuali favorevoli.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{capitolo4/img/bob_blocked.png}
 \caption{Schermata di errore 403 Forbidden mostrata a Bob per mancata attestazione hardware del chip TPM.}
 \label{fig:bob_blocked}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{capitolo4/img/splunk_bob_blocked.png}
+\caption{Log di diniego (DENY) per l'accesso di Bob indicizzato in Splunk, evidenziante l'assenza della firma hardware TPM (\texttt{tpm\_present: false}).}
+\label{fig:splunk_bob_blocked}
 \end{figure}
 
 \begin{figure}[H]
@@ -227,7 +242,8 @@ Bob riesce a connettersi alla rete ospedaliera locale con il proprio computer pe
     % ==================== FLUSSI DATI ====================
     \draw[failarr] (bob.east)   -- node[below, lbl, pos=0.5, color=terracotta]{mTLS (No TPM)} (fw.west);
     \draw[failarr] (fw.east) -- node[above, lbl, color=copper]{DNAT} (pep.west);
-    \draw[blockarr] (pep.east) -- node[above, lbl, pos=0.5, color=red!80!black]{\textbf{BLOCCATO}} (mongodb.west);
+    \draw[blockarr] (pep.east) -- node[above, lbl, pos=0.5, color=red!80!black]{\textbf{BLOCCATO}} (webapi.west);
+    \draw[darr] (webapi.south) -- (mongodb.north);
 
     % ==================== CONTROL PLANE ====================
     \draw[failarr] (pep.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=red!70!black]{Verifica gRPC} (opa.north);
@@ -246,13 +262,20 @@ Bob riesce a connettersi alla rete ospedaliera locale con il proprio computer pe
 \subsection{Scenario 3: accesso remoto negato}
 Il terzo scenario analizza la gestione dell'accesso remoto (Smart Working). Charlie è un operatore legittimo dell'ospedale, dotato di credenziali valide e di un dispositivo autorizzato provvisto di chip TPM, che tenta di connettersi da casa (rete esterna non protetta).
 
-Quando Charlie cerca di autenticarsi, OPA applica le regole restrittive per gli accessi remoti: poiché la richiesta di login proviene da una rete esterna (\texttt{not is\_internal\_network}), la policy ne impone il blocco preventivo impostando lo stato di \texttt{is\_auth\_blocked} a \texttt{true}. Di conseguenza, la richiesta di autenticazione di Charlie viene respinta immediatamente al login da Envoy su ordine di OPA, impedendo l'accesso remoto per motivi di sicurezza legati al contesto di rete, come illustrato in Figura~\ref{fig:charlie_blocked}.
+Quando Charlie cerca di autenticarsi, OPA applica le regole restrittive per gli accessi remoti: poiché la richiesta di login proviene da una rete esterna (\texttt{not is\_internal\_network}), la policy ne impone il blocco preventivo impostando lo stato di \texttt{is\_auth\_blocked} a \texttt{true}. Di conseguenza, la richiesta di autenticazione di Charlie viene respinta immediatamente al login da Envoy su ordine di OPA, impedendo l'accesso remoto per motivi di sicurezza legati al contesto di rete, come illustrato in Figura~\ref{fig:charlie_blocked}. Il relativo log di blocco registrato in Splunk (Figura~\ref{fig:splunk_charlie_blocked}) attesta che, nonostante il dispositivo presenti una firma TPM corretta (\texttt{tpm\_present: true}) ed un punteggio di rischio basso ($\approx 5.5$), OPA nega l'accesso impostando il verdetto di \textbf{DENY} a causa del contesto di rete esterno (\texttt{network\_internal: false}).
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{capitolo4/img/charlie_blocked.png}
 \caption{Schermata di errore 403 Forbidden mostrata a Charlie a causa del tentativo di login remoto non consentito.}
 \label{fig:charlie_blocked}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{capitolo4/img/splunk_charlie_blocked.png}
+\caption{Log di diniego (DENY) per l'accesso remoto di Charlie indicizzato in Splunk, evidenziante la mancata conformità della localizzazione di rete (\texttt{network\_internal: false}).}
+\label{fig:splunk_charlie_blocked}
 \end{figure}
 
 \begin{figure}[H]
@@ -342,7 +365,8 @@ Quando Charlie cerca di autenticarsi, OPA applica le regole restrittive per gli 
     % ==================== FLUSSI DATI ====================
     \draw[failarr] (charlie.east) -- node[above, lbl, pos=0.5, color=copper]{mTLS (Remote)} (fw.west);
     \draw[failarr] (fw.east) -- node[above, lbl, color=copper]{DNAT} (pep.west);
-    \draw[blockarr] (pep.east) -- node[above, lbl, pos=0.5, color=red!80!black]{\textbf{BLOCCATO}} (mongodb.west);
+    \draw[blockarr] (pep.east) -- node[above, lbl, pos=0.5, color=red!80!black]{\textbf{BLOCCATO}} (webapi.west);
+    \draw[darr] (webapi.south) -- (mongodb.north);
 
     % ==================== CONTROL PLANE ====================
     \draw[failarr] (pep.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=red!70!black]{Verifica gRPC} (opa.north);
@@ -492,6 +516,7 @@ Contemporaneamente, la sonda NIDS \texttt{snort} intercetta la firma del pacchet
     % ==================== FLUSSI ATTACCO / BYPASS ====================
     % L'attaccante tenta la connessione diretta bypassando Envoy
     \draw[attackarr] (charlie.east) -- node[above, lbl, pos=0.5, color=red!90!black]{TCP 8000 (Bypass)} (fw.west);
+    \draw[darr] (webapi.south) -- (mongodb.north);
     
     % Deviazione e Alert
     \draw[attackarr] (fw.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=red!80!black]{Ispezione DPI} (snort.north);
@@ -512,13 +537,20 @@ Nel test effettuato, l'utente simula una SQL/NoSQL Injection inserendo la parola
 
 Il traffico verso il database viene intercettato ed ispezionato a livello L7 dal filtro di rete \texttt{mongo\_proxy} di Envoy. Quest'ultimo estrae i dettagli e i metadati della query di ricerca (\texttt{db\_query}) e li trasmette sincronicamente ad OPA. La policy di OPA (esaminata nel Capitolo 3) controlla il payload: se rileva parole chiave vietate (come \texttt{dropdatabase} o \texttt{deleteall}), imposta la variabile di blocco a \texttt{true}.
 
-Come mostrato in Figura~\ref{fig:alice_sql_blocked}, Envoy blocca immediatamente l'inoltro della richiesta a livello L7, impedendo che qualsiasi query dannosa raggiunga il database MongoDB e restituendo sul browser dell'utente una pagina di errore \textbf{403 Forbidden - Access Denied}.
+Come mostrato in Figura~\ref{fig:alice_sql_blocked}, Envoy blocca immediatamente l'inoltro della richiesta a livello L7, impedendo che qualsiasi query dannosa raggiunga il database MongoDB e restituendo sul browser dell'utente una pagina di errore \textbf{403 Forbidden - Access Denied}. L'evento di violazione delle policy a livello applicativo viene catturato e indicizzato in tempo reale all'interno di Splunk, come visibile nel log dettagliato mostrato in Figura~\ref{fig:splunk_alice_blocked}.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{capitolo4/img/alice_sql_blocked.png}
 \caption{Schermata di errore 403 Forbidden visualizzata a seguito del blocco di una query MongoDB dannosa a livello L7.}
 \label{fig:alice_sql_blocked}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{capitolo4/img/splunk_alice_blocked.png}
+\caption{Log di blocco (response code 403) relativo alla richiesta L7 di Alice in Splunk, che evidenzia l'intercettazione del metodo \texttt{DELETE} sulla risorsa \texttt{/api/patients}.}
+\label{fig:splunk_alice_blocked}
 \end{figure}
 
 \begin{figure}[H]
@@ -577,7 +609,7 @@ Come mostrato in Figura~\ref{fig:alice_sql_blocked}, Envoy blocca immediatamente
         {\includegraphics[width=0.7cm]{capitolo2/img/envoy.png}\\[0.03cm]Envoy};
 
     % Secure Core (Backend - MongoDB non raggiunto)
-    \node[corebox, draw=textmuted, text=textmuted] (webapi)  at (14, 1.2)
+    \node[corebox, draw=green!80!black, line width=1.5pt] (webapi)  at (14, 1.2)
         {\includegraphics[width=0.7cm]{capitolo2/img/python.png}\\[0.03cm]\textbf{Web API}};
     \node[corebox, draw=red!80!black, line width=1.5pt] (mongodb) at (14,-1.2)
         {\includegraphics[width=0.7cm]{capitolo2/img/mongodb.png}\\[0.03cm]\textbf{MongoDB}};
@@ -610,6 +642,8 @@ Come mostrato in Figura~\ref{fig:alice_sql_blocked}, Envoy blocca immediatamente
     % ==================== FLUSSI DATI ====================
     \draw[successarr] (alice.east)   -- node[above, lbl, pos=0.5, color=terracotta]{mTLS+TPM} (fw.west);
     \draw[successarr] (fw.east) -- node[above, lbl, color=copper]{DNAT} (pep.west);
+    \draw[successarr] (pep.east) -- node[above, lbl, pos=0.5, color=sand]{HTTP} (webapi.west);
+    \draw[blockarr] (webapi.south) -- node[right, lbl, color=red!80!black]{\textbf{BLOCCATO L7}} (mongodb.north);
 
     % ==================== CONTROL PLANE ====================
     \draw[failarr] (pep.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=red!70!black]{Verifica gRPC} (opa.north);
