@@ -1,23 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 560" width="100%" height="100%">
   <defs>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&amp;display=swap');
-      
       .bg { fill: #0a0e17; }
       .zone-bg { fill: #161b22; stroke-width: 1.5px; rx: 8px; }
-      .zone-title { font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+      .zone-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
       
       /* Node Styles */
       .node-rect { stroke-width: 1.5px; rx: 5px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2)); transition: stroke 0.3s, fill-opacity 0.3s; }
-      .node-title { font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600; fill: #e6edf3; }
-      .node-subtitle { font-family: 'Outfit', sans-serif; font-size: 9px; fill: #8b949e; }
+      .node-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 600; fill: #e6edf3; }
+      .node-subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 9px; fill: #8b949e; }
       
       /* Paths & Arrows */
       .flow-line { fill: none; stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round; }
       .telemetry-line { fill: none; stroke-width: 1.2px; stroke-dasharray: 4 3; stroke-linecap: round; }
       .arrow-head { fill: context-stroke; }
       
-      .lbl { font-family: 'Outfit', sans-serif; font-size: 9px; font-weight: 600; text-anchor: middle; }
+      .lbl { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 9px; font-weight: 600; text-anchor: middle; }
 
       /* Keyframe animations for active glow nodes */
       @keyframes glow-alice {
@@ -457,7 +455,7 @@
   <!-- Red Drop Badge at Firewall (Charlie L4 Bypass Drop) -->
   <g class="badge-flash" transform="translate(302.5, 292.5)">
     <circle r="12" fill="#e74c3c" stroke="#ffffff" stroke-width="1.5" />
-    <text x="0" y="3" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="8" font-weight="bold" text-anchor="middle">DROP</text>
+    <text x="0" y="3" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="8" font-weight="bold" text-anchor="middle">DROP</text>
     
     <!-- Charlie bypass block duration: flashes at 73% to 83% of loop -->
     <animate attributeName="opacity" dur="12s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.71;0.72;0.83;0.84;1" />
