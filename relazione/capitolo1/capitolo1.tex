@@ -1,8 +1,7 @@
 \section{Introduzione e obiettivi}
 \label{sec:introduzione}
 \thispagestyle{plain}
------------DA CAMBIARE--------------------------\\
-{\itshape In questo primo capitolo viene presentato il contesto applicativo e metodologico alla base del progetto, definendo le sfide di sicurezza tipiche della gestione di database distribuiti e illustrando i principi teorici del paradigma Zero Trust. Infine, vengono delineati gli obiettivi e la struttura complessiva della relazione.}
+{\itshape In questo primo capitolo viene presentato il contesto applicativo e metodologico alla base del progetto, definendo le sfide di sicurezza tipiche della gestione di database distribuiti e illustrando i principi teorici del paradigma Zero Trust. Si introduce quindi il caso di studio ospedaliero scelto come dominio di riferimento e si delineano gli obiettivi e la struttura complessiva della relazione.}
 
 \subsection{La protezione dei dati aziendali e delle risorse critiche}
 Le infrastrutture IT aziendali rappresentano uno dei bersagli più ambiti e critici per gli attori malevoli a livello globale. La digitalizzazione dei servizi e la transizione verso sistemi in cloud hanno introdotto enormi benefici in termini di efficienza operativa, tra cui l'accesso condiviso a risorse sensibili, l'automazione dei flussi e il monitoraggio IoT di asset industriali. Tuttavia, questa evoluzione ha contemporaneamente esteso a dismisura la superficie d'attacco delle organizzazioni.
@@ -19,10 +18,21 @@ Il paradigma \textbf{Zero Trust Architecture} (ZTA), codificato dal NIST nel doc
     \item \textbf{Presumere la violazione (Assume Breach):} progettare il sistema assumendo che alcuni segmenti siano già compromessi. Ciò impone l'adozione di microsegmentazione di rete per limitare il raggio d'azione dell'attaccante, crittografia end-to-end per proteggere i dati in transito e sistemi di monitoraggio continuo del traffico.
 \end{enumerate}
 
+\subsection{Il caso di studio: l'infrastruttura ospedaliera}
+Il dominio applicativo scelto per la validazione dell'architettura è quello di una \textbf{struttura ospedaliera}, un contesto in cui la criticità dei dati trattati e l'eterogeneità degli accessi rendono particolarmente evidente la necessità di un approccio Zero Trust.
+
+Il sistema gestisce un database MongoDB contenente informazioni sanitarie altamente sensibili, tra cui anagrafiche dei pazienti, cartelle cliniche e dati diagnostici. L'accesso a queste risorse è richiesto da tre categorie di operatori con profili di rischio differenti:
+\begin{itemize}
+    \item \textbf{Alice}: personale medico interno all'ospedale, dotato di workstation aziendale con chip \textbf{TPM} hardware e collegato dalla rete locale (\texttt{10.0.1.0/24}). Rappresenta l'utente a rischio minimo.
+    \item \textbf{Bob}: operatore interno che utilizza un dispositivo personale privo di attestazione hardware TPM. Pur collegandosi dalla rete aziendale, la mancanza di garanzie sull'integrità del dispositivo lo sottopone a soglie di rischio più restrittive.
+    \item \textbf{Charlie}: professionista in regime di smart working, dotato di certificato e chip TPM ma collegato da una rete esterna non controllata (\texttt{192.168.100.0/24}). La provenienza da una rete non fidata impone politiche di tolleranza al rischio analogamente restrittive.
+\end{itemize}
+Questo scenario consente di dimostrare concretamente come l'architettura adatti dinamicamente le proprie soglie di sicurezza in funzione del contesto multidimensionale di ciascun accesso, combinando l'identità dell'utente, la postura del dispositivo e la localizzazione di rete.
+
 \subsection{Obiettivi del progetto}
 Il presente progetto si pone l'obiettivo di realizzare un'architettura Zero Trust completa, funzionante ed integrata per la protezione di un database MongoDB aziendale. Il sistema è progettato per operare una valutazione continua e adattiva del rischio basata sul contesto dell'utente e del suo dispositivo. 
 
 Per raggiungere questo scopo, vengono impiegate diverse tecnologie integrate. In primo luogo, \texttt{envoy} opera come \textbf{Policy Enforcement Point} (PEP), intercettando ogni singola richiesta HTTP o MongoDB in modo sicuro mediante crittografia mutua TLS (\textit{mTLS}) ed eseguendo il fingerprinting software (\textit{JA3}). In secondo luogo, \texttt{open policy agent} (OPA) funge da \textbf{Policy Decision Point} (PDP) decentralizzato, valutando le richieste sulla base delle sei dimensioni Zero Trust (ZTA 6D), rappresentate dai parametri \textit{u}, \textit{d}, \textit{s}, \textit{n}, \textit{a}, \textit{r}. Il monitoraggio e la correlazione sono affidati a \texttt{splunk} SIEM, che integra i log aggregati e calcola un punteggio di rischio dinamico in tempo reale tramite modelli predittivi di machine learning basati sull'algoritmo \textbf{Gradient Boosting}. Infine, a livello di rete, \texttt{nftables} e \texttt{snort} (NIDS) garantiscono rispettivamente la microsegmentazione del traffico a livello L3/L4 e il rilevamento tempestivo di tentativi di movimento laterale o bypass del proxy.
 
 \subsection{Struttura della relazione}
-Il documento è organizzato come segue: il Capitolo \ref{sec:architettura} illustra l'architettura complessiva della topologia di rete a quattro zone. Il Capitolo \ref{sec:componenti} scende nel dettaglio dell'implementazione tecnica di ciascun componente di sicurezza, descrivendo il funzionamento di \texttt{envoy}, OPA, \texttt{splunk}, \texttt{snort} e \texttt{nftables}. Il Capitolo \ref{sec:scenari} descrive la validazione del sistema attraverso la simulazione di scenari d'attacco ed accessi legittimi. Infine, il Capitolo \ref{sec:conclusioni} riassume i risultati e propone futuri sviluppi progettuali.
+Il documento è organizzato come segue: il Capitolo \ref{sec:architettura} illustra l'architettura complessiva della topologia di rete a quattro zone. Il Capitolo \ref{sec:implementazione} scende nel dettaglio dell'implementazione tecnica di ciascun componente di sicurezza, descrivendo il funzionamento di \texttt{envoy}, OPA, \texttt{splunk}, \texttt{snort} e \texttt{nftables}. Il Capitolo \ref{sec:scenari} descrive la validazione del sistema attraverso la simulazione di scenari d'attacco ed accessi legittimi. Infine, il Capitolo \ref{sec:conclusioni} riassume i risultati e propone futuri sviluppi progettuali.

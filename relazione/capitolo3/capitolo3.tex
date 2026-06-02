@@ -163,3 +163,158 @@ nft add rule ip nat prerouting tcp dport 8000 drop
 \captionof{lstlisting}{Configurazione delle catene di filtering e NAT nello script di avvio del firewall.}\label{lst:firewall_rules_sh}
 \end{minipage}
 \end{center}
+
+\subsection{Autenticazione crittografica: mTLS, TPM e fingerprinting JA3}
+L'architettura implementa un meccanismo di verifica dell'identità a tre livelli complementari, che operano in modo congiunto durante la fase di handshake TLS per costruire le dimensioni \textit{u} (utente), \textit{d} (dispositivo) e \textit{s} (software) della tupla Zero Trust.
+
+\subsubsection{Mutua autenticazione TLS (mTLS)}
+Ogni listener di Envoy impone la presentazione obbligatoria di un certificato client X.509 firmato dalla CA interna dell'ospedale (\texttt{ZTA Hospital Trust Root CA}). La direttiva \texttt{require\_client\_certificate: true} nella configurazione TLS di Envoy garantisce che nessuna connessione priva di certificato valido possa superare la fase di negoziazione. Il campo \texttt{Common Name} (CN) del certificato identifica univocamente l'operatore (es. \texttt{employee-alice}, \texttt{employee-bob}) e viene propagato ad OPA tramite il metadato \texttt{DOWNSTREAM\_PEER\_SUBJECT}.
+
+\subsubsection{Attestazione hardware TPM}
+Per discriminare i dispositivi aziendali sicuri dai terminali personali non censiti, il sistema utilizza un'estensione X.509 personalizzata con Object Identifier (OID) \texttt{1.3.6.1.4.1.9999.1}. Durante la generazione dei certificati tramite lo script \texttt{generate\_identities.py}, i certificati destinati a workstation dotate di chip TPM (come Alice e Charlie) vengono arricchiti con questa estensione, il cui contenuto attesta crittograficamente il legame tra la chiave privata e l'hardware. Il frammento di generazione è mostrato nel Listato \ref{lst:tpm_cert_gen}.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{generate\_identities.py}
+\begin{lstlisting}[language=Python]
+TPM_OID = ObjectIdentifier("1.3.6.1.4.1.9999.1")
+
+def generate_leaf(base_dir, name, cn, ca_cert, ca_key, has_tpm=False):
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
+    builder = x509.CertificateBuilder()
+    # ... (configurazione base del certificato)
+    if has_tpm:
+        builder = builder.add_extension(
+            x509.UnrecognizedExtension(
+                TPM_OID,
+                b"TPM-VERIFIED-HARDWARE-ROOT-OF-TRUST-PCR0-OK"
+            ), critical=False
+        )
+    cert = builder.sign(ca_key, hashes.SHA256())
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Generazione dei certificati client con estensione TPM opzionale.}\label{lst:tpm_cert_gen}
+\end{minipage}
+\end{center}
+
+A livello di policy, OPA estrae e valida questa estensione in tempo reale decodificando il certificato PEM ricevuto da Envoy e verificando la presenza dell'OID specifico nell'array delle estensioni, come mostrato nel Listato \ref{lst:opa_tpm_check}.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{rules.rego}
+\begin{lstlisting}
+# C. DISPOSITIVO E TPM
+default is_tpm := false
+is_tpm := true if {
+    cert_raw := input.attributes.source.certificate
+    cert_pem := urlquery.decode(cert_raw)
+    certs := crypto.x509.parse_certificates(cert_pem)
+    count(certs) > 0
+    some ext in certs[0].Extensions
+    ext.Id == [1, 3, 6, 1, 4, 1, 9999, 1]
+}
+default device := "Dispositivo non censito (No TPM)"
+device := "Workstation Ospedaliera Sicura (TPM Validato)" if { is_tpm }
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Validazione dell'estensione TPM nel certificato client da parte di OPA.}\label{lst:opa_tpm_check}
+\end{minipage}
+\end{center}
+
+\subsubsection{Fingerprinting software JA3}
+Il terzo livello di identificazione opera a livello di trasporto, senza richiedere alcuna collaborazione da parte del client. Durante l'handshake TLS, il filtro \texttt{tls\_inspector} di Envoy calcola l'hash \textbf{JA3}, un'impronta digitale deterministica basata sulla combinazione dei parametri del \textit{ClientHello} (versione TLS, cipher suite offerte, estensioni, curve ellittiche e formati dei punti). Poiché ogni software client genera un \textit{ClientHello} caratteristico, l'hash JA3 consente di distinguere un browser autorizzato (es. Firefox o Chrome) da uno strumento di attacco (es. \texttt{curl} o \texttt{nmap}), anche in presenza di spoofing dell'header \texttt{User-Agent}. L'hash viene reso disponibile come metadato dinamico e propagato ad OPA sia per il listener MongoDB (tramite i metadati del \texttt{tls\_inspector}) sia per il listener HTTP (tramite l'header iniettato \texttt{x-client-fingerprint}).
+
+\subsection{Rilevamento delle intrusioni di rete: Snort NIDS}
+A completamento delle difese applicative, l'architettura integra \texttt{snort} come \textbf{Network Intrusion Detection System} (NIDS) passivo, posizionato strategicamente in modo da intercettare tutto il traffico che transita per il proxy.
+
+La tecnica di deploy adottata è quella della condivisione del \textit{network namespace}: nel file \texttt{docker-compose.yaml}, il container \texttt{zta-snort} è configurato con la direttiva \texttt{network\_mode: "service:envoy-pep"}, che gli consente di osservare passivamente tutti i pacchetti in ingresso e in uscita dall'interfaccia di rete di Envoy senza possedere un proprio indirizzo IP e senza poter alterare o bloccare il traffico.
+
+All'avvio, Snort viene lanciato in ascolto sull'interfaccia principale del namespace condiviso, con output dei log nella directory \texttt{/var/log/snort} condivisa tramite volume Docker con Fluent-Bit. Le regole personalizzate implementate nel file \texttt{local.rules} definiscono due firme di rilevamento principali, mostrate nel Listato \ref{lst:snort_rules}.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{local.rules}
+\begin{lstlisting}
+# 1. Rileva una scansione Nmap (SYN Scan) verso Envoy o DB
+alert tcp any any -> any any (msg:"ZTA ALERT: Rilevata Scansione
+  di Rete (Possibile Nmap)"; flags:S; threshold:type both,
+  track by_src, count 20, seconds 10; sid:1000001; rev:1;)
+
+# 2. Rileva un tentativo di connessione diretta (bypass) a MongoDB
+alert tcp any any -> any 27017 (msg:"ZTA ALERT: Tentativo di
+  accesso diretto a MongoDB bypassando Envoy!";
+  sid:1000002; rev:1;)
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Regole di rilevamento personalizzate per Snort.}\label{lst:snort_rules}
+\end{minipage}
+\end{center}
+
+La prima regola implementa un rilevamento basato su soglia (\textit{threshold}): se vengono osservati più di 20 pacchetti SYN dallo stesso IP sorgente in un intervallo di 10 secondi, viene generato un allarme per sospetta scansione di rete. La seconda regola rileva qualsiasi tentativo di connessione TCP diretto alla porta 27017 di MongoDB che, per architettura, dovrebbe essere raggiungibile esclusivamente dal proxy Envoy.
+
+\subsection{Aggregazione centralizzata dei log: Fluent-Bit}
+La raccolta e la centralizzazione dei log di telemetria provenienti dai diversi componenti dell'infrastruttura è affidata a \texttt{fluent-bit}, un agente di log forwarding leggero e ad alte prestazioni. Fluent-Bit è stato preferito al classico \texttt{syslog} per la sua capacità nativa di operare in ambienti containerizzati, supportando il parsing strutturato di log JSON e l'invio diretto verso Splunk tramite il protocollo \textbf{HTTP Event Collector} (HEC).
+
+La configurazione, definita nel file \texttt{fluent-bit.conf}, implementa una pipeline di raccolta multi-sorgente con cinque canali di input e un'unica destinazione di output, come schematizzato nella Tabella \ref{tab:fluentbit_sources}.
+
+\begin{table}[htbp]
+\centering
+\caption{Pipeline di raccolta log di Fluent-Bit: sorgenti e tag associati.}
+\label{tab:fluentbit_sources}
+\begin{tabular}{llll}
+\toprule
+\textbf{Sorgente} & \textbf{Tag} & \textbf{Percorso Volume} & \textbf{Host Iniettato} \\
+\midrule
+Snort IDS          & \texttt{snort.alerts}    & \texttt{/var/log/snort/alert\_json.txt}   & \texttt{zta-snort}    \\
+MongoDB            & \texttt{mongo.audit}     & \texttt{/var/log/mongodb/mongod.log}      & \texttt{zta-mongodb}  \\
+Envoy PEP          & \texttt{envoy.access}    & \texttt{/var/log/envoy/access.log}        & \texttt{zta-envoy}    \\
+OPA PDP            & \texttt{opa.decisions}   & \texttt{/var/log/opa/decision.log}        & \texttt{zta-opa}      \\
+NFTables Firewall  & \texttt{nftables.kernel}  & \texttt{/var/log/nftables/firewall.log}   & \texttt{zta-firewall} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+L'architettura sfrutta i \textbf{volumi Docker condivisi} come meccanismo di trasporto: ogni container scrive i propri log in un volume dedicato (es. \texttt{envoy\_logs}, \texttt{snort\_logs}) e Fluent-Bit li legge in modalità \texttt{tail} dal percorso montato. Per i log strutturati di OPA, Fluent-Bit applica una catena di filtri dedicata: un primo filtro \texttt{grep} seleziona solo le righe contenenti il marcatore \texttt{[OPA-PDP]}, un parser con espressione regolare estrae il payload JSON dalla stringa di log, e un secondo parser deserializza il JSON strutturato contenente la decisione, il risk score e le sei dimensioni ZTA.
+
+Tutti i log vengono infine inoltrati verso l'unica destinazione: il \textbf{Splunk SIEM} tramite il modulo di output \texttt{splunk} configurato con il token HEC e la connessione TLS verso la porta \texttt{8088} del container \texttt{splunk-siem}.
+
+\subsection{Il modello predittivo di Machine Learning: Gradient Boosting}
+Il calcolo del punteggio di rischio dinamico rappresenta il cuore della valutazione adattiva e continua dell'architettura Zero Trust. Il modello predittivo è implementato all'interno di \texttt{splunk} tramite il \textbf{Machine Learning Toolkit} (MLTK) e utilizza l'algoritmo \textbf{Gradient Boosting Regressor}.
+
+\subsubsection{Dataset di addestramento e feature}
+Il modello viene addestrato su un dataset sintetico di 10.000 record generati dallo script \texttt{generate\_simulated\_traffic.py}. Il dataset riproduce un mix realistico di traffico ospedaliero, con l'80\% di sessioni legittime e il 20\% di sessioni anomale o malevole. Ogni record è descritto da \textbf{12 feature} suddivise in due categorie:
+\begin{itemize}
+    \item \textbf{6 feature identitarie (ZTA 6D)}: corrispondenti alle dimensioni della tupla $T = (u, d, s, n, a, r)$ estratte in tempo reale da Envoy.
+    \item \textbf{6 feature comportamentali}: calcolate e iniettate in tempo reale dal proxy Web-API prima di inoltrare la query a Splunk. Esse comprendono il numero di \textit{login falliti} nelle ultime 24 ore, l'\textit{ora della richiesta}, un flag per \textit{accesso notturno} (22:00--06:00), la \textit{frequenza di sessione} nell'ultima ora, il \textit{livello di sensibilità} della risorsa (da 1 a 3) e i \textit{giorni di inattività} dall'ultimo accesso riuscito.
+\end{itemize}
+
+Il valore target \texttt{rischio} (da 0 a 100) è calcolato deterministicamente come somma pesata di penalità cumulative, secondo la formula:
+\begin{equation}
+\text{Rischio} = \Delta_{\text{HW}} + \Delta_{\text{Rete}} + \Delta_{\text{Login}} + \Delta_{\text{Orario}} + \Delta_{\text{Freq}} + \Delta_{\text{Sens}} + \Delta_{\text{Inatt}} + \Delta_{\text{Azione}} + \Delta_{\text{SW}} + \epsilon
+\end{equation}
+dove $\Delta_{\text{HW}} = +20$ per dispositivi senza TPM, $\Delta_{\text{Rete}} = +15$ per IP esterni, $\Delta_{\text{Login}} = \min(8 \times \texttt{failed\_logins}, 40)$, e $\epsilon \sim \mathcal{N}(0, 3)$ rappresenta un rumore gaussiano per evitare l'overfitting su regole rigide.
+
+\subsubsection{Addestramento e scelta dell'algoritmo}
+L'addestramento avviene direttamente nell'interfaccia di Splunk tramite la query SPL mostrata nel Listato \ref{lst:splunk_training}.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{Splunk SPL — Addestramento del Trust Model}
+\begin{lstlisting}[language=SQL]
+| inputlookup simulated_traffic.csv
+| fit GradientBoostingRegressor "rischio"
+    from user, software, device, network, action, resource,
+    failed_logins, hour_of_day, is_night,
+    session_freq, sensitivity_level, days_inactive
+    into trust_model
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Query SPL per l'addestramento del modello Gradient Boosting su Splunk MLTK.}\label{lst:splunk_training}
+\end{minipage}
+\end{center}
+
+La scelta del \textbf{Gradient Boosting} rispetto al più comune \textit{Random Forest} è motivata dalla capacità dell'algoritmo di catturare le interazioni non lineari tra feature categoriche e numeriche. A differenza del bagging, in cui gli alberi sono indipendenti e la predizione è la media delle risposte, il boosting costruisce alberi in sequenza, dove ciascun nuovo albero è addestrato specificamente per correggere i residui (gli errori) dell'albero precedente. Questo approccio risulta particolarmente efficace nel dominio ZTA, dove il rischio non dipende da singole variabili isolate ma dalla loro combinazione: ad esempio, un utente con 5 login falliti di giorno dall'ufficio ha un rischio moderato, mentre lo stesso utente con 5 login falliti alle 3 di notte da un IP esterno rappresenta una minaccia critica.
+
+\subsubsection{Predizione in tempo reale}
+Durante il funzionamento operativo, OPA assembla dinamicamente una query SPL di tipo \texttt{apply} contenente i valori correnti delle 6 dimensioni ZTA e la invia tramite la Web-API che funge da proxy verso l'endpoint REST di Splunk. La Web-API arricchisce la richiesta con le 6 feature comportamentali calcolate in tempo reale. Il modello \texttt{trust\_model} restituisce un punteggio numerico continuo (es. $5.2$, $42.7$, $89.1$) che OPA utilizza per valutare l'accesso secondo le soglie adattive definite nelle policy Rego.
