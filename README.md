@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/zta_project_banner.png" alt="Zero Trust Architecture 2026 Project Banner" width="900" style="border-radius: 8px;">
+  <img src="./docs/zta_project_banner.png" alt="Zero Trust Architecture 2026 Project Banner" width="900">
 </p>
 
 # 🛡️ Zero Trust Architecture (ZTA) 2026
@@ -55,7 +55,7 @@ Ogni singola transazione viene validata controllando:
 L'immagine vettoriale interattiva sottostante illustra graficamente il percorso dei pacchetti dati all'interno del nostro sistema ZTA: i tentativi di accesso validati fluiscono in verde fino al Secure Core, mentre i tentativi malevoli o non conformi vengono catturati ed espulsi al gateway con un verdetto di **DENY** immediato.
 
 <p align="center">
-  <img src="docs/zta_verification_flow.svg" alt="Dynamic ZTA Verification Flow" width="850">
+  <img src="./docs/zta_verification_flow.svg" alt="Dynamic ZTA Verification Flow" width="850">
 </p>
 
 ---
@@ -64,7 +64,7 @@ L'immagine vettoriale interattiva sottostante illustra graficamente il percorso 
 La topologia di rete è strutturata in **quattro zone isolate** definite nel `docker-compose.yaml`. I client non possiedono alcuna via di instradamento diretto alle risorse protette, dovendo transitare obbligatoriamente per il canale cifrato controllato da Envoy.
 
 <p align="center">
-  <img src="docs/network_topology.svg" alt="Topologia di rete dell'infrastruttura" width="850" style="border-radius: 8px;">
+  <img src="./docs/network_topology.svg" alt="Topologia di rete dell'infrastruttura" width="850">
 </p>
 
 
