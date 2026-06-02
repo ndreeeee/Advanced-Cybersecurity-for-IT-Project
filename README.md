@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="./docs/zta_project_banner.png" alt="Zero Trust Architecture 2026 Project Banner" width="900">
-</p>
+![Zero Trust Architecture 2026 Project Banner](./docs/zta_project_banner.png)
 
 # 🛡️ Zero Trust Architecture (ZTA) 2026
 ### *Microsegmentazione, attestazione hardware, adaptive risk assessment e ispezione L7 per la protezione di database ospedalieri*
@@ -16,7 +14,7 @@
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://www.snort.org/"><img src="https://img.shields.io/badge/Snort_IDS-FF0000?style=for-the-badge&logo=security&logoColor=white" alt="Snort"></a>
   <a href="https://netfilter.org/projects/nftables/"><img src="https://img.shields.io/badge/nftables-FFA500?style=for-the-badge&logo=linux&logoColor=white" alt="nftables"></a>
-  <a href="https://www.latex-project.org/"><img src="https://img.shields.io/badge/LaTeX-008080?style=for-the-badge&logo=latex&logoColor=white" alt="LaTeX"></a>
+  
 </p>
 
 ---
@@ -54,18 +52,15 @@ Ogni singola transazione viene validata controllando:
 ## ⚙️ Flusso di verifica dinamico (animato)
 L'immagine vettoriale interattiva sottostante illustra graficamente il percorso dei pacchetti dati all'interno del nostro sistema ZTA: i tentativi di accesso validati fluiscono in verde fino al Secure Core, mentre i tentativi malevoli o non conformi vengono catturati ed espulsi al gateway con un verdetto di **DENY** immediato.
 
-<p align="center">
-  <img src="./docs/zta_verification_flow.svg" alt="Dynamic ZTA Verification Flow" width="850">
-</p>
+![Dynamic ZTA Verification Flow](./docs/zta_verification_flow.svg)
 
 ---
 
 ## 🌐 Architettura e microsegmentazione
 La topologia di rete è strutturata in **quattro zone isolate** definite nel `docker-compose.yaml`. I client non possiedono alcuna via di instradamento diretto alle risorse protette, dovendo transitare obbligatoriamente per il canale cifrato controllato da Envoy.
 
-<p align="center">
-  <img src="./docs/network_topology.svg" alt="Topologia di rete dell'infrastruttura" width="850">
-</p>
+![Topologia di rete dell'infrastruttura](./docs/network_topology.svg)
+
 
 
 ---
