@@ -63,65 +63,10 @@ L'immagine vettoriale interattiva sottostante illustra graficamente il percorso 
 ## 🌐 Architettura e microsegmentazione
 La topologia di rete è strutturata in **quattro zone isolate** definite nel `docker-compose.yaml`. I client non possiedono alcuna via di instradamento diretto alle risorse protette, dovendo transitare obbligatoriamente per il canale cifrato controllato da Envoy.
 
-```mermaid
-graph TD
-    subgraph ReteEsterna["🌐 Rete esterna (smart working)"]
-        charlie["💻 Charlie (remoto)"]
-    end
+<p align="center">
+  <img src="docs/network_topology.svg" alt="Topologia di rete dell'infrastruttura" width="850" style="border-radius: 8px;">
+</p>
 
-    subgraph ReteInterna["🏢 Rete interna / DMZ"]
-        alice["💻 Alice (aziendale)"]
-        bob["💻 Bob (personale BYOD)"]
-        fw["🛡️ nftables firewall"]
-    end
-
-    subgraph SecureCore["🔒 Secure core (backend network)"]
-        pep["🎛️ Envoy proxy PEP"]
-        api["🐍 Web API (Flask)"]
-        db[("🗄️ MongoDB database")]
-    end
-
-    subgraph ControlPlane["⚙️ Piano di controllo (trust zone)"]
-        opa["🧠 Open Policy Agent PDP"]
-        splunk["📊 Splunk SIEM + MLTK"]
-        fluent["📦 Fluent-Bit shipper"]
-        snort["🕵️ Snort NIDS"]
-    end
-
-    %% Flussi dati e connessioni
-    charlie -->|1. mTLS| fw
-    alice -->|1. mTLS + TPM| fw
-    bob -->|1. mTLS| fw
-    
-    fw -->|2. DNAT su porta 8443| pep
-    pep <-->|3. gRPC authz request| opa
-    opa <-->|4. HTTP risk request| splunk
-    
-    pep -->|5. HTTP proxy| api
-    api -->|6. query TCP| db
-    
-    %% Flussi di monitoraggio e telemetria
-    fw -.->|log ulogd2| fluent
-    pep -.->|log di accesso Envoy| fluent
-    api -.->|log di sistema API| fluent
-    db -.->|log di MongoDB| fluent
-    snort -.->|alert di intrusione| fluent
-    fluent -->|HEC HTTPS| splunk
-    fw -.->|packet mirroring| snort
-
-    %% Stili personalizzati
-    style charlie fill:#4d2c2c,stroke:#ff6b6b,stroke-width:2px,color:#fff
-    style alice fill:#2c3e50,stroke:#3498db,stroke-width:2px,color:#fff
-    style bob fill:#2c3e50,stroke:#3498db,stroke-width:2px,color:#fff
-    style fw fill:#2c3e50,stroke:#3498db,stroke-width:2px,color:#fff
-    style pep fill:#d35400,stroke:#e67e22,stroke-width:3px,color:#fff
-    style api fill:#1b4d3e,stroke:#2ecc71,stroke-width:2px,color:#fff
-    style db fill:#1b4d3e,stroke:#2ecc71,stroke-width:2px,color:#fff
-    style opa fill:#2c2c2c,stroke:#95a5a6,stroke-width:2px,color:#fff
-    style splunk fill:#2c2c2c,stroke:#95a5a6,stroke-width:2px,color:#fff
-    style fluent fill:#2c2c2c,stroke:#95a5a6,stroke-width:2px,color:#fff
-    style snort fill:#2c2c2c,stroke:#95a5a6,stroke-width:2px,color:#fff
-```
 
 ---
 
