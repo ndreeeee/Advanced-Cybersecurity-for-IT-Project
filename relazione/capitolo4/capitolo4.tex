@@ -125,9 +125,9 @@ Alice effettua la connessione dall'interno della rete aziendale presentando un c
     \draw[successarr] (opa.south) -- ++(0,-1.4) -| (splunk.south);
 
     % ==================== TELEMETRIA ====================
-    \draw[darr] (fw.south)      to [bend right=15] node[right, lbl, pos=0.7, color=textmuted]{Logs} (fluentbit.north);
-    \draw[darr] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=textmuted]{Logs} (fluentbit.north);
-    \draw[darr] (mongodb.south) to [bend left=15]  node[left, lbl, pos=0.4, color=textmuted]{Logs}  (fluentbit.north);
+    \draw[darr] (fw.south)      to [bend right=15] node[right, lbl, pos=0.7, color=textmuted]{Log} (fluentbit.north);
+    \draw[darr] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=textmuted]{Log} (fluentbit.north);
+    \draw[darr] (mongodb.south) to [bend left=15]  node[left, lbl, pos=0.4, color=textmuted]{Log}  (fluentbit.north);
     \draw[darr] (fluentbit.west) -- node[above, lbl, color=textmuted]{Inoltro Log} (splunk.east);
 
 \end{tikzpicture}%
@@ -250,7 +250,7 @@ Bob riesce a connettersi alla rete ospedaliera locale con il proprio computer pe
     \draw[darr, draw=red!70!black] (opa.south) -- ++(0,-1.4) -| node[pos=0.5, above, lbl, color=red!70!black]{Log di Blocco} (splunk.south);
 
     % ==================== TELEMETRIA ====================
-    \draw[darr, draw=red!70!black] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=red!70!black]{Logs} (fluentbit.north);
+    \draw[darr, draw=red!70!black] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=red!70!black]{Log} (fluentbit.north);
     \draw[darr, draw=red!70!black] (fluentbit.west) -- node[above, lbl, color=red!70!black]{Inoltro Log} (splunk.east);
 
 \end{tikzpicture}%
@@ -373,7 +373,7 @@ Quando Charlie cerca di autenticarsi, OPA applica le regole restrittive per gli 
     \draw[darr, draw=red!70!black] (opa.south) -- ++(0,-1.4) -| node[pos=0.5, above, lbl, color=red!70!black]{Log di Blocco} (splunk.south);
 
     % ==================== TELEMETRIA ====================
-    \draw[darr, draw=red!70!black] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=red!70!black]{Logs} (fluentbit.north);
+    \draw[darr, draw=red!70!black] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=red!70!black]{Log} (fluentbit.north);
     \draw[darr, draw=red!70!black] (fluentbit.west) -- node[above, lbl, color=red!70!black]{Inoltro Log} (splunk.east);
 
 \end{tikzpicture}%
@@ -650,7 +650,7 @@ Come mostrato in Figura~\ref{fig:alice_sql_blocked}, Envoy blocca immediatamente
     \draw[failarr] (opa.south) -- ++(0,-1.4) -| node[pos=0.5, above, lbl, color=red!70!black]{Log di Blocco} (splunk.south);
 
     % ==================== TELEMETRIA ====================
-    \draw[darr, draw=red!70!black] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=red!70!black]{Logs} (fluentbit.north);
+    \draw[darr, draw=red!70!black] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=red!70!black]{Log} (fluentbit.north);
     \draw[darr, draw=red!70!black] (fluentbit.west) -- node[above, lbl, color=red!70!black]{Inoltro Log} (splunk.east);
 
 \end{tikzpicture}%

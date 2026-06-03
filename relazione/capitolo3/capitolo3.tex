@@ -81,6 +81,33 @@ static_resources:
 \end{minipage}
 \end{center}
 
+Nel listener HTTP, prima di interpellare OPA ed inoltrare la richiesta alle Web API di backend, viene inserito un filtro L7 basato sul motore Lua (\texttt{envoy.filters.http.lua}). Questo modulo funge da firewall applicativo locale in grado di bloccare sul nascere richieste a percorsi sensibili o metodi distruttivi non consentiti a livello applicativo (es. comandi di tipo \texttt{DELETE}), sgravando il PDP e i sistemi di backend dalla gestione di chiamate palesemente malevole. La configurazione di questo componente è riportata nel Listato \ref{lst:envoy_lua_filter}.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{envoy.yaml (Filtro HTTP Lua)}
+\begin{lstlisting}[language=YAML]
+- name: envoy.filters.http.lua
+  typed_config:
+    "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+    inline_code: |
+      function envoy_on_request(request_handle)
+        local path = request_handle:headers():get(":path")
+        local method = request_handle:headers():get(":method")
+        
+        -- L7 DPI firewall rules
+        if path == "/api/patients/sensitive" then
+          request_handle:respond({[":status"] = "403"}, '{"error": "L7 Firewall Block: Access to sensitive notes forbidden"}')
+        elseif method == "DELETE" and string.match(path, "^/api/patients") then
+          request_handle:respond({[":status"] = "403"}, '{"error": "L7 Firewall Block: Destructive operations (DROP) are forbidden"}')
+        end
+      end
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Configurazione del filtro HTTP Lua in envoy.yaml per il blocco preventivo L7.}\label{lst:envoy_lua_filter}
+\end{minipage}
+\end{center}
+
 \subsection{Il motore decisionale OPA (PDP) e l'integrazione Splunk MLTK}
 Il Policy Decision Point (PDP) riceve la tupla $T$ da Envoy ed esegue la valutazione delle regole scritte in Rego all'interno del file \texttt{rules.rego}. Per supportare decisioni adattive basate sul contesto, OPA invia una query predittiva sincrona via HTTP all'API predittiva di Splunk MLTK. 
 
@@ -120,6 +147,49 @@ l7_dpi_block := true if {
 \end{lstlisting}
 \end{ztacodebox}
 \captionof{lstlisting}{Regole di ispezione profonda L7 DPI implementate nel file rules.rego.}\label{lst:rego_dpi_rules}
+\end{minipage}
+\end{center}
+
+Il motore decisionale definisce l'ammissibilità dell'accesso combinando lo stato di conformità del dispositivo, la localizzazione di rete e la valutazione dinamica dello score di rischio ricavato da Splunk. Come descritto nel Listato \ref{lst:rego_adaptive_rules}, vengono stabilite soglie di tolleranza differenziate per mitigare la superficie di minaccia contestuale: un dispositivo interno provvisto di chip TPM beneficia di una soglia di rischio elevata (pari a 50), mentre l'assenza del modulo hardware (con ripiegamento sul solo fingerprinting JA3) o la provenienza da una rete esterna riducono la tolleranza ad un valore massimo di 8. Inoltre, l'accesso alle funzioni di autenticazione viene preventivamente inibito se la variabile \texttt{is\_auth\_blocked} assume valore vero, bloccando le richieste di login prive di chip TPM o originate al di fuori della rete aziendale.
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{rules.rego (Regole di autorizzazione adattiva)}
+\begin{lstlisting}[language=Rego]
+# La regola di autorizzazione adattiva (Risk-Based & JA3 Fallback)
+risk_ok := true if {
+    is_internal_network
+    is_tpm
+    splunk_risk_score <= 50
+} else := true if {
+    is_internal_network
+    not is_tpm
+    software != "Sconosciuto"
+    splunk_risk_score <= 8
+} else := true if {
+    not is_internal_network
+    is_tpm
+    splunk_risk_score <= 8
+} else := false
+
+# Blocca l'autenticazione al login se manca il TPM o se si e' all'esterno
+is_auth_blocked := true if {
+    is_auth_request
+    not is_tpm
+} else := true if {
+    is_auth_request
+    not is_internal_network
+} else := false
+
+allow := true if {
+    risk_ok
+    not l7_dpi_block
+    not is_auth_blocked
+    # ... (generazione log di successo)
+}
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Regole di autorizzazione adattiva basate su soglie e postura del dispositivo in rules.rego.}\label{lst:rego_adaptive_rules}
 \end{minipage}
 \end{center}
 
@@ -222,8 +292,12 @@ device := "Workstation Ospedaliera Sicura (TPM Validato)" if { is_tpm }
 \end{minipage}
 \end{center}
 
+Questo approccio garantisce la proprietà di non esportabilità della chiave privata del client: poiché la chiave viene generata all'interno del chip TPM del dispositivo, essa non può essere copiata o trasferita su una macchina differente. Di conseguenza, il certificato utente viene legato in modo indissolubile all'hardware autorizzato.
+
 \subsubsection{Fingerprinting software JA3}
 Il terzo livello di identificazione opera a livello di trasporto, senza richiedere alcuna collaborazione da parte del client. Durante l'handshake TLS, il filtro \texttt{tls\_inspector} di Envoy calcola l'hash \textbf{JA3}, un'impronta digitale deterministica basata sulla combinazione dei parametri del \textit{ClientHello} (versione TLS, cipher suite offerte, estensioni, curve ellittiche e formati dei punti). Poiché ogni software client genera un \textit{ClientHello} caratteristico, l'hash JA3 consente di distinguere un browser autorizzato (es. Firefox o Chrome) da uno strumento di attacco (es. \texttt{curl} o \texttt{nmap}), anche in presenza di spoofing dell'header \texttt{User-Agent}. L'hash viene reso disponibile come metadato dinamico e propagato ad OPA sia per il listener MongoDB (tramite i metadati del \texttt{tls\_inspector}) sia per il listener HTTP (tramite l'header iniettato \texttt{x-client-fingerprint}).
+
+Tuttavia, l'impiego del solo fingerprinting software presenta un limite strutturale sul piano della sicurezza: se due dispositivi distinti utilizzano lo stesso browser (o la medesima versione di client HTTP) ed eseguono lo stesso sistema operativo, la negoziazione TLS produrrà un hash \texttt{JA3} identico. In questo scenario, i dispositivi diventano indistinguibili per il proxy, evidenziando come il solo fingerprinting software non possa sostituire le garanzie di postura offerte dall'attestazione hardware.
 
 \subsection{Rilevamento delle intrusioni di rete: Snort NIDS}
 A completamento delle difese applicative, l'architettura integra \texttt{snort} come \textbf{Network Intrusion Detection System} (NIDS) passivo, posizionato strategicamente in modo da intercettare tutto il traffico che transita per il proxy.

@@ -107,10 +107,10 @@ La sicurezza dell'infrastruttura si basa sul principio della \textbf{microsegmen
     % ==================== TELEMETRIA (Frecce Eleganti e Curve → Fluent-Bit) ====================
     % Frecce curve e fluide che confluiscono armoniosamente tutte in un unico punto: fluentbit.north
 
-    \draw[darr] (fw.south)      to [bend right=15] node[right, lbl, pos=0.7, color=textmuted]{Logs} (fluentbit.north);
-    \draw[darr] (snort.east)    to [bend left=15]  node[above, lbl, pos=0.5, color=textmuted]{Logs} (fluentbit.north);
-    \draw[darr] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=textmuted]{Logs} (fluentbit.north);
-    \draw[darr] (mongodb.south) to [bend left=15]  node[left, lbl, pos=0.4, color=textmuted]{Logs}  (fluentbit.north);
+    \draw[darr] (fw.south)      to [bend right=15] node[right, lbl, pos=0.7, color=textmuted]{Log} (fluentbit.north);
+    \draw[darr] (snort.east)    to [bend left=15]  node[above, lbl, pos=0.5, color=textmuted]{Log} (fluentbit.north);
+    \draw[darr] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=textmuted]{Log} (fluentbit.north);
+    \draw[darr] (mongodb.south) to [bend left=15]  node[left, lbl, pos=0.4, color=textmuted]{Log}  (fluentbit.north);
 
     % Fluent-Bit → Splunk (da destra a sinistra)
     \draw[darr] (fluentbit.west) -- node[above, lbl, color=cream]{Inoltro Log} (splunk.east);
@@ -151,7 +151,7 @@ La prima area è la \textbf{zona untrusted}, che rappresenta la rete esterna non
 
 La seconda area è la \textbf{zona DMZ o frontend}, assimilabile alla rete locale fisica dell'azienda. Qui risiedono i client interni utilizzati dal personale d'ufficio e il firewall \texttt{nftables}. Anche in questo caso, i client del frontend non possiedono le rotte di rete per raggiungere il backend: il firewall intercetta tutto il traffico a livello L3/L4 e devia le richieste autorizzate verso il proxy.
 
-La terza area è il \textbf{secure core o backend}, una rete altamente protetta e completamente isolata. All'interno di questa zona sono collocati il database \texttt{mongodb} e le Web API del servizio aziendale. Nessun client esterno o interno può avviare una connessione diretta con queste macchine: l'unico container autorizzato a inoltrare pacchetti nel backend è il proxy, che agisce da intermediario per le sole richieste esplicitamente validate.
+La terza area è il \textbf{secure core o backend}, una rete altamente protetta e completamente isolata. All'interno di questa zona sono collocati il database \texttt{mongodb} e le Web API del servizio aziendale. Nessun client esterno o interno può avviare una connessione diretta con queste macchine: l'unico container autorizzato a inoltrare pacchetti nel backend è il proxy, che agisce da intermediario per le sole richieste esplicitamente validate. In merito alla scelta del database, le specifiche del progetto consentivano l'adozione di \texttt{mongodb} o, in alternativa, di una configurazione composta da \texttt{proxysql} e \texttt{mysql}. In questa architettura si è preferito utilizzare il database orientato ai documenti \texttt{mongodb} per agevolare l'ispezione granulare dei comandi BSON nativi direttamente a livello applicativo, sfruttando le capacità di decodifica del protocollo del proxy.
 
 La quarta e ultima area è la \textbf{control plane o trust zone}. Si tratta di una rete di gestione isolata in cui risiedono i sistemi decisionali e di monitoraggio, tra cui il motore delle regole OPA, il raccoglitore di log \texttt{fluent-bit} e il SIEM \texttt{splunk}. Questa zona comunica esclusivamente con il proxy per la validazione delle richieste e con tutti i container per la raccolta della telemetria in background.
 
@@ -178,7 +178,7 @@ Al centro dell'intera topologia si colloca \texttt{envoy}, che agisce come \text
     % Connections
     \draw[arrow] (client) -- node[above, font=\tiny\color{cream}]{mTLS} (envoy);
     \draw[arrow] (envoy) -- node[above, font=\tiny\color{cream}, sloped]{gRPC Authz} (opa);
-    \draw[dashedarrow] (envoy) -- node[below, font=\tiny\color{textmuted}, sloped]{HEC Logs} (splunk);
+    \draw[dashedarrow] (envoy) -- node[below, font=\tiny\color{textmuted}, sloped]{HEC Log} (splunk);
     \draw[arrow] (envoy) -- node[above, font=\tiny\color{cream}]{TCP / BSON} (db);
     
 \end{tikzpicture}
@@ -189,6 +189,8 @@ Al centro dell'intera topologia si colloca \texttt{envoy}, che agisce come \text
 Il funzionamento del proxy prevede la separazione dei flussi su porte distinte per gestire in modo sicuro i diversi protocolli. Sulla porta \texttt{8443} viene gestito il traffico HTTP cifrato per le Web API aziendali, mentre sulla porta \texttt{27017} transita il traffico TCP nativo diretto al database. Per ogni connessione, il proxy avvia una negoziazione crittografica pretendendo la presentazione di un certificato client valido. Durante questa fase, viene calcolato l'hash della firma del software client per determinare il fingerprinting \textit{JA3}.
 
 Prima di inoltrare la richiesta verso il backend, il proxy sospende la sessione e interroga OPA tramite una chiamata gRPC. Solo dopo aver ricevuto un responso positivo dal PDP, il proxy provvede a stabilire la connessione con la risorsa richiesta nel backend, garantendo l'applicazione del paradigma Zero Trust per ogni singola transazione.
+
+Questa separazione dei ruoli rispecchia una precisa stratificazione a livello della pila protocollare ISO/OSI. Mentre il firewall \texttt{nftables} opera a livello di rete e trasporto (L3/L4), intercettando e filtrando i pacchetti in base agli indirizzi IP e alle porte TCP/UDP, il proxy \texttt{envoy} lavora fino al livello applicativo (L7) e di sessione/presentazione (TLS), consentendo una validazione profonda e contestuale che non sarebbe possibile con un tradizionale filtro di rete a pacchetti.
 
 \subsection{La tupla multidimensionale Zero Trust (ZTA 6D)}
 Il nucleo del motore decisionale risiede nella formalizzazione matematica e logica del contesto di accesso attraverso una tupla a sei dimensioni, definita come:
