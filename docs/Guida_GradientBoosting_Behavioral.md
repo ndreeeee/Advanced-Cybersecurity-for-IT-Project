@@ -26,7 +26,7 @@ Per verificare che venga letto correttamente, vai su **Search & Reporting** ed e
 ```spl
 | inputlookup simulated_traffic.csv
 ```
-Dovresti visualizzare una tabella di 10.000 record con 13 colonne (12 feature + 1 target `rischio`).
+Dovresti visualizzare una tabella di 50.000 record con 13 colonne (12 feature + 1 target `rischio`).
 
 ### C. Addestramento del Modello (Training)
 Esegui la seguente query SPL per addestrare l'algoritmo **Gradient Boosting** a prevedere il rischio basandosi sulle 12 dimensioni:
@@ -58,7 +58,7 @@ Simula Alice che accede alla risorsa di pomeriggio, da un dispositivo aziendale 
 | rename "predicted(rischio)" as rischio 
 | table user, failed_logins, is_night, rischio
 ```
-*Output atteso: Rischio molto basso (es. <25).*
+*Output atteso: Rischio molto basso (es. 0-12).*
 
 #### Test Scenario B: Attacco/Anomalia (Alto Rischio)
 Simula Mario che tenta un'azione di drop su un database di configurazione critico, nel cuore della notte, tramite curl (senza TPM) e dopo 5 tentativi di login falliti nelle ultime 24 ore:
@@ -69,7 +69,7 @@ Simula Mario che tenta un'azione di drop su un database di configurazione critic
 | rename "predicted(rischio)" as rischio 
 | table user, failed_logins, is_night, rischio
 ```
-*Output atteso: Rischio estremamente alto (es. >75).*
+*Output atteso: Rischio estremamente alto (es. 75-100).*
 
 ---
 

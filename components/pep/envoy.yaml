@@ -183,9 +183,7 @@ static_resources:
                   local method = request_handle:headers():get(":method")
                   
                   -- L7 DPI Firewall Rules
-                  if path == "/api/patients/sensitive" then
-                    request_handle:respond({[":status"] = "403"}, '{"error": "L7 Firewall Block: Access to sensitive notes forbidden"}')
-                  elseif method == "DELETE" and string.match(path, "^/api/patients") then
+                  if method == "DELETE" and string.match(path, "^/api/patients") then
                     request_handle:respond({[":status"] = "403"}, '{"error": "L7 Firewall Block: Destructive operations (DROP) are forbidden"}')
                   end
                 end
