@@ -102,7 +102,7 @@ def extract_resource_from_spl(query: str) -> str:
     return match.group(1) if match else "unknown"
 
 
-def enrich_spl_with_behavioral_features(query: str) -> str:
+def enrich_spl_with_behavioral_features(query: str, simulate_dormant_night: bool = False) -> str:
     """
     Arricchisce la query SPL generata da OPA con le 6 feature comportamentali.
 
@@ -122,12 +122,12 @@ def enrich_spl_with_behavioral_features(query: str) -> str:
 
     # Calcola le feature comportamentali in tempo reale
     now = datetime.now()
-    hour_of_day = now.hour
-    is_night = 1 if (hour_of_day >= 22 or hour_of_day < 6) else 0
-    failed_logins = get_failed_logins(user)
+    hour_of_day = 3 if simulate_dormant_night else now.hour
+    is_night = 1 if simulate_dormant_night else (1 if (hour_of_day >= 22 or hour_of_day < 6) else 0)
+    failed_logins = 4 if simulate_dormant_night else get_failed_logins(user)
     session_freq = get_session_freq(user)
     sensitivity_level = get_sensitivity_level(resource)
-    days_inactive = 0  # Default per demo (in produzione: query Splunk per ultimo ALLOW)
+    days_inactive = 90 if simulate_dormant_night else 0
 
     # Costruisci la stringa con le feature aggiuntive
     behavioral_features = (
@@ -142,7 +142,7 @@ def enrich_spl_with_behavioral_features(query: str) -> str:
     # Inietta le feature prima del comando '| apply'
     enriched = query.replace('| apply ', f'{behavioral_features} | apply ')
 
-    logger.info(f"[ENRICH] Feature comportamentali iniettate per user='{user}': "
+    logger.info(f"[ENRICH] Feature comportamentali iniettate per user='{user}' (Simulation={simulate_dormant_night}): "
                 f"failed_logins={failed_logins}, hour={hour_of_day}, night={is_night}, "
                 f"freq={session_freq}, sens={sensitivity_level}, inactive={days_inactive}")
 
@@ -215,11 +215,17 @@ def predict_risk(ml_query: MLQuery):
     """ Proxy endpoint for OPA to query Splunk MLTK """
     logger.info(f"Ricevuta query ML: {ml_query.query}")
     
+    # Rilevamento simulazione dell'anomalia temporale (dormant account / orario anomalo)
+    simulate_dormant_night = "simulate=dormant_night" in ml_query.query
+    
     # Credenziali lette dalle variabili d'ambiente (non hardcodate)
     splunk_url = os.getenv("SPLUNK_URL", "https://zta-splunk:8089/services/search/jobs/export")
     splunk_user = os.getenv("SPLUNK_USER", "admin")
     splunk_password = os.getenv("SPLUNK_PASSWORD", "changeme")
     auth = (splunk_user, splunk_password)
+    
+    # Rimozione dei parametri di query di simulazione per non invalidare il mapping della risorsa
+    clean_query = ml_query.query.replace("?simulate=dormant_night", "").replace("&simulate=dormant_night", "")
     
     # Mappatura dei valori reali ZTA ai valori del dataset di addestramento Splunk MLTK.
     # Centralizzata in un dizionario per facilitare la manutenzione.
@@ -246,7 +252,7 @@ def predict_risk(ml_query: MLQuery):
         'resource="/api/patients"':          'resource="pazienti"',
         'resource="/api/drop"':              'resource="config_db"',
     }
-    q = ml_query.query
+    q = clean_query
     for original, replacement in ZTA_TO_MLTK_MAP.items():
         q = q.replace(original, replacement)
     
@@ -255,7 +261,7 @@ def predict_risk(ml_query: MLQuery):
     # Inietta le 6 feature aggiuntive nella query SPL prima di inviarla
     # a Splunk. OPA e rules.rego restano completamente invariati.
     # ================================================================
-    q = enrich_spl_with_behavioral_features(q)
+    q = enrich_spl_with_behavioral_features(q, simulate_dormant_night)
     
     logger.info(f"Query ML Arricchita: {q}")
     
