@@ -117,19 +117,6 @@
 
         </div>
 
-        <!-- Hidden Developer Console (Bypass Simulation) -->
-        <div id="dev-console" style="display:none; position:fixed; bottom:0; left:0; width:100%; height:300px; background:#0f172a; color:#10b981; font-family:monospace; z-index:999; border-top:2px solid #334155; padding:1rem; box-sizing:border-box; overflow-y:auto; box-shadow: 0 -10px 20px rgba(0,0,0,0.5);">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:0.5rem; margin-bottom:1rem;">
-                <strong style="color:#e2e8f0;">[ROOT@ZTA-CLIENT] ~ /dev/debug_console (UNAUTHORIZED ACCESS)</strong>
-                <button onclick="document.getElementById('dev-console').style.display='none'" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;">[X] CHIUDI</button>
-            </div>
-            <p style="color:#64748b; margin-bottom:0.5rem;"># Console di Debug. Inserisci un comando per testare la connettività di rete bypassando le rotte ufficiali.</p>
-            <div style="display:flex; gap:0.5rem; align-items:center;">
-                <span style="color:#e2e8f0;">root@client:~#</span>
-                <input type="text" id="dev-cli-input" placeholder="es: curl http://backend-api:8000/api/patients" style="flex:1; background:transparent; border:none; color:#10b981; font-family:monospace; font-size:1rem; outline:none;" onkeypress="handleDevCli(event)">
-            </div>
-            <div id="dev-cli-output" style="margin-top:1rem; white-space:pre-wrap; color:#f8fafc; font-size: 0.9rem;"></div>
-        </div>
     </main>
 
     <script>
@@ -168,54 +155,6 @@
             }
         }
 
-        // Segreto per attivare la console di debug nascosta (Ctrl + Shift + D)
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
-                e.preventDefault();
-                const devConsole = document.getElementById('dev-console');
-                devConsole.style.display = devConsole.style.display === 'none' ? 'block' : 'none';
-                if (devConsole.style.display === 'block') {
-                    document.getElementById('dev-cli-input').focus();
-                }
-            }
-        });
-
-        // Gestione input nel Terminale Hacker (Simulazione Bypass L4)
-        function handleDevCli(e) {
-            if (e.key === 'Enter') {
-                const cmd = e.target.value.trim();
-                const outputDiv = document.getElementById('dev-cli-output');
-                outputDiv.innerHTML += `\n<span style="color:#64748b;">root@client:~# ${cmd}</span>\n`;
-                
-                if (cmd.startsWith('curl http://')) {
-                    outputDiv.innerHTML += `Tentativo di connessione diretta al backend bypassando il PEP (Envoy)...\n`;
-                    // Simuliamo la richiesta di bypass al backend
-                    fetch('/request/bypass')
-                        .then(async res => {
-                            const data = await res.json();
-                            if (!res.ok) {
-                                outputDiv.innerHTML += `<span style="color:#ef4444;">[ERRORE FIREWALL] ${data.detail || JSON.stringify(data)}</span>\n`;
-                            } else {
-                                outputDiv.innerHTML += `<span style="color:#10b981;">${JSON.stringify(data)}</span>\n`;
-                            }
-                            scrollToBottom();
-                        })
-                        .catch(err => {
-                            outputDiv.innerHTML += `<span style="color:#ef4444;">[ERRORE DI RETE] Impossibile raggiungere l'host di destinazione. Pacchetto scartato dal Firewall.</span>\n`;
-                            scrollToBottom();
-                        });
-                } else {
-                    outputDiv.innerHTML += `<span style="color:#ef4444;">bash: ${cmd.split(' ')[0]}: command not found (Prova con: curl http://backend-api:8000/api/patients)</span>\n`;
-                }
-                e.target.value = '';
-                scrollToBottom();
-            }
-        }
-
-        function scrollToBottom() {
-            const consoleDiv = document.getElementById('dev-console');
-            consoleDiv.scrollTop = consoleDiv.scrollHeight;
-        }
 
         async function viewSensitive(patientName) {
             document.getElementById('loading').style.display = 'flex';

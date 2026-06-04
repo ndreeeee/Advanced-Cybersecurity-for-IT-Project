@@ -147,28 +147,4 @@ def request_sensitive():
 @app.delete("/request/drop")
 def request_drop():
     return make_mtls_request("DELETE", "/api/patients")
-
-@app.get("/request/bypass")
-def request_bypass():
-    # Simulazione: L'attaccante tenta di bypassare Envoy e colpire le API (porta 8000)
-    url = f"http://{ENVOY_HOST}:8000/api/patients"
-    logger.info(f"Tentativo di BYPASS FIREWALL diretto a: {url}")
-    
-    try:
-        # Usiamo un timeout basso (2 secondi) perché sappiamo che il firewall non risponderà mai (Drop)
-        response = requests.get(url, timeout=2.0)
-        return response.json()
-    except requests.exceptions.Timeout:
-        # Se va in Timeout, il firewall ha fatto "DROP"
-        raise HTTPException(
-            status_code=408, 
-            detail="Timeout di Rete: Il Firewall (nftables) ha intercettato e droppato il pacchetto sulla porta 8000. Regola di Default Deny funzionante."
-        )
-    except requests.exceptions.ConnectionError:
-        # Se viene rifiutata, il firewall ha fatto "REJECT"
-        raise HTTPException(
-            status_code=503, 
-            detail="Connessione Rifiutata: Il Firewall ha bloccato attivamente il traffico non autorizzato sulla porta 8000."
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
