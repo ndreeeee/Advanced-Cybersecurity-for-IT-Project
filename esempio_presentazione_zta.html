@@ -1543,6 +1543,7 @@ ul.check-list li::before {
           <li>Rischio valutato da Splunk ML: <code>Rischio &asymp; 9.96</code> (soglia &le; 50)</li>
           <li>OPA PDP risponde con verdetto <code>ALLOW</code></li>
           <li>Query instradata a MongoDB in pochissimi ms</li>
+          <li>Log di <code>ALLOW</code> inviato da OPA a Fluent-Bit e indicizzato su Splunk</li>
         </ul>
       </div>
       <div style="margin-top:16px;">
@@ -1595,11 +1596,11 @@ ul.check-list li::before {
         <path d="M 185,360 L 315,260" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1" marker-end="url(#arrow-textmuted-s1)"/>
         <path d="M 380,290 L 380,390 L 245,390 L 245,470" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1" marker-end="url(#arrow-textmuted-s1)"/>
 
-        <!-- TELEMETRY (MUTED DASHED) -->
-        <path d="M 380,290 Q 400,450 530,570" fill="none" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="2 2" opacity="0.4" marker-end="url(#arrow-textmuted-s1)"/>
-        <path d="M 640,295 Q 600,450 530,570" fill="none" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="2 2" opacity="0.4" marker-end="url(#arrow-textmuted-s1)"/>
-        <path d="M 940,350 Q 800,480 530,570" fill="none" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="2 2" opacity="0.4" marker-end="url(#arrow-textmuted-s1)"/>
-        <path d="M 465,600 L 310,600" fill="none" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="2 2" opacity="0.4" marker-end="url(#arrow-textmuted-s1)"/>
+        <!-- TELEMETRY (ACTIVE GREEN ANIMATED) -->
+        <path class="flow-line-telemetry" d="M 380,290 Q 400,450 530,570" fill="none" stroke="var(--status-green)" stroke-width="1.5" marker-end="url(#arrow-green-s1)"/>
+        <path class="flow-line-telemetry" d="M 640,295 Q 600,450 530,570" fill="none" stroke="var(--status-green)" stroke-width="1.5" marker-end="url(#arrow-green-s1)"/>
+        <path class="flow-line-telemetry" d="M 940,350 Q 800,480 530,570" fill="none" stroke="var(--status-green)" stroke-width="1.5" marker-end="url(#arrow-green-s1)"/>
+        <path class="flow-line-telemetry" d="M 465,600 L 310,600" fill="none" stroke="var(--status-green)" stroke-width="1.5" marker-end="url(#arrow-green-s1)"/>
 
         <!-- FLOW LABELS -->
         <g font-size="9" font-weight="800" text-anchor="middle">
@@ -1620,6 +1621,9 @@ ul.check-list li::before {
 
           <rect x="500" y="652" width="65" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-green)" stroke-width="0.5"/>
           <text x="532" y="663" fill="var(--status-green)">Query Risk</text>
+          
+          <rect x="355" y="592" width="65" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-green)" stroke-width="0.5"/>
+          <text x="387" y="603" fill="var(--status-green)">Inoltro Log</text>
         </g>
 
         <!-- STATE LABELS -->
@@ -1695,11 +1699,11 @@ ul.check-list li::before {
           <text x="65" y="49" fill="var(--text-heading)" font-size="10" font-weight="700">Splunk</text>
         </g>
 
-        <!-- Fluent-Bit (Muted) -->
-        <g transform="translate(465, 570)" filter="url(#shadow-s1)" opacity="0.3">
-          <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="1" rx="4"/>
+        <!-- Fluent-Bit -->
+        <g transform="translate(465, 570)" filter="url(#shadow-s1)">
+          <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-green)" stroke-width="1.5" rx="4"/>
           <image href="relazione/capitolo2/img/fluentbit.png" x="51" y="8" width="28" height="26"/>
-          <text x="65" y="49" fill="var(--text-muted)" font-size="10" font-weight="700">Fluent-Bit</text>
+          <text x="65" y="49" fill="var(--text-heading)" font-size="10" font-weight="700">Fluent-Bit</text>
         </g>
 
         <!-- OPA -->
