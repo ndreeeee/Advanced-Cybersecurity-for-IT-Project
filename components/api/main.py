@@ -224,11 +224,9 @@ def predict_risk(ml_query: MLQuery):
     # Mappatura dei valori reali ZTA ai valori del dataset di addestramento Splunk MLTK.
     # Centralizzata in un dizionario per facilitare la manutenzione.
     # L'algoritmo genera un errore FATAL se riceve categorie non viste in fase di fit.
+    # NOTA: I nomi utente (alice, bob, charlie) ora coincidono tra OPA e dataset,
+    #       quindi non richiedono più traduzione.
     ZTA_TO_MLTK_MAP = {
-        # Utenti
-        'user="alice"':    'user="alice.medico"',
-        'user="bob"':      'user="mario.rossi"',
-        'user="charlie"':  'user="luigi.verdi"',
         # Software (JA3 hash → etichetta training)
         'software="86dab2109182b6bbaa644647d7db2997"': 'software="chrome_115"',
         # Dispositivi
