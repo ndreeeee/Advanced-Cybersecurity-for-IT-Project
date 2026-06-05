@@ -21,6 +21,17 @@ is_mongo := true if {
     input.attributes.metadataContext.filterMetadata["envoy.filters.network.mongo_proxy"]
 }
 
+# Rilevamento connessioni TCP dirette al database (OP_MSG / pymongo moderno)
+# Quando il mongo_proxy non riesce a decodificare il protocollo OP_MSG (opcode 2013),
+# non genera metadati. In questo caso, se la richiesta non è HTTP ma ha un certificato
+# client valido, la classifichiamo come tentativo di accesso diretto al database.
+default is_direct_db := false
+is_direct_db := true if {
+    not is_http
+    not is_mongo
+    input.attributes.source.certificate != ""
+}
+
 # ================================================================
 # 2. ESTRAZIONE DELLE 6 DIMENSIONI (ZTA 6D)
 # ================================================================
@@ -67,6 +78,7 @@ resource := input.attributes.metadataContext.filterMetadata["envoy.filters.netwo
     is_mongo
     input.attributes.metadataContext.filterMetadata["envoy.filters.network.mongo_proxy"]["collection"]
 } else := "MongoDB (Collezione sconosciuta)" if { is_mongo }
+resource := "patients" if { is_direct_db }
 
 # F. COMANDO E QUERY (DPI)
 default command := "Operazione Non Definita"
@@ -75,6 +87,7 @@ command := input.attributes.metadataContext.filterMetadata["envoy.filters.networ
     is_mongo
     input.attributes.metadataContext.filterMetadata["envoy.filters.network.mongo_proxy"]["operation"]
 } else := "Comando MongoDB sconosciuto" if { is_mongo }
+command := "Accesso Diretto MongoDB (OP_MSG)" if { is_direct_db }
 
 # Estrazione Query per L7 DPI (se presente)
 default db_query := ""

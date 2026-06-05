@@ -141,6 +141,8 @@ Il secondo scenario testa la reazione della politica di sicurezza di fronte a un
 
 Bob riesce a connettersi alla rete ospedaliera locale con il proprio computer personale e, conoscendo le credenziali di Alice, tenta di effettuare l'autenticazione. Tuttavia, il certificato presentato dal suo dispositivo è privo dell'estensione di attestazione hardware TPM. All'arrivo della richiesta di login (\texttt{is\_auth\_request}), Envoy inoltra i dettagli del certificato ad OPA. Il PDP rileva la mancanza della firma hardware (\texttt{not is\_tpm}) e, in conformità alle regole di sicurezza impostate, definisce la variabile di blocco dell'autenticazione (\texttt{is\_auth\_blocked}) come \texttt{true}. Di conseguenza, la richiesta di Bob viene rigettata sul nascere con un responso di \textbf{DENY} immediato al login, impedendogli l'accesso alla sessione ed a qualsiasi risorsa protetta, mostrando a schermo una pagina di diniego dell'accesso (Figura~\ref{fig:bob_blocked}). Il relativo log di blocco registrato in Splunk (Figura~\ref{fig:splunk_bob_blocked}) evidenzia la componente chiave dell'approccio Zero Trust: nonostante Bob presenti un punteggio di rischio estremamente basso ($\approx 5.5$, inferiore al punteggio di Alice nello Scenario 1), l'accesso viene comunque negato a causa della mancata conformità hardware del dispositivo (\texttt{tpm\_present: false}). Ciò dimostra come la postura del dispositivo costituisca un vincolo forte e non compensabile da altri fattori contestuali favorevoli.
 
+Dal punto di vista dell'architettura di rete e del modello di riferimento ISO/OSI, è opportuno analizzare i dettagli tecnici di questa restrizione. La connessione a livello di trasporto (Livello 4 - TCP) e la negoziazione del canale crittografico sicuro (Livelli 5 e 6 - TLS / mTLS) tra il client e il proxy Envoy vengono completate con successo, in quanto Bob possiede chiavi e certificati validi firmati dalla CA interna. Il diniego effettivo viene applicato esclusivamente al Livello 7 (Applicazione): il proxy Envoy, agendo da Policy Enforcement Point (PEP), analizza la richiesta HTTP, decodifica il certificato client X.509 e inoltra i relativi metadati ad OPA (PDP). È OPA che, valutando le asserzioni di policy sul certificato ad alto livello, impone il rifiuto logico. Il firewall di rete L3/L4 (\texttt{nftables}) non interviene in questa fase poiché l'IP e la porta di destinazione rientrano nei flussi di transito consentiti sulla rete locale. Si tratta quindi di una decisione di sicurezza di livello applicativo basata su criteri d'integrità contestuale dell'host.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{capitolo4/img/bob_blocked.png}
@@ -405,6 +407,8 @@ curl: (28) Connection timed out after 3002 milliseconds
 
 Come previsto, la connessione va in timeout poiché entra in azione il firewall. \texttt{nftables} rileva la connessione diretta non autorizzata e applica la regola della trappola attiva, eseguendo il \texttt{DROP} silente dei pacchetti. Tale evento viene registrato nei log del firewall (mostrati nel Listato~\ref{lst:nftables_block_log}), evidenziando l'etichetta \texttt{[NFT-BLOCK]} e tutti i parametri del pacchetto TCP bloccato sulla porta di destinazione \texttt{8000} (DPT) proveniente dal client (\texttt{SRC=10.0.1.4}).
 
+Si osservi che, in questo scenario di bypass di rete a livello di trasporto, lo score di rischio di Splunk non viene calcolato né registrato all'interno dei log di decisione di OPA. La connessione viene infatti intercettata e interrotta a livello di rete e trasporto (Livelli 3 e 4 del modello ISO/OSI) ad opera del firewall di rete \texttt{nftables}. Poiché i pacchetti vengono scartati (\texttt{DROP}) in kernel space prima di poter raggiungere il proxy Envoy (PEP) e attivare la catena di autorizzazione applicativa di OPA, non si innesca alcuna chiamata al proxy delle Web API ed al modello di Machine Learning. Di conseguenza, l'unica traccia dell'evento ostile in Splunk sarà limitata alle telemetrie di blocco del firewall (\texttt{[NFT-BLOCK]}) ed agli allarmi NIDS generati da Snort.
+
 \begin{center}
 \begin{minipage}{\linewidth}
 \begin{ztacodebox}{nftables.log}
@@ -535,7 +539,12 @@ Il quinto scenario analizza il livello di sicurezza applicativo (L7) del reverse
 
 Nel test effettuato, l'utente simula una SQL/NoSQL Injection inserendo la parola chiave \texttt{DROP} (o comandi simili come \texttt{deleteall}) nel campo di ricerca dell'interfaccia pazienti, con l'obiettivo di alterare o eliminare collezioni nel database MongoDB.
 
-Il traffico verso il database viene intercettato ed ispezionato a livello L7 dal filtro di rete \texttt{mongo\_proxy} di Envoy. Quest'ultimo estrae i dettagli e i metadati della query di ricerca (\texttt{db\_query}) e li trasmette sincronicamente ad OPA. La policy di OPA (esaminata nel Capitolo 3) controlla il payload: se rileva parole chiave vietate (come \texttt{dropdatabase} o \texttt{deleteall}), imposta la variabile di blocco a \texttt{true}.
+Il comportamento del calcolo del rischio adattivo presenta una distinzione tecnica fondamentale a seconda del canale utilizzato per condurre il test di injection:
+
+\begin{itemize}
+    \item \textbf{Simulazione tramite interfaccia Web (HTTP):} Quando l'utente inserisce parole chiave dannose nel form della dashboard, il client esegue una richiesta HTTP \texttt{DELETE} sulla risorsa \texttt{/api/patients}. Il proxy Envoy intercetta il traffico a livello applicativo tramite il filtro \texttt{envoy.filters.http.lua} configurato localmente. Tale modulo agisce da WAF statico locale e, identificando il pattern \texttt{DELETE} su risorsa protetta, risponde istantaneamente con un codice \texttt{403 Forbidden}. Poiché il blocco avviene prematuramente a livello di PEP (Envoy) per ottimizzare le risorse ed evitare latenze inutili, la richiesta non raggiunge mai il filtro di autorizzazione esterna (\texttt{ext\_authz}); di conseguenza, OPA non viene interpellato e lo score di rischio Splunk non viene calcolato per questo flusso HTTP.
+    \item \textbf{Simulazione tramite connessione diretta a MongoDB:} Se l'attaccante tenta di bypassare il gateway HTTP per inviare comandi direttamente sulla porta nativa del DBMS MongoDB (\texttt{27017}), Envoy delega la decisione ad OPA tramite il filtro \texttt{mongo\_proxy} ed il modulo \texttt{ext\_authz} di rete. In questo scenario di DPI sul protocollo BSON, non essendovi regole Lua locali, OPA esegue regolarmente la chiamata sincrona al proxy delle Web API per interrogare il modello di Gradient Boosting su Splunk. Grazie all'introduzione del mapping di traduzione centralizzato \texttt{ZTA\_TO\_MLTK\_MAP} nel backend FastAPI, il nome della risorsa MongoDB grezza (\texttt{"patients"}) viene convertito nel termine addestrato nel dataset (\texttt{"pazienti"}), prevenendo errori fatali per categorie non censite (\textit{unseen categorical values}) e garantendo il corretto calcolo ed indicizzazione dello score di rischio Splunk prima del blocco finale di OPA (\texttt{l7\_dpi\_block}).
+\end{itemize}
 
 Come mostrato in Figura~\ref{fig:alice_sql_blocked}, Envoy blocca immediatamente l'inoltro della richiesta a livello L7, impedendo che qualsiasi query dannosa raggiunga il database MongoDB e restituendo sul browser dell'utente una pagina di errore \textbf{403 Forbidden - Access Denied}. L'evento di violazione delle policy a livello applicativo viene catturato e indicizzato in tempo reale all'interno di Splunk, come visibile nel log dettagliato mostrato in Figura~\ref{fig:splunk_alice_blocked}.
 
@@ -551,6 +560,47 @@ Come mostrato in Figura~\ref{fig:alice_sql_blocked}, Envoy blocca immediatamente
 \includegraphics[width=0.9\linewidth]{capitolo4/img/splunk_alice_blocked.png}
 \caption{Log di blocco (response code 403) relativo alla richiesta L7 di Alice in Splunk, che evidenzia l'intercettazione del metodo \texttt{DELETE} sulla risorsa \texttt{/api/patients}.}
 \label{fig:splunk_alice_blocked}
+\end{figure}
+
+\subsubsection{Simulazione di compromissione del dispositivo (Bypass L7)}
+\label{sec:compromissione}
+
+Si analizza infine lo scenario più critico previsto dal framework Zero Trust: un attaccante che abbia ottenuto il pieno controllo della postazione di Alice (furto fisico, accesso remoto malevolo o insider threat) e che, disponendo di tutti i certificati mTLS e delle chiavi crittografiche presenti nel dispositivo, tenti di bypassare completamente l'interfaccia web per connettersi direttamente al database MongoDB attraverso il protocollo nativo sulla porta \texttt{27017}.
+
+Per simulare questo attacco, si esegue dal terminale del container di Alice uno script Python che utilizza la libreria \texttt{pymongo} con i certificati mTLS originali del dispositivo compromesso:
+
+\begin{center}
+\begin{minipage}{\linewidth}
+\begin{ztacodebox}{alice\_bypass\_mongodb.py}
+\begin{lstlisting}[language=Python]
+$ docker exec zta-client-alice python3 -c "
+import pymongo
+client = pymongo.MongoClient(
+    'zta-envoy', 27017,
+    tls=True,
+    tlsCertificateKeyFile='/etc/certs/alice_combined.pem',
+    tlsCAFile='/etc/certs/ca.crt',
+    tlsAllowInvalidHostnames=True,
+    serverSelectionTimeoutMS=10000
+)
+db = client['hospital_db']
+result = list(db.patients.find({'sensitive_notes': 'test'}))
+"
+\end{lstlisting}
+\end{ztacodebox}
+\captionof{lstlisting}{Simulazione di accesso diretto al database MongoDB dal terminale del dispositivo compromesso di Alice, utilizzando i certificati mTLS originali per autenticarsi verso Envoy sulla porta 27017.}\label{lst:alice_bypass_mongodb}
+\end{minipage}
+\end{center}
+
+L'handshake mTLS viene completato con successo (l'attaccante possiede i certificati validi del dispositivo), e la connessione raggiunge il listener MongoDB di Envoy. A questo punto il filtro \texttt{mongo\_proxy} tenta di decodificare il traffico BSON e il modulo \texttt{ext\_authz} di rete invia i metadati della connessione ad OPA per la decisione di autorizzazione. OPA costruisce la query SPL con le sei dimensioni contestuali estratte, invocando il modello di Gradient Boosting su Splunk MLTK attraverso il proxy delle Web API. Il modulo di arricchimento comportamentale (\texttt{enrich\_spl\_with\_behavioral\_features}) rileva il pattern anomalo della connessione diretta al database e inietta nella query le feature comportamentali alterate (frequenza di sessione elevata, tentativi di login falliti multipli), producendo un punteggio di rischio predittivo pari a $\approx 95.49$, ben superiore alla soglia massima di tolleranza di cinquanta. OPA emette di conseguenza un verdetto di \textbf{DENY} e la connessione viene terminata, impedendo all'attaccante di eseguire qualsiasi operazione sul database.
+
+La Figura~\ref{fig:splunk_alice_bypass_deny} mostra il log di decisione indicizzato in Splunk relativo a questo tentativo di accesso diretto. Si noti come il sistema abbia correttamente identificato l'utente (\texttt{user: alice}), confermato la presenza del TPM (\texttt{tpm\_present: true}) e la provenienza dalla rete interna (\texttt{network\_internal: true}), ma abbia comunque negato l'accesso esclusivamente sulla base del punteggio di rischio comportamentale elevato (\texttt{risk\_ok: false}). Questo dimostra l'efficacia del principio ``\textit{never trust, always verify}'': anche un utente con credenziali perfettamente valide e hardware attestato viene bloccato quando il suo comportamento devia significativamente dal profilo storico appreso dal modello predittivo.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{capitolo4/img/splunk_alice_bypass_deny.png}
+\caption{Log di decisione DENY indicizzato in Splunk per il tentativo di accesso diretto al database da parte di Alice (PC compromesso), con risk score pari a $\approx 95.49$.}
+\label{fig:splunk_alice_bypass_deny}
 \end{figure}
 
 \begin{figure}[H]

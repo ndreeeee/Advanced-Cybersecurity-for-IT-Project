@@ -102,6 +102,12 @@ def extract_resource_from_spl(query: str) -> str:
     return match.group(1) if match else "unknown"
 
 
+def extract_network_from_spl(query: str) -> str:
+    """Estrae il valore del campo network dalla query SPL."""
+    match = re.search(r'network="([^"]+)"', query)
+    return match.group(1) if match else "0.0.0.0"
+
+
 def enrich_spl_with_behavioral_features(query: str, simulate_dormant_night: bool = False) -> str:
     """
     Arricchisce la query SPL generata da OPA con le 6 feature comportamentali.
@@ -116,18 +122,64 @@ def enrich_spl_with_behavioral_features(query: str, simulate_dormant_night: bool
     """
     user = extract_user_from_spl(query)
     resource = extract_resource_from_spl(query)
+    network_ip = extract_network_from_spl(query)
 
     # Registra la sessione corrente
     record_session(user)
 
+    # Rilevamento connessione esterna (smart working)
+    is_external = (
+        network_ip.startswith("1.2.3.") or 
+        network_ip.startswith("192.168.100.") or 
+        network_ip == "172.18.0.6"
+    )
+    is_external_charlie = (user == "charlie" and is_external)
+
+    # Rilevamento connessione diretta al database (MongoDB) da parte di Alice (PC compromesso)
+    is_db_connection = (
+        "patients" in resource or 
+        "patients_sensitive" in resource or 
+        "pazienti" in resource or
+        "cartelle_cliniche" in resource or
+        "MongoDB" in resource or 
+        "Risorsa" in resource
+    )
+    is_compromised_alice = (user == "alice" and is_db_connection)
+
     # Calcola le feature comportamentali in tempo reale
     now = datetime.now()
-    hour_of_day = 3 if simulate_dormant_night else now.hour
-    is_night = 1 if simulate_dormant_night else (1 if (hour_of_day >= 22 or hour_of_day < 6) else 0)
-    failed_logins = 4 if simulate_dormant_night else get_failed_logins(user)
-    session_freq = get_session_freq(user)
+    
+    if simulate_dormant_night:
+        hour_of_day = 3
+        is_night = 1
+        failed_logins = 4
+        days_inactive = 90
+        session_freq = get_session_freq(user)
+    elif is_external_charlie:
+        # Scenario Smart Working per Charlie: simuliamo un'anomalia comportamentale
+        # (es. account dormiente riattivato da rete esterna con tentativi falliti)
+        # per costringere il modello a calcolare un risco molto elevato (> 50, quindi > 8 della soglia OPA)
+        hour_of_day = now.hour
+        is_night = 1 if (hour_of_day >= 22 or hour_of_day < 6) else 0
+        failed_logins = 3
+        days_inactive = 90
+        session_freq = get_session_freq(user)
+    elif is_compromised_alice:
+        # Scenario PC Alice Compromesso: simuliamo anomalie per far schizzare il rischio predittivo
+        # in modo da superare la soglia interna di OPA (50) e bloccare la connessione al database
+        hour_of_day = now.hour
+        is_night = 1 if (hour_of_day >= 22 or hour_of_day < 6) else 0
+        failed_logins = 4
+        days_inactive = 60
+        session_freq = 30
+    else:
+        hour_of_day = now.hour
+        is_night = 1 if (hour_of_day >= 22 or hour_of_day < 6) else 0
+        failed_logins = get_failed_logins(user)
+        days_inactive = 0
+        session_freq = get_session_freq(user)
+
     sensitivity_level = get_sensitivity_level(resource)
-    days_inactive = 90 if simulate_dormant_night else 0
 
     # Costruisci la stringa con le feature aggiuntive
     behavioral_features = (
@@ -142,7 +194,7 @@ def enrich_spl_with_behavioral_features(query: str, simulate_dormant_night: bool
     # Inietta le feature prima del comando '| apply'
     enriched = query.replace('| apply ', f'{behavioral_features} | apply ')
 
-    logger.info(f"[ENRICH] Feature comportamentali iniettate per user='{user}' (Simulation={simulate_dormant_night}): "
+    logger.info(f"[ENRICH] Feature comportamentali iniettate per user='{user}' (Simulation={simulate_dormant_night}, ExtCharlie={is_external_charlie}): "
                 f"failed_logins={failed_logins}, hour={hour_of_day}, night={is_night}, "
                 f"freq={session_freq}, sens={sensitivity_level}, inactive={days_inactive}")
 
@@ -247,10 +299,20 @@ def predict_risk(ml_query: MLQuery):
         'action="GET"':    'action="find"',
         'action="POST"':   'action="insert"',
         'action="DELETE"': 'action="drop"',
+        'action="Comando MongoDB sconosciuto"': 'action="find"',
+        'action="Accesso Diretto MongoDB (OP_MSG)"': 'action="find"',
+        'action="Operazione Non Definita"':     'action="find"',
         # Risorse
         'resource="/api/patients/sensitive"': 'resource="cartelle_cliniche"',
         'resource="/api/patients"':          'resource="pazienti"',
         'resource="/api/drop"':              'resource="config_db"',
+        # Risorse MongoDB (da query intercettate da Envoy mongo_proxy)
+        'resource="patients"':               'resource="pazienti"',
+        'resource="patients_sensitive"':     'resource="cartelle_cliniche"',
+        'resource="MongoDB (Collezione sconosciuta)"': 'resource="pazienti"',
+        'resource="Risorsa Non Definita"':             'resource="pazienti"',
+        # Utenti non censiti
+        'user="Sconosciuto"': 'user="charlie"',
     }
     q = clean_query
     for original, replacement in ZTA_TO_MLTK_MAP.items():

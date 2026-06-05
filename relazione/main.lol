@@ -10,5 +10,6 @@
 \contentsline {lstlisting}{\numberline {10}{\ignorespaces Validazione dell'estensione TPM nel certificato client da parte di OPA.}}{20}{lstlisting.10}%
 \contentsline {lstlisting}{\numberline {11}{\ignorespaces Regole di rilevamento personalizzate per Snort.}}{21}{lstlisting.11}%
 \contentsline {lstlisting}{\numberline {12}{\ignorespaces Query SPL per l'addestramento del modello Gradient Boosting su Splunk MLTK.}}{23}{lstlisting.12}%
-\contentsline {lstlisting}{\numberline {13}{\ignorespaces Simulazione di attacco bypass diretto tramite curl dal terminale di Charlie.}}{30}{lstlisting.13}%
+\contentsline {lstlisting}{\numberline {13}{\ignorespaces Simulazione di attacco bypass diretto tramite curl dal terminale di Charlie.}}{31}{lstlisting.13}%
 \contentsline {lstlisting}{\numberline {14}{\ignorespaces Dettaglio del log di blocco generato da nftables per il tentativo di bypass.}}{31}{lstlisting.14}%
+\contentsline {lstlisting}{\numberline {15}{\ignorespaces Simulazione di accesso diretto al database MongoDB dal terminale del dispositivo compromesso di Alice, utilizzando i certificati mTLS originali per autenticarsi verso Envoy sulla porta 27017.}}{35}{lstlisting.15}%
