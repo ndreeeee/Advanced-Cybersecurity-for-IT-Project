@@ -465,6 +465,7 @@ ul.check-list li::before {
       <span class="icon-badge">Envoy PEP</span>
       <span class="icon-badge">Open Policy Agent</span>
       <span class="icon-badge">Splunk MLTK</span>
+      <span class="icon-badge">NFTables Firewall</span>
       <span class="icon-badge">Snort NIDS</span>
     </div>
   </div>
@@ -1032,17 +1033,17 @@ ul.check-list li::before {
   <div class="top-logo">Advanced Cybersecurity for IT</div>
   <div class="slide-header animate-in-up">
     <h2>Splunk MLTK: modello gradient boosting</h2>
-    <p class="subtitle">Comportamento analizzato basato su 10k record storici aggregati.</p>
+    <p class="subtitle">Comportamento analizzato basato su ~100k record storici aggregati nel dataset di addestramento.</p>
     <hr class="slide-divider">
   </div>
   <div class="grid-2">
     <div class="card animate-in-up">
       <h3>Machine Learning Pipeline</h3>
       <ul class="feature-list" style="margin-top:16px;">
-        <li><strong>Dataset</strong>: Traffico simulato (<code>simulated_traffic.csv</code>).</li>
+        <li><strong>Dataset</strong>: Traffico simulato (<code>simulated_traffic.csv</code>, ~100k record).</li>
         <li><strong>Algoritmo</strong>: GradientBoostingRegressor per interpolazione del rischio continuo.</li>
-        <li><strong>Feature</strong>: 12 feature totali (6 ZTA identitarie + 6 comportamentali).</li>
-        <li><strong>Deploy</strong>: Esposto tramite comando <code>apply</code> e Web-API Proxy.</li>
+        <li><strong>Feature</strong>: 12 feature totali (6 ZTA identitarie + 6 comportamentali iniettate dalla Web-API).</li>
+        <li><strong>Deploy</strong>: Esposto tramite <code>apply trust_model</code> via Web-API Proxy (arricchimento SPL in-flight).</li>
       </ul>
     </div>
     <div class="code-block animate-in-up" style="transition-delay:0.1s;">
@@ -1108,9 +1109,10 @@ ul.check-list li::before {
     <div class="card animate-in-up">
       <h3>Policy Base</h3>
       <ul class="check-list">
-        <li><strong>DNAT</strong>: Dirottamento del traffico autorizzato verso Envoy.</li>
+        <li><strong>DNAT</strong>: Dirottamento del traffico autorizzato verso Envoy (porta 8443).</li>
         <li><strong>Masquerading</strong>: SNAT per le risposte interne.</li>
-        <li><strong>Drop & Log</strong>: Blocco silenzioso e logging per bypass API diretti.</li>
+        <li><strong>Drop &amp; Log</strong>: Blocco con logging <code>ulogd2</code> per bypass diretti (porta 8000).</li>
+        <li><strong>Denylist Dinamica</strong>: Set NFTables <code>denylist</code> + Management API FastAPI (<code>fw_api.py</code>) per ban IP in tempo reale.</li>
       </ul>
     </div>
     <div class="code-block animate-in-up" style="transition-delay:0.1s;">
@@ -1119,7 +1121,13 @@ ul.check-list li::before {
 <span class="fn">nft</span> add rule ip nat prerouting \
   tcp dport <span class="num">8443</span> counter dnat to $ENVOY:<span class="num">8443</span>
 
-<span class="cm"># Prevenzione bypass verso backend ML</span>
+<span class="cm"># Denylist dinamica (ban IP via Management API)</span>
+<span class="fn">nft</span> add set ip filter denylist { type ipv4_addr }
+<span class="fn">nft</span> add rule ip filter forward ip saddr @denylist drop
+
+<span class="cm"># Prevenzione bypass verso Web-API (Log + Drop)</span>
+<span class="fn">nft</span> add rule ip nat prerouting \
+  tcp dport <span class="num">8000</span> log group <span class="num">0</span> prefix <span class="str">"[NFT-BLOCK] "</span>
 <span class="fn">nft</span> add rule ip nat prerouting \
   tcp dport <span class="num">8000</span> drop</pre>
     </div>
@@ -1140,20 +1148,27 @@ ul.check-list li::before {
   <div class="grid-2">
     <div class="card animate-in-up" style="background:rgba(34,31,32,0.85); backdrop-filter:blur(8px);">
       <h3>Regole e Rilevazioni</h3>
-      <p>Snort lavora in promiscuous mode per tracciare comportamenti malevoli trasversali (scan Nmap, bypass tentati verso la porta del database).</p>
+      <p>Snort lavora in promiscuous mode per tracciare comportamenti malevoli trasversali (scan Nmap, bypass tentati verso la porta del database MongoDB).</p>
       <div style="margin-top:16px;">
-        <span class="pill pill-amber">Nmap Detect</span>
-        <span class="pill pill-red">DB Bypass</span>
+        <span class="pill pill-amber">Nmap SYN Scan (SID 1000001)</span>
+        <span class="pill pill-red">DB Bypass :27017 (SID 1000002)</span>
       </div>
     </div>
     <div class="code-block animate-in-up" style="transition-delay:0.1s; background:rgba(22,21,21,0.85); backdrop-filter:blur(8px);">
       <span class="code-label">local.rules</span>
-<pre><span class="cm"># Rilevamento TCP SYN Scan</span>
+<pre><span class="cm"># 1. Rileva scansione Nmap (SYN Scan)</span>
 <span class="kw">alert</span> tcp any any -> any any (
-  msg:<span class="str">"ZTA ALERT: Scansione Rete"</span>;
+  msg:<span class="str">"ZTA ALERT: Rilevata Scansione di Rete"</span>;
   flags:<span class="num">S</span>;
-  threshold: track by_src, count <span class="num">20</span>;
+  threshold:type both, track by_src,
+    count <span class="num">20</span>, seconds <span class="num">10</span>;
   sid:<span class="num">1000001</span>;
+)
+
+<span class="cm"># 2. Rileva bypass diretto a MongoDB</span>
+<span class="kw">alert</span> tcp any any -> any <span class="num">27017</span> (
+  msg:<span class="str">"ZTA ALERT: Bypass diretto a MongoDB!"</span>;
+  sid:<span class="num">1000002</span>;
 )</pre>
     </div>
   </div>
@@ -1446,8 +1461,9 @@ ul.check-list li::before {
       <table class="data-table" style="margin-top:16px;">
         <thead><tr><th>Collection</th><th>Dati Contenuti</th></tr></thead>
         <tbody>
-          <tr><td><code>patients</code></td><td>Cartelle cliniche, note sensibili</td></tr>
-          <tr><td><code>identities</code></td><td>Identity store (trust base)</td></tr>
+          <tr><td><code>patients</code></td><td>Cartelle cliniche, note sensibili (10 record)</td></tr>
+          <tr><td><code>identities</code></td><td>Identity store SPIFFE (trust base per Alice, Bob)</td></tr>
+          <tr><td><code>trust_history</code></td><td>Storico evoluzione del trust score (audit trail)</td></tr>
         </tbody>
       </table>
     </div>
@@ -2100,13 +2116,13 @@ ul.check-list li::before {
     <div class="card animate-in-up" style="background:rgba(34,31,32,0.85); backdrop-filter:blur(8px); display: flex; flex-direction: column; justify-content: space-between;">
       <div>
         <h3 style="color:var(--status-red); margin-bottom:12px;">Attacker &rarr; Firewall DROP &amp; Ban</h3>
-        <p>Un client esterno compromesso tenta di aggirare il PEP (Envoy) connettendosi direttamente a MongoDB su porta <code>8000</code>.</p>
+        <p>Un client esterno compromesso tenta di aggirare il PEP (Envoy) connettendosi alla Web-API sulla porta <code>8000</code> per bypassare l'autorizzazione.</p>
         <ul class="feature-list" style="margin-top:14px;">
-          <li><code>nftables</code> intercetta e scarta (<code>DROP</code>) i pacchetti silenti</li>
-          <li>Firewall invia il log di blocco <code>[NFT-BLOCK]</code> a Fluent-Bit</li>
-          <li>La sonda NIDS <code>snort</code> fa ispezione DPI e lancia alert</li>
-          <li>Fluent-Bit invia log ed alert a Splunk SIEM</li>
-          <li>Splunk calcola <code>Rischio Max</code> e aggiorna la denylist di OPA</li>
+          <li><code>nftables</code> intercetta, logga via <code>ulogd2</code> (<code>[NFT-BLOCK]</code>) e scarta (<code>DROP</code>)</li>
+          <li>La sonda NIDS <code>Snort</code> in promiscuous mode lancia alert (SID 1000001/1000002)</li>
+          <li>Fluent-Bit inoltra log ed alert a Splunk HEC</li>
+          <li>Splunk calcola <code>Rischio Max</code> e aggiorna il punteggio comportamentale</li>
+          <li>Management API (<code>fw_api.py</code>) banna l'IP tramite il set <code>denylist</code> di NFTables</li>
         </ul>
       </div>
       <div style="margin-top:16px;">
@@ -2488,7 +2504,7 @@ ul.check-list li::before {
   <div class="card animate-in-up">
     <div class="grid-2">
       <ul class="check-list">
-        <li>Architettura basata su 10 microservizi containerizzati.</li>
+        <li>Architettura basata su 11 microservizi containerizzati.</li>
         <li>Isolamento e microsegmentazione in 4 zone protette.</li>
         <li>Valutazione continua basata su 12 feature (6 ZTA + 6 comportamentali).</li>
         <li>mTLS + TPM Hardware check via estensioni X.509 in Rego.</li>
