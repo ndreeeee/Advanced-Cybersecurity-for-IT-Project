@@ -133,23 +133,26 @@ is_internal_network := true if {
     net.cidr_contains("10.0.1.0/24", network_ip)
 }
 
-# L7 DPI: Regole di blocco esplicite sulle query MongoDB
+# L7 DPI: Regole di blocco esplicite su traffico HTTP e MongoDB
 default l7_dpi_block := false
 
+# --- LIVELLO 1: Protezione dell'endpoint HTTP delle Cartelle Cliniche ---
 l7_dpi_block := true if {
-    # 1. Protezione Dati Sensibili:
-    # Se la query cerca di estrarre "sensitive_notes", la blocchiamo SE l'utente 
-    # si trova su rete esterna OPPURE non ha il modulo TPM.
-    # (Alice passa, Bob e Charlie vengono bloccati solo su questa query).
-    contains(lower(db_query), "sensitive_notes")
-    not is_tpm
+    is_http
+    resource == "/request/sensitive"
+    not is_internal_network  # Blocca Charlie (Rete Esterna)
 } else := true if {
-    contains(lower(db_query), "sensitive_notes")
-    not is_internal_network
-} else := true if {
-    # 2. Blocca comandi di distruzione dati (Per chiunque)
+    is_http
+    resource == "/request/sensitive"
+    not is_tpm               # Blocca Bob (Senza TPM)
+} 
+
+# --- LIVELLO 2: Protezione profonda su comandi nativi MongoDB (IDS Applicativo) ---
+else := true if {
+    is_mongo
     contains(lower(db_query), "dropdatabase")
 } else := true if {
+    is_mongo
     contains(lower(db_query), "deleteall")
 }
 
