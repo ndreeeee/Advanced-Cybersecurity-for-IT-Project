@@ -139,15 +139,15 @@ default l7_dpi_block := false
 # --- LIVELLO 1: Protezione dell'endpoint HTTP delle Cartelle Cliniche ---
 l7_dpi_block := true if {
     is_http
-    resource == "/request/sensitive"
+    resource == "/api/patients/sensitive"
     not is_internal_network  # Blocca Charlie (Rete Esterna)
 } else := true if {
     is_http
-    resource == "/request/sensitive"
+    resource == "/api/patients/sensitive"
     not is_tpm               # Blocca Bob (Senza TPM)
 } 
 
-# --- LIVELLO 2: Protezione profonda su comandi nativi MongoDB (IDS Applicativo) ---
+# --- LIVELLO 2: Protezione profonda su comandi nativi MongoDB ---
 else := true if {
     is_mongo
     contains(lower(db_query), "dropdatabase")
