@@ -6,5 +6,16 @@
 # 1. Rileva una scansione Nmap (SYN Scan) verso il nostro Envoy o DB
 alert tcp any any -> any any (msg:"ZTA ALERT: Rilevata Scansione di Rete (Possibile Nmap)"; flags:S; threshold:type both, track by_src, count 20, seconds 10; sid:1000001; rev:1;)
 
-# 2. Rileva un tentativo di connessione diretta (bypass) alla porta di MongoDB
-alert tcp any any -> any 27017 (msg:"ZTA ALERT: Tentativo di accesso diretto a MongoDB bypassando Envoy!"; sid:1000002; rev:1;)
+# 2. AUDIT: Traccia l'accesso tramite client nativo MongoDB (Data Science/Scripting)
+alert tcp any any -> any 27017 (msg:"ZTA AUDIT: Connessione Client nativa a MongoDB rilevata (Accesso non-Web)"; sid:1000002; rev:2;)
+
+# 3. Rileva un attacco volumetrico (Possibile DDoS / SYN Flood verso Envoy)
+alert tcp any any -> any 8443 (msg:"ZTA ALERT: Anomalia volumetrica (Possibile DoS verso il Proxy)"; flags:S; threshold:type both, track by_src, count 100, seconds 5; sid:1000003; rev:1;)
+
+# 4. Rileva un tentativo di connessione in chiaro (Downgrade Attack HTTP)
+# Se qualcuno cerca di usare HTTP normale invece di HTTPS, cerchiamo il metodo "GET " in chiaro
+alert tcp any any -> any 8443 (msg:"ZTA ALERT: Tentativo di traffico in chiaro su porta protetta (Downgrade/Misconfig)"; flow:established,to_server; content:"GET "; depth:4; sid:1000004; rev:1;)
+
+# 5. Rileva tentativi ripetuti di connessione (Possibile Brute-Force del Certificato mTLS)
+# (Molteplici handshake falliti generano reset/fin rapidi)
+alert tcp any any -> any 8443 (msg:"ZTA ALERT: Eccessivi tentativi di connessione (Possibile assenza di Certificato Client)"; flags:R; threshold:type both, track by_src, count 15, seconds 10; sid:1000005; rev:1;)
