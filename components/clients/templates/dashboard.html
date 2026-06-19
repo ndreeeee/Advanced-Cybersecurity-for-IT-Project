@@ -3,40 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portale Medico - ZTA</title>
-    <!-- Modern Typography -->
+    <title>Portale Medico - Accesso ZTA</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         :root {
-            /* Default: Tema Sospetto (Bob) */
-            --primary-color: #f43f5e;
-            --primary-glow: rgba(244, 63, 94, 0.15);
+            /* Default: Tema Sospetto (Bob / Rischio Elevato) */
+            --theme-color: #ef4444;
+            --theme-glow: rgba(239, 68, 68, 0.15);
             --tpm-bg: #fee2e2;
             --tpm-color: #b91c1c;
-            --gradient-start: #f43f5e;
-            --gradient-end: #fb7185;
+            --gradient-start: #ef4444;
+            --gradient-end: #f87171;
         }
         
         body.theme-alice {
-            /* Tema Legittimo (Alice) */
-            --primary-color: #10b981;
-            --primary-glow: rgba(16, 185, 129, 0.15);
+            /* Tema Legittimo (Alice / Trust Elevato) */
+            --theme-color: #059669;
+            --theme-glow: rgba(5, 150, 105, 0.15);
             --tpm-bg: #d1fae5;
             --tpm-color: #047857;
-            --gradient-start: #10b981;
+            --gradient-start: #059669;
             --gradient-end: #34d399;
         }
 
-        .tpm-badge {
-            background-color: var(--tpm-bg);
-            color: var(--tpm-color);
-        }
-        
-        .logo-icon, .avatar {
+        /* L'avatar in alto a destra prende il colore del livello di Trust */
+        .avatar {
             background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            box-shadow: 0 4px 10px var(--theme-glow);
         }
     </style>
 </head>
@@ -45,13 +41,19 @@
     <main style="width: 100vw;">
         <header>
             <div style="display: flex; align-items: center; gap: 1rem;">
-                <div class="logo-icon" style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary-color), var(--gradient-end)); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem;">🏥</div>
-                <h1 style="font-size: 1.5rem; font-weight: 700; margin: 0;">San Raffaele</h1>
-                <div class="header-title" id="page-title" style="margin-left: 1.5rem; padding-left: 1.5rem; border-left: 1px solid #e2e8f0;">Panoramica Pazienti</div>
+                <div class="logo-icon" style="width: 44px; height: 44px; background: linear-gradient(135deg, #0369a1, #38bdf8); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 12px rgba(3, 105, 161, 0.25);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        <path d="M12 8v8"></path>
+                        <path d="M8 12h8"></path>
+                    </svg>
+                </div>
+                <h1 style="font-size: 1.5rem; font-weight: 700; margin: 0; color: #0f172a;">Azienda Ospedaliera</h1>
+                <div class="header-title" id="page-title" style="margin-left: 1.5rem; padding-left: 1.5rem; border-left: 1px solid #cbd5e1; color: #475569; font-weight: 500;">Gestione Pazienti</div>
             </div>
             
             <div class="user-profile">
-                <div class="user-info">
+                <div class="user-info" style="text-align: right;">
                     <span class="user-name">Dr. {{ client_name.capitalize() if client_name else 'Sconosciuto' }}</span>
                     <span class="user-role">{{ client_role }}</span>
                 </div>
@@ -61,19 +63,19 @@
 
         <div class="content-area">
             
-            <!-- Loading -->
             <div id="loading" class="loading-state">
                 <div class="spinner"></div>
-                <p>Caricamento...</p>
+                <p>Verifica autorizzazioni ZTA in corso...</p>
             </div>
 
-            <!-- Table Card -->
             <div id="data-card" class="card">
                 <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
-                    <div class="card-title">Database Pazienti</div>
+                    <div class="card-title" style="display: flex; align-items: center; gap: 8px;">
+                        <svg width="20" height="20" fill="none" stroke="#0369a1" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        Database Pazienti
+                    </div>
                     <div class="search-container" style="position:relative;">
-                        <input type="text" id="patient-search" placeholder="Cerca paziente per ID o Nome..." style="padding: 0.5rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; width: 300px; font-family: 'Inter', sans-serif;" onkeyup="handleSearch()">
-                        <button onclick="handleSearch()" style="position:absolute; right:5px; top:5px; background:var(--primary-color); color:white; border:none; border-radius:4px; padding:0.25rem 0.5rem; cursor:pointer;">Cerca</button>
+                        <input type="text" id="patient-search" placeholder="Filtra per nome paziente..." style="padding: 0.5rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; width: 280px; font-family: 'Inter', sans-serif; outline: none;" onkeyup="handleSearch()">
                     </div>
                 </div>
                 <table id="patients-table">
@@ -81,42 +83,41 @@
                         <tr>
                             <th>Paziente</th>
                             <th>Reparto</th>
-                            <th>Stato</th>
-                            <th>Azioni</th>
+                            <th>Stato Clinico</th>
+                            <th style="text-align: right;">Azioni Fascicolo</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <!-- Filled via JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
 
-            <!-- Error State -->
             <div id="error-card" class="error-state">
                 <div class="error-icon">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                 </div>
-                <h2>403 Forbidden - Access Denied</h2>
-                <p>La risorsa richiesta è bloccata. La tua identità, il dispositivo o il contesto della richiesta non soddisfano le policy di sicurezza (Zero Trust Enforcement).</p>
+                <h2>403 Forbidden - Azione Bloccata</h2>
+                <p>La risorsa o l'azione richiesta è stata intercettata e bloccata da Envoy Proxy. La tua identità, il dispositivo o il comportamento non soddisfano le policy Zero Trust attuali.</p>
                 <div class="error-details" id="error-details">
-                    <!-- Error injected here -->
-                </div>
+                    </div>
+                <button onclick="window.location.reload()" style="margin-top: 2rem; background-color: #0f172a; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 500;">Ricarica Dashboard</button>
             </div>
 
-            <!-- Clinical Record Modal -->
-            <div id="clinical-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:100; justify-content:center; align-items:center;">
-                <div class="card" style="width:600px; max-width:90%; position:relative; display:block;">
-                    <div class="card-header" style="background:#f1f5f9; color:#0f172a; display:flex; justify-content:space-between; align-items:center;">
-                        <div class="card-title">Cartella Clinica Sensibile</div>
-                        <button onclick="document.getElementById('clinical-modal').style.display='none'" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#64748b;">&times;</button>
+            <div id="clinical-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter: blur(4px); z-index:100; justify-content:center; align-items:center;">
+                <div class="card" style="width:650px; max-width:95%; position:relative; display:block; border: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+                    <div class="card-header" style="background:#f8fafc; border-bottom: 1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                        <div class="card-title" style="color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Fascicolo Sanitario Elettronico
+                        </div>
+                        <button onclick="document.getElementById('clinical-modal').style.display='none'" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#64748b; line-height: 1;">&times;</button>
                     </div>
-                    <div style="padding:1.5rem;" id="clinical-modal-content">
-                    </div>
+                    <div style="padding:2rem;" id="clinical-modal-content">
+                        </div>
                 </div>
             </div>
 
         </div>
-
     </main>
 
     <script>
@@ -125,36 +126,27 @@
             window.location.href = '/';
         }
 
-        // Gestione UI della Sidebar
-        document.querySelectorAll('.nav-item:not(.danger)').forEach(item => {
-            item.addEventListener('click', function() {
-                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-
-        // Gestione Ricerca Pazienti (Simulazione SQL Injection)
+        // Gestione Ricerca Pazienti (Solo Filtro Grafico)
         function handleSearch() {
             const query = document.getElementById('patient-search').value.toUpperCase();
-            if (query.includes('DROP') || query.includes('DELETE') || query.includes(';')) {
-                // Simulazione SQL Injection -> invia una richiesta dannosa al backend
-                fetchData('/request/drop', 'Ricerca: ' + query, 'DELETE');
-            } else {
-                // Ricerca normale (filtra la tabella sul frontend)
-                const rows = document.querySelectorAll('#table-body tr');
-                rows.forEach(row => {
-                    const nameCell = row.querySelector('.patient-name');
-                    if (nameCell) {
-                        if (nameCell.textContent.toUpperCase().includes(query)) {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
-                        }
+            const rows = document.querySelectorAll('#table-body tr');
+            rows.forEach(row => {
+                const nameCell = row.querySelector('.patient-name');
+                if (nameCell) {
+                    if (nameCell.textContent.toUpperCase().includes(query)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
                     }
-                });
-            }
+                }
+            });
         }
 
+        // Funzione per l'Insider Threat: Cerca di droppare/eliminare i dati
+        function simulateInsiderThreat(patientName) {
+            // Invia una DELETE al backend per simulare un'azione non consentita
+            fetchData('/request/drop', 'Allarme Sicurezza: Azione Distruttiva Intercettata', 'DELETE');
+        }
 
         async function viewSensitive(patientName) {
             document.getElementById('loading').style.display = 'flex';
@@ -162,7 +154,7 @@
             document.getElementById('error-card').style.display = 'none';
             
             try {
-                // Richiede le cartelle cliniche
+                // Richiede le cartelle cliniche (Soggetto a regole OPA L7 DPI)
                 const response = await fetch('/request/sensitive');
                 const status = response.status;
                 const data = await response.json();
@@ -174,20 +166,23 @@
                     const patient = data.data.find(p => p.name === patientName);
                     if (patient) {
                         const content = `
-                            <h3 style="margin-bottom: 1rem; color: var(--primary-color);">${patient.name}</h3>
-                            <div style="background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
-                                <strong style="display:block; margin-bottom: 0.5rem;">Note Sensibili:</strong>
-                                <p style="color: #475569; line-height: 1.5;">${patient.sensitive_notes || 'Nessuna nota presente.'}</p>
+                            <h3 style="margin-bottom: 1.5rem; color: #0f172a; font-size: 1.5rem;">${patient.name}</h3>
+                            <div style="background: #fff1f2; padding: 1.25rem; border-radius: 8px; border: 1px solid #fecdd3; margin-bottom: 1.5rem;">
+                                <strong style="display:flex; align-items:center; gap:6px; margin-bottom: 0.5rem; color: #be123c;">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                    Dati Sensibili (Riservato):
+                                </strong>
+                                <p style="color: #881337; line-height: 1.6; font-size: 0.95rem;">${patient.sensitive_notes || 'Nessuna nota presente.'}</p>
                             </div>
-                            <div style="background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0;">
-                                <strong style="display:block; margin-bottom: 0.5rem;">Piano di Trattamento:</strong>
-                                <p style="color: #475569; line-height: 1.5;">${patient.treatment || 'Nessun trattamento registrato.'}</p>
+                            <div style="background: #f8fafc; padding: 1.25rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                <strong style="display:block; margin-bottom: 0.5rem; color: #334155;">Piano di Trattamento e Diagnosi:</strong>
+                                <p style="color: #475569; line-height: 1.6; font-size: 0.95rem;">${patient.treatment || 'Nessun trattamento registrato.'}</p>
                             </div>
                         `;
                         document.getElementById('clinical-modal-content').innerHTML = content;
                         document.getElementById('clinical-modal').style.display = 'flex';
                     } else {
-                        alert("Dati sensibili non trovati per questo paziente.");
+                        alert("Dati clinici non trovati per questo paziente.");
                     }
                 } else {
                     showError(data.detail || JSON.stringify(data));
@@ -228,7 +223,7 @@
             tbody.innerHTML = '';
 
             if (!patients || patients.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;">Nessun dato disponibile.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding: 2rem;">Nessun dato clinico disponibile.</td></tr>';
                 return;
             }
 
@@ -237,21 +232,26 @@
                 tr.innerHTML = `
                     <td><span class="patient-name">${p.name || 'Sconosciuto'}</span></td>
                     <td><span class="badge">${p.ward || 'N/A'}</span></td>
-                    <td><span style="color:#10b981; font-weight:500;">Ricoverato</span></td>
-                    <td><button onclick="viewSensitive('${p.name}')" style="background-color: var(--primary-color); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500;">Vedi Cartella</button></td>
+                    <td><span style="color:#059669; font-weight:500; display:flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block;"></span> Ricoverato</span></td>
+                    <td style="text-align: right;">
+                        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                            <button onclick="viewSensitive('${p.name}')" style="background-color: #0369a1; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: background 0.2s;">Consulta Dati</button>
+                            <button onclick="simulateInsiderThreat('${p.name}')" style="background-color: #fff1f2; color: #e11d48; border: 1px solid #fda4af; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: background 0.2s;" title="Simula Attacco di Cancellazione">Elimina</button>
+                        </div>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
         function showError(detail) {
-            document.getElementById('error-details').innerHTML = `<strong>Dettaglio Tecnico (OPA/Envoy):</strong><br><br>${detail}`;
+            document.getElementById('error-details').innerHTML = `<strong>Log di Intercettazione (Envoy Proxy / OPA):</strong><br><br>${detail}`;
             document.getElementById('error-card').style.display = 'block';
         }
 
         // Carica dati di default all'avvio
         window.addEventListener('DOMContentLoaded', () => {
-            fetchData('/request/patients', 'Elenco Pazienti');
+            fetchData('/request/patients', 'Gestione Pazienti');
         });
     </script>
 </body>

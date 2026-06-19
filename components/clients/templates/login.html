@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Portale Medico ZTA</title>
+    <title>Login - Azienda Ospedaliera (Polo Universitario)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,30 +13,44 @@
 
     <div class="login-container">
         <div class="logo-area">
-            <div class="logo-icon">🏥</div>
+            <div class="logo-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <path d="M12 8v8"></path>
+                    <path d="M8 12h8"></path>
+                </svg>
+            </div>
             <div class="logo-text">
-                <h1>San Raffaele</h1>
-                <p>Portale Medici - Accesso Protetto</p>
+                <h1>Azienda Ospedaliera</h1>
+                <p>Polo Universitario - Accesso ZTA</p>
             </div>
         </div>
 
         <form id="login-form">
             <div class="form-group">
-                <label for="username">Username Identificativo (Badge)</label>
-                <input type="text" id="username" class="form-control" placeholder="es. alice.medico" required>
+                <label for="username">Identificativo Operatore (Badge)</label>
+                <input type="text" id="username" class="form-control" placeholder="es. alice.medico" required autocomplete="username">
             </div>
             
             <div class="form-group">
                 <label for="password">Codice PIN / Password</label>
-                <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+                <input type="password" id="password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
             </div>
 
-            <button type="submit" class="btn-login" id="submit-btn">Accedi al Portale</button>
+            <button type="submit" class="btn-login" id="submit-btn">Accedi al Sistema</button>
         </form>
 
         <div id="error-message" class="error-message">
-            <strong>Accesso Negato</strong><br>
-            <span id="error-text">Credenziali non valide o dispositivo non autorizzato.</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <strong>Accesso Negato</strong>
+            </div>
+            <span id="error-text" style="display: block; margin-top: 4px;">Credenziali non valide o dispositivo non autorizzato.</span>
+        </div>
+
+        <div class="security-warning">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+            <span>Sistema protetto da policy Zero Trust. Ogni accesso è monitorato e registrato.</span>
         </div>
     </div>
 
@@ -50,12 +64,11 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
-            btn.innerHTML = `<style>@keyframes spin { 100% { transform: rotate(360deg); } }</style><svg style="animation: spin 1s linear infinite; width: 1.2rem; height: 1.2rem; vertical-align: middle; margin-right: 0.5rem;" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Attendere il caricamento...`;
+            btn.innerHTML = `<style>@keyframes spin { 100% { transform: rotate(360deg); } }</style><svg style="animation: spin 1s linear infinite; width: 1.2rem; height: 1.2rem; vertical-align: middle; margin-right: 0.5rem;" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Autenticazione in corso...`;
             btn.disabled = true;
             errorDiv.classList.remove('visible');
             
             try {
-                // Invia la richiesta al proxy python locale che farà l'mTLS verso Envoy
                 const response = await fetch('/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -66,30 +79,29 @@
                     sessionStorage.setItem('zta_auth_token', 'valid');
                     window.location.href = '/dashboard';
                 } else if (response.status === 403) {
-                    // Sostituisci l'intero contenuto della pagina con un errore di blocco 403 nativo
                     document.body.innerHTML = `
-                        <div style="height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #f8fafc; color: #0f172a; font-family: 'Inter', sans-serif; text-align: center; padding: 2rem;">
+                        <div style="height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #f1f5f9; color: #0f172a; font-family: 'Inter', sans-serif; text-align: center; padding: 2rem;">
                             <svg width="80" height="80" fill="none" stroke="#ef4444" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom: 1rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                             <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem; font-weight: 700;">403 Forbidden</h1>
                             <h2 style="font-size: 1.25rem; color: #475569; margin-bottom: 1.5rem; font-weight: 400;">Access Denied (Zero Trust Policy Enforcement)</h2>
                             <p style="max-width: 600px; color: #64748b; line-height: 1.6; margin-bottom: 2rem;">
-                                La richiesta di autenticazione è stata bloccata a livello di proxy (Envoy). <br><br>
-                                <strong>Dettaglio Errore:</strong> Impossibile verificare l'identità hardware del dispositivo client. Modulo crittografico TPM non rilevato o firma non corrispondente alle policy aziendali.
+                                La richiesta di autenticazione è stata bloccata a livello di proxy di rete. <br><br>
+                                <strong>Motivo del blocco:</strong> Impossibile verificare l'identità hardware del dispositivo client o rischio comportamentale troppo elevato (Policy OPA).
                             </p>
-                            <button onclick="window.location.reload()" style="background-color: #0f172a; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: 'Inter', sans-serif;">Torna alla Home</button>
+                            <button onclick="window.location.reload()" style="background-color: #0f172a; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: 'Inter', sans-serif; transition: opacity 0.2s;">Torna alla Home</button>
                         </div>
                     `;
                 } else {
                     const data = await response.json();
                     errorText.innerText = data.detail || "Errore 500: Internal Server Error";
                     errorDiv.classList.add('visible');
-                    btn.textContent = 'Accedi al Portale';
+                    btn.textContent = 'Accedi al Sistema';
                     btn.disabled = false;
                 }
             } catch (err) {
-                errorText.innerText = "Errore 503: Service Unavailable. Impossibile contattare il server.";
+                errorText.innerText = "Errore 503: Service Unavailable. Impossibile contattare l'Identity Provider.";
                 errorDiv.classList.add('visible');
-                btn.textContent = 'Accedi al Portale';
+                btn.textContent = 'Accedi al Sistema';
                 btn.disabled = false;
             }
         });

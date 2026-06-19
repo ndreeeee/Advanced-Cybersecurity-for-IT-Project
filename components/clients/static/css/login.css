@@ -1,14 +1,15 @@
 :root {
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --primary-light: #eff6ff;
-    --bg-body: #f8fafc;
+    /* Palette Colori Enterprise Ospedaliera (Deep Blue & Slate) */
+    --primary: #0369a1; 
+    --primary-hover: #075985;
+    --primary-light: #e0f2fe;
+    --bg-body: #f1f5f9;
     --bg-surface: #ffffff;
     --text-main: #0f172a;
-    --text-muted: #64748b;
-    --border: #e2e8f0;
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --radius-lg: 1rem;
+    --text-muted: #475569;
+    --border: #cbd5e1;
+    --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+    --radius-lg: 1.25rem;
     --radius-md: 0.5rem;
 }
 
@@ -22,8 +23,11 @@ body {
     align-items: center;
     justify-content: center;
     height: 100vh;
-    background-image: radial-gradient(at 0% 0%, hsla(217,100%,90%,1) 0, transparent 50%), 
-                      radial-gradient(at 100% 100%, hsla(217,100%,90%,1) 0, transparent 50%);
+    /* Sfondo clinico astratto e pulito */
+    background-image: 
+        linear-gradient(135deg, rgba(3, 105, 161, 0.04) 0%, rgba(3, 105, 161, 0) 100%),
+        radial-gradient(at 100% 0%, rgba(14, 165, 233, 0.08) 0, transparent 40%),
+        radial-gradient(at 0% 100%, rgba(2, 132, 199, 0.08) 0, transparent 40%);
 }
 
 .login-container {
@@ -32,31 +36,29 @@ body {
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     width: 100%;
-    max-width: 420px;
-    border: 1px solid var(--border);
+    max-width: 440px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
 .logo-area {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
     text-align: center;
 }
 
 .logo-icon {
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, var(--primary), #60a5fa);
-    border-radius: 16px;
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--primary), #38bdf8);
+    border-radius: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-weight: bold;
-    font-size: 1.8rem;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 8px 16px rgba(3, 105, 161, 0.25);
 }
 
 .logo-text h1 {
@@ -64,21 +66,23 @@ body {
     font-weight: 700;
     color: var(--text-main);
     letter-spacing: -0.025em;
+    margin-bottom: 0.25rem;
 }
 
 .logo-text p {
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     color: var(--text-muted);
+    font-weight: 500;
 }
 
 .form-group {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
 }
 
 .form-group label {
     display: block;
     font-size: 0.875rem;
-    font-weight: 500;
+    font-weight: 600;
     margin-bottom: 0.5rem;
     color: var(--text-main);
 }
@@ -90,14 +94,19 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background-color: #f8fafc;
-    transition: all 0.2s;
+    transition: all 0.2s ease-in-out;
     font-family: inherit;
+    color: var(--text-main);
+}
+
+.form-control::placeholder {
+    color: #94a3b8;
 }
 
 .form-control:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-light);
+    box-shadow: 0 0 0 4px var(--primary-light);
     background-color: white;
 }
 
@@ -111,12 +120,21 @@ body {
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
-    margin-top: 1rem;
+    transition: all 0.2s ease-in-out;
+    margin-top: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(3, 105, 161, 0.2);
 }
 
 .btn-login:hover {
     background-color: var(--primary-hover);
+    box-shadow: 0 6px 8px -1px rgba(3, 105, 161, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn-login:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .error-message {
@@ -140,14 +158,22 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-.badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    background-color: #e2e8f0;
-    color: #475569;
-    border-radius: 9999px;
+/* Nuovo blocco informativo per lo Zero Trust */
+.security-warning {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
     font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    margin-top: 0.5rem;
+    color: var(--text-muted);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    line-height: 1.4;
+}
+
+.security-warning svg {
+    flex-shrink: 0;
+    color: #0284c7;
 }
