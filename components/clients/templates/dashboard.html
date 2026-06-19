@@ -55,7 +55,7 @@
             <div class="user-profile">
                 <div class="user-info" style="text-align: right;">
                     <span class="user-name">Dr. {{ client_name.capitalize() if client_name else 'Sconosciuto' }}</span>
-                    <span class="user-role">{{ client_role }}</span>
+                    <span class="user-role">{{ client_role | safe }}</span>
                 </div>
                 <div class="avatar">{{ client_name[0].upper() if client_name else '?' }}</div>
             </div>

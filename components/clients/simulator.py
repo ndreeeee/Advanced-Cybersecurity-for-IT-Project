@@ -19,7 +19,6 @@ templates = Jinja2Templates(directory="templates")
 
 # Parametri dall'ambiente
 CLIENT_NAME = os.getenv("CLIENT_NAME", "unknown")
-CLIENT_ROLE = os.getenv("CLIENT_ROLE", "legit")
 ENVOY_HOST = "zta-firewall" # Passiamo prima dal firewall
 ENVOY_PORT = 8443
 
@@ -43,15 +42,62 @@ def get_login(request: Request):
         {"client_name": client_id}
     )
 
+def get_device_posture(cid: str) -> str:
+    """ 
+    Calcola lo stato veritiero del dispositivo in base al certificato/scenario.
+    Restituisce markup HTML professionale con icone SVG integrate.
+    """
+    cid = cid.lower()
+    
+    # Stile comune per le icone SVG in linea
+    svg_style = "width: 16px; height: 16px; vertical-align: middle; margin-right: 6px;"
+    
+    if cid == "alice":
+        return (
+            f'<span style="color: #059669; font-weight: 600; display: inline-flex; align-items: center;">'
+            f'<svg style="{svg_style}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
+            f'<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>'
+            f'<path d="M7 11V7a5 5 0 0110 0v4"></path></svg>'
+            f'Workstation Interna (TPM Validato)</span>'
+        )
+    elif cid == "bob":
+        return (
+            f'<span style="color: #d97706; font-weight: 600; display: inline-flex; align-items: center;">'
+            f'<svg style="{svg_style}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
+            f'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>'
+            f'<line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+            f'Rete Interna (Dispositivo Privo di TPM)</span>'
+        )
+    elif cid == "charlie":
+        return (
+            f'<span style="color: #2563eb; font-weight: 600; display: inline-flex; align-items: center;">'
+            f'<svg style="{svg_style}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
+            f'<circle cx="12" cy="12" r="10"></circle>'
+            f'<line x1="2" y1="12" x2="22" y2="12"></line>'
+            f'<path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"></path></svg>'
+            f'Rete Esterna (Connessione Remota ZTA)</span>'
+        )
+    else:
+        return (
+            f'<span style="color: #dc2626; font-weight: 600; display: inline-flex; align-items: center;">'
+            f'<svg style="{svg_style}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
+            f'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>'
+            f'<line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+            f'Dispositivo Non Censito</span>'
+        )
+
 @app.get("/dashboard", response_class=HTMLResponse)
 def get_dashboard(request: Request):
     """ Mostra il portale medico dopo il login """
+    # Calcola la postura reale al posto della variabile statica di Docker
+    posture_reale = get_device_posture(client_id)
+    
     return templates.TemplateResponse(
         request, 
         "dashboard.html", 
         {
             "client_name": client_id,
-            "client_role": CLIENT_ROLE
+            "client_role": posture_reale  # Ora passa la stringa Enterprise!
         }
     )
 
@@ -127,12 +173,13 @@ def login(login_req: LoginRequest):
     """ Tenta il login inoltrando le credenziali al backend tramite mTLS """
     logger.info(f"Tentativo di login per l'utente: {login_req.username}")
     
-    # Solo a scopo dimostrativo: controllo formale delle credenziali corrette
-    # Se le credenziali sono sbagliate a livello applicativo (non Zero Trust), ci fermiamo subito.
-    if login_req.username != "alice" or login_req.password != "password123":
+    utenti_validi = ["alice", "bob", "charlie"]
+    
+    # Controllo credenziali base (Livello Applicativo)
+    if login_req.username.lower() not in utenti_validi or login_req.password != "password123":
         raise HTTPException(status_code=401, detail="Credenziali errate. Riprovare.")
         
-    # Se le credenziali "tradizionali" sono corrette, verifichiamo la policy Zero Trust!
+    # Se le credenziali "tradizionali" sono corrette, verifichiamo la policy Zero Trust
     # Facciamo una chiamata al backend protetto tramite Envoy
     return make_mtls_request("POST", "/api/auth", json_data={"username": login_req.username})
 
@@ -147,4 +194,4 @@ def request_sensitive():
 @app.delete("/request/drop")
 def request_drop():
     return make_mtls_request("DELETE", "/api/patients")
-
+
