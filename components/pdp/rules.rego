@@ -133,13 +133,21 @@ is_internal_network := true if {
     net.cidr_contains("10.0.1.0/24", network_ip)
 }
 
-# L7 DPI: Regole di blocco esplicite (equivalenti allo script Lua)
+# L7 DPI: Regole di blocco esplicite sulle query MongoDB
 default l7_dpi_block := false
+
 l7_dpi_block := true if {
-    # Blocca query sensibili
+    # 1. Protezione Dati Sensibili:
+    # Se la query cerca di estrarre "sensitive_notes", la blocchiamo SE l'utente 
+    # si trova su rete esterna OPPURE non ha il modulo TPM.
+    # (Alice passa, Bob e Charlie vengono bloccati solo su questa query).
     contains(lower(db_query), "sensitive_notes")
+    not is_tpm
 } else := true if {
-    # Blocca distruzione dati
+    contains(lower(db_query), "sensitive_notes")
+    not is_internal_network
+} else := true if {
+    # 2. Blocca comandi di distruzione dati (Per chiunque)
     contains(lower(db_query), "dropdatabase")
 } else := true if {
     contains(lower(db_query), "deleteall")
