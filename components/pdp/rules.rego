@@ -186,13 +186,17 @@ is_auth_request := true if {
     command == "authenticate"
 } else := false
 
-# Protezione Anti-Bot per il Login:
-# La validazione della rete e del TPM è ora delegata al Rischio Adattivo (risk_ok).
-# Qui ci limitiamo a bloccare preventivamente le richieste di autenticazione
-# generate da script o bot senza un'impronta JA3 valida.
+# Protezione e Requisiti di Sicurezza per il Login:
+# 1. Blocca preventivamente le richieste di autenticazione senza un'impronta JA3 valida (Anti-Bot).
+# 2. Impone l'obbligo tassativo del modulo TPM per QUALSIASI tentativo di login. 
+#    I vecchi macchinari senza TPM mantengono l'operatività sulle API di base (se il rischio è <= 26), 
+#    ma non possono richiedere nuovi token di autenticazione.
 is_auth_blocked := true if {
     is_auth_request
     software == "Sconosciuto"
+} else := true if {
+    is_auth_request
+    not is_tpm               # <--- BLOCCO TASSATIVO LOGIN SENZA TPM
 } else := false
 
 allow := true if {
