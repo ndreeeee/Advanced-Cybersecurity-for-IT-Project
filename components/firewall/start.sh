@@ -43,11 +43,16 @@ nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
 # 4.1 Inoltra tutto il traffico TCP legittimo sulla porta 8443 verso Envoy
 nft add rule ip nat prerouting tcp dport 8443 counter dnat to $ENVOY_IP:8443
 
+# 4.2 Inoltra il traffico TCP MongoDB sulla porta 27017 (DB) verso Envoy
+nft add rule ip nat prerouting tcp dport 27017 counter dnat to $ENVOY_IP:27017
+nft add rule ip nat postrouting ip daddr $ENVOY_IP tcp dport 27017 counter masquerade
+echo "[FW] Port Forwarding L4 attivato con successo (Porte 8443 e 27017)."
+
 # SNAT (Masquerade) per il traffico legittimo
 nft add rule ip nat postrouting ip daddr $ENVOY_IP tcp dport 8443 counter masquerade
 echo "[FW] Port Forwarding L4 attivato con successo (Porta 8443)."
 
-# 4.2 LA TRAPPOLA: Log e Drop di tutto il traffico che cerca di aggirare Envoy (es. porta 8000)
+# 4.3 LA TRAPPOLA: Log e Drop di tutto il traffico che cerca di aggirare Envoy (es. porta 8000)
 echo "[FW] Configurazione Logging e Blocco per porte non autorizzate..."
 # Prima inviamo il log a ulogd2 (group 0)
 nft add rule ip nat prerouting tcp dport 8000 log group 0 prefix \"[NFT-BLOCK] \" counter
