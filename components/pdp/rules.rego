@@ -147,25 +147,25 @@ l7_dpi_block := true if {
 
 # La regola di autorizzazione adattiva (Risk-Based & JA3 Fallback)
 # - Se la rete è INTERNA:
-#   - Con TPM: tolleranza rischio <= 50
-#   - Senza TPM (solo JA3): tolleranza rischio <= 8 (Bob viene bloccato sulle API)
+#   - Con TPM: tolleranza rischio <= 38 (Alice: massima fiducia)
+#   - Senza TPM (solo JA3): tolleranza rischio <= 26 (Bob: fiducia limitata)
 # - Se la rete è ESTERNA:
-#   - Con TPM: tolleranza rischio <= 8 (Charlie in smart working viene bloccato sulle API)
-#   - Senza TPM: accesso sempre negato (troppo rischioso da fuori senza hardware)
+#   - Con TPM: tolleranza rischio <= 26 (Charlie in smart working: fiducia limitata)
+#   - Senza TPM: accesso sempre negato (Gestito implicitamente)
 
 risk_ok := true if {
     is_internal_network
     is_tpm
-    splunk_risk_score <= 50
+    splunk_risk_score <= 38
 } else := true if {
     is_internal_network
     not is_tpm
     software != "Sconosciuto"
-    splunk_risk_score <= 8
+    splunk_risk_score <= 26
 } else := true if {
     not is_internal_network
     is_tpm
-    splunk_risk_score <= 8
+    splunk_risk_score <= 26
 } else := false
 
 # Definizione delle richieste di autenticazione/login (HTTP o MongoDB)
