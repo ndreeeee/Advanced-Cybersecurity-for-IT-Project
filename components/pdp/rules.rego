@@ -175,13 +175,13 @@ is_auth_request := true if {
     command == "authenticate"
 } else := false
 
-# Blocca l'autenticazione al login se manca il TPM o se si è all'esterno
+# Protezione Anti-Bot per il Login:
+# La validazione della rete e del TPM è ora delegata al Rischio Adattivo (risk_ok).
+# Qui ci limitiamo a bloccare preventivamente le richieste di autenticazione
+# generate da script o bot senza un'impronta JA3 valida.
 is_auth_blocked := true if {
     is_auth_request
-    not is_tpm
-} else := true if {
-    is_auth_request
-    not is_internal_network
+    software == "Sconosciuto"
 } else := false
 
 allow := true if {
