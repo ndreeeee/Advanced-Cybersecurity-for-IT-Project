@@ -100,10 +100,15 @@ db_query := input.attributes.metadataContext.filterMetadata["envoy.filters.netwo
 # 3. MOTORE DECISIONALE CON SIEM ML E LOGGING JSON
 # ================================================================
 
-# Valore di default in caso Splunk non risponda o fallisca
+# Valore di default in caso Splunk non risponda, fallisca o venga saltato
 default splunk_risk_score := 100
 
 splunk_risk_score := risk if {
+    # ---> CLAUSOLA DI GUARDIA (Short-Circuit ZTA) <---
+    # Se il login è già bloccato alla radice (es. no TPM), abortiamo 
+    # immediatamente la valutazione ed evitiamo la chiamata HTTP a Splunk.
+    not is_auth_blocked
+
     # Costruiamo la query SPL interpolando le 6 dimensioni (ZTA 6D)
     query := sprintf("| makeresults | eval user=\"%s\", software=\"%s\", device=\"%s\", network=\"%s\", action=\"%s\", resource=\"%s\" | apply trust_model | rename \"predicted(rischio)\" as rischio | table rischio", [user, software, device, network_ip, command, resource])
     
