@@ -125,6 +125,21 @@ Nell'architettura Zero Trust sviluppata, tale approccio discrezionale e statico 
 Di conseguenza, la cella della matrice $A[s_i, o_j]$ cessa di essere una locazione di memoria fissa per trasformarsi in una funzione di autorizzazione calcolata in tempo reale dal Policy Decision Point (OPA), dipendente dallo stato corrente degli attributi:
 $$ A[s_i, o_j] = \{ r \in R \mid D(s_i, o_j, r, \text{Attributi}) = \text{True} \} $$
 
+A titolo esemplificativo, la Tabella \ref{tab:matrice_hru} illustra un'istanza logica della matrice in un dato istante $t$, evidenziando come i diritti mutino in base al contesto.
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Matrice di Protezione $A$} & \textbf{$o_1$ (Cartelle Standard)} & \textbf{$o_{sens}$ (Dati Sensibili)} & \textbf{$o_{db}$ (Database)} \\ \hline
+\textbf{$s_1$ (Alice: Intranet, TPM)} & $\{\texttt{GET}, \texttt{POST}\}$ & $\{\texttt{GET}\}$ & $\{\texttt{find}\}$ \\ \hline
+\textbf{$s_2$ (Charlie: Esterno, TPM)} & $\{\texttt{GET}\}$ & $\emptyset$ & $\emptyset$ \\ \hline
+\textbf{$s_3$ (Attaccante: No TPM)} & $\emptyset$ & $\emptyset$ & $\emptyset$ \\ \hline
+\end{tabular}
+\caption{Esempio di istanza dinamica della matrice HRU basata sul calcolo ABAC.}\label{tab:matrice_hru}
+\end{table}
+
 Le \textit{Corporate Security Policy} sono state formalizzate in OPA traducendo le seguenti proposizioni logiche inderogabili sui flussi di informazione:
 
 \subsubsection*{Policy 1: Requisito Hardware di Autenticazione (Short-Circuit)}
@@ -145,7 +160,7 @@ $$ \text{se } o = o_{sens} \land (s_{net} \neq \text{Internal} \lor s_{tpm} = 0)
 Qualsiasi diritto classificato come distruttivo ($r \in \{\texttt{drop}, \texttt{deleteall}\}$) non può mai essere concesso all'interno del flusso applicativo, garantendo la disponibilità e l'integrità del dato clinico:
 $$ \forall s \in S, \forall o \in O, \quad \{\texttt{drop}, \texttt{deleteall}\} \notin A[s, o] $$
 
-In sintesi, la matrice degli accessi $A$ muta la propria topologia adattandosi ad ogni transazione. La cella che relaziona l'utente in smart working alla cartella clinica conterr\`a il diritto di lettura \texttt{GET} fintantoché il rischio comportamentale sarà accettabile, ma subirà la revoca istantanea (la cella diverrà l'insieme vuoto $\emptyset$) non appena si manifesterà un'anomalia nel SIEM o una disconnessione dalla rete sicura.
+In sintesi, la matrice degli accessi $A$ muta la propria topologia adattandosi ad ogni transazione. La cella che relaziona l'utente in smart working alla cartella clinica conterrà il diritto di lettura \texttt{GET} fintantoché il rischio comportamentale sarà accettabile, ma subirà la revoca istantanea (la cella diverrà l'insieme vuoto $\emptyset$) non appena si manifesterà un'anomalia nel SIEM o una disconnessione dalla rete sicura.
 
 \subsection{Il motore decisionale OPA (PDP) e l'integrazione Splunk MLTK}
 Il Policy Decision Point (PDP) riceve la richiesta di autorizzazione da Envoy ed esegue la valutazione delle policy definite in linguaggio Rego all'interno del file \texttt{rules.rego}. Il cuore del sistema è progettato per supportare la \textit{Continuous Authorization} basata sul contesto, implementando quello che in letteratura è definito un \textbf{Contextual and Score-based Trust Algorithm}. Per fare ciò, OPA interroga sincronicamente l'API predittiva di Splunk MLTK per ottenere una valutazione istantanea della fiducia basata sulla storia recente e sul comportamento dell'utente.

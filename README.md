@@ -21,7 +21,7 @@
 
 Questo repository contiene il codice sorgente, le configurazioni di rete dockerizzate, i modelli predittivi e la relazione accademica relativi al progetto di **Advanced Cybersecurity** (Anno Accademico 2025/2026). 
 
-L'obiettivo è la realizzazione pratica di un'infrastruttura di rete basata sul paradigma **Zero Trust (ZTA)** per la sicurezza e la microsegmentazione delle API e del database della collezione medica di un portale ospedaliero (San Raffaele). Il sistema applica il principio cardine **"Never Trust, Always Verify"** scartando qualsiasi richiesta di default e sottoponendola a validazione continua a livello di rete, credenziali, postura hardware, impronta digitale software e rischio comportamentale in tempo reale.
+L'obiettivo è la realizzazione pratica di un'infrastruttura di rete basata sul paradigma **Zero Trust (ZTA)** per la sicurezza e la microsegmentazione delle API e del database della collezione medica di un portale ospedaliero. Il sistema applica il principio cardine **"Never Trust, Always Verify"** scartando qualsiasi richiesta di default e sottoponendola a validazione continua a livello di rete, credenziali, postura hardware, impronta digitale software e rischio comportamentale in tempo reale.
 
 ---
 
@@ -102,8 +102,8 @@ sequenceDiagram
 
 ---
 
-## 📊 La tupla multidimensionale ZTA (6D)
-Per ogni richiesta, OPA valuta la tupla contestuale dinamica $T = (u, d, s, n, a, r)$:
+## 📊 La tupla multidimensionale ZTA (7D)
+Per ogni richiesta, OPA valuta la tupla contestuale dinamica $T = (u, d, s, n, a, r, b)$:
 
 1. **user ($u$)**: identità dell'utente autenticata via mTLS (`CN=employee-alice`).
 2. **device ($d$)**: postura del client. OPA cerca l'OID proprietario `1.3.6.1.4.1.9999.1` iniettato nel certificato tramite attestazione TPM.
@@ -111,8 +111,13 @@ Per ogni richiesta, OPA valuta la tupla contestuale dinamica $T = (u, d, s, n, a
 4. **network ($n$)**: subnet di provenienza (Internal `192.168.1.0/24` vs External `10.0.1.0/24`).
 5. **action ($a$)**: metodo di accesso applicativo (richieste `GET`/`POST` o query MongoDB `find`/`delete` ispezionate a livello L7).
 6. **resource ($r$)**: endpoint o risorse target (es: `/api/patients`).
-
----
+7. **behavior ($b$)**: Trust Score comportamentale dinamico. Il valore è derivato dall'arricchimento del payload tramite le seguenti feature calcolate in tempo reale dall'API:
+    * `failed_logins`: conteggio dei login falliti nelle ultime 24 ore.
+    * `session_freq`: frequenza di sessione rilevata nell'ultima ora.
+    * `hour_of_day`: ora corrente della richiesta.
+    * `is_night`: flag booleano per attività in orari non lavorativi.
+    * `sensitivity_level`: livello di criticità della risorsa (scala 1-3).
+    * `days_inactive`: indice di inattività storica dell'account.
 
 ## 🛠️ Simulazione e validazione dei cinque scenari
 
@@ -239,7 +244,7 @@ Di seguito sono dettagliati i cinque scenari operativi simulati all'interno dell
    ```
 
 ### Accessi di test
-- **portale web (login)**: `http://localhost:8081` (per simulare i client Alice, Bob, Charlie).
+- **portale web (login)**: `http://localhost:8081` `http://localhost:8082` e `http://localhost:8083`(per simulare i client Alice, Bob, Charlie).
 - **console Splunk Enterprise**: `http://localhost:8000` (user: `admin`, password configurata in `.env`).
 - **Open Policy Agent (regole API)**: `http://localhost:8181/v1/policies`
 

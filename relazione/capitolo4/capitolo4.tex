@@ -708,3 +708,33 @@ La Figura~\ref{fig:splunk_alice_bypass_deny} mostra il log di decisione indicizz
 \caption{Mappatura logica dei flussi nello Scenario 5 (Blocco di una query MongoDB dannosa a livello L7).}
 \label{fig:scenario_l7_blocked}
 \end{figure}
+
+\subsection{Monitoraggio e Analisi in tempo reale: Splunk Dashboards}
+Per garantire una visibilità end-to-end sull'infrastruttura e supportare le decisioni di sicurezza, sono state implementate specifiche dashboard di monitoraggio all'interno di Splunk. Queste interfacce non costituiscono semplici strumenti di visualizzazione, ma agiscono come veri e propri centri di comando per l'analisi comportamentale degli utenti e la gestione operativa degli incidenti in ottica Zero Trust.
+
+La prima dashboard, denominata "ZTA - Security Executive" (Figura \ref{fig:dashboard1}), fornisce una visione d'insieme dello stato di salute del perimetro ospedaliero. Il \textit{Pannello A} offre una ripartizione statistica delle richieste processate dal sistema: il confronto tra \textit{Allow} e \textit{Deny} permette di validare in tempo reale l'efficacia delle policy di microsegmentazione attive. Il \textit{Pannello B} dettaglia il volume di traffico per singolo soggetto o dispositivo, consentendo di identificare rapidamente i nodi della rete con attività più intensa. Infine, il \textit{Pannello C} traccia la telemetria del traffico verso gli endpoint critici (\texttt{/api/auth}, \texttt{/api/patients}, \texttt{/api/patients/sensitive}), evidenziando picchi di carico che potrebbero sottendere tentativi di accesso massivo.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{capitolo4/img/dasboard1.jpeg}
+    \caption{Dashboard ZTA - Security Executive: Panoramica e statistiche sul traffico.}
+    \label{fig:dashboard1}
+\end{figure}
+
+Per la gestione attiva delle minacce, la dashboard "ZTA - Incident Response" (Figura \ref{fig:dashboard2}) centralizza le attività di contenimento. Il \textit{Pannello B} espone il conteggio aggregato delle richieste bloccate, rappresentando un KPI fondamentale per la valutazione del rischio residuo. Il \textit{Pannello A} fornisce l'evidenza forense delle violazioni L7 rilevate dal DPI: la tabella dettaglia il \textit{timestamp} preciso dell'attacco, l'identità del soggetto (\textit{user\_identity}), l'indirizzo IP, il metodo HTTP utilizzato e il \textit{path} tentato, mostrando chiaramente la decisione di \textit{BLOCKED} applicata dal PDP. Il \textit{Pannello C} correla le violazioni per indirizzo IP, evidenziando le sorgenti (es. \texttt{10.0.1.4} o \texttt{192.168.100.3}) che manifestano un comportamento malevolo ricorrente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{capitolo4/img/dashboard2.jpeg}
+    \caption{Dashboard ZTA - Incident Response: Monitoraggio minacce e blocchi attivi.}
+    \label{fig:dashboard2}
+\end{figure}
+
+Infine, la dashboard "ZTA - ML \& Continuous Trust Analytics" (Figura \ref{fig:dashboard3}) espone le evidenze del modello di Machine Learning basato su Gradient Boosting. Il \textit{Pannello A} visualizza l'andamento del \textit{Risk Score} nel tempo per ciascun utente, permettendo di osservare la dinamica della fiducia: si noti come il punteggio di rischio (es. per l'utente \textit{charlie}) possa oscillare in risposta ad anomalie comportamentali. Il \textit{Pannello B} classifica gli utenti in base al rischio massimo raggiunto, fornendo un supporto decisionale critico per le procedure di isolamento automatizzato. Il \textit{Pannello C} integra infine i parametri di contesto — frequenza delle sessioni, tentativi di login falliti e flag di attività in orario notturno — che concorrono alla formulazione del calcolo dinamico del valore di rischio, chiudendo il ciclo di feedback tra il sistema di analisi e quello di autorizzazione.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{capitolo4/img/dashboard3.jpeg}
+    \caption{Dashboard ZTA - ML \& Continuous Trust Analytics: Analisi predittiva.}
+    \label{fig:dashboard3}
+\end{figure}
