@@ -9,7 +9,7 @@
 \contentsline {lstlisting}{\numberline {9}{\ignorespaces Generazione dei certificati client con estensione TPM simulata.}}{26}{lstlisting.9}%
 \contentsline {lstlisting}{\numberline {10}{\ignorespaces Validazione dell'estensione TPM nel certificato client da parte di OPA.}}{26}{lstlisting.10}%
 \contentsline {lstlisting}{\numberline {11}{\ignorespaces Regole di rilevamento avanzate (Volumetriche, Protocollari e Crittografiche) per Snort.}}{28}{lstlisting.11}%
-\contentsline {lstlisting}{\numberline {12}{\ignorespaces Query SPL per l'addestramento del modello Gradient Boosting su Splunk MLTK.}}{31}{lstlisting.12}%
-\contentsline {lstlisting}{\numberline {13}{\ignorespaces Simulazione di attacco bypass diretto tramite curl dal terminale di Charlie.}}{39}{lstlisting.13}%
-\contentsline {lstlisting}{\numberline {14}{\ignorespaces Dettaglio del log di blocco generato da nftables per il tentativo di bypass.}}{39}{lstlisting.14}%
-\contentsline {lstlisting}{\numberline {15}{\ignorespaces Simulazione di accesso diretto al database MongoDB dal terminale del dispositivo compromesso di Alice, utilizzando i certificati mTLS originali per autenticarsi verso Envoy sulla porta 27017.}}{43}{lstlisting.15}%
+\contentsline {lstlisting}{\numberline {12}{\ignorespaces Query SPL per l'addestramento del modello Gradient Boosting su Splunk MLTK.}}{33}{lstlisting.12}%
+\contentsline {lstlisting}{\numberline {13}{\ignorespaces Simulazione di attacco bypass diretto tramite curl dal terminale di Charlie.}}{41}{lstlisting.13}%
+\contentsline {lstlisting}{\numberline {14}{\ignorespaces Dettaglio del log di blocco generato da nftables per il tentativo di bypass.}}{41}{lstlisting.14}%
+\contentsline {lstlisting}{\numberline {15}{\ignorespaces Simulazione di accesso diretto al database MongoDB dal terminale del dispositivo compromesso di Alice, utilizzando i certificati mTLS originali per autenticarsi verso Envoy sulla porta 27017.}}{45}{lstlisting.15}%

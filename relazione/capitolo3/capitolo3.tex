@@ -456,9 +456,66 @@ L'architettura Zero Trust di base si fonda su un'analisi del contesto di autenti
 \end{itemize}
 
 \subsubsection{Generazione del dataset e modello matematico}
-Il modello viene addestrato su un dataset sintetico di 50.000 record. Il valore target predittivo, ovvero il \texttt{rischio} (in scala $0-100$), è determinato nel dataset di addestramento tramite una formula deterministica non lineare che cumula penalità infrastrutturali e comportamentali:
-$$ \text{Rischio} = \Delta_{\text{HW}} + \Delta_{\text{Rete}} + (\Delta_{\text{Comp}} \times M_{\text{Sens}}) + \epsilon $$
-I parametri riflettono severità architetturali precise, in accordo con la configurazione del PEP (es. $\Delta_{\text{HW}} = +30$ per dispositivi sprovvisti di attestazione TPM, $\Delta_{\text{Rete}} = +18$ per connessioni da reti esterne). Il termine $\Delta_{\text{Comp}}$ aggrega le anomalie di comportamento, amplificate dal moltiplicatore di sensibilità della risorsa ($M_{\text{Sens}}$). Infine, $\epsilon \sim \mathcal{N}(0, 2)$ introduce un rumore statistico gaussiano, vitale per prevenire l'overfitting e addestrare l'algoritmo a generalizzare.
+Il modello predittivo viene addestrato ed esaminato su un dataset sintetico composto da $50.000$ record, strutturato per mappare accuratamente il comportamento di dipendenti legittimi (es. profili aziendali \texttt{alice}, \texttt{bob}, \texttt{charlie}) e pattern di attacco realistici di diversa intensità (\texttt{hacker\_x}, \texttt{script\_kiddie}, \texttt{insider\_threat}, \texttt{apt\_agent}, \texttt{intruder\_7}). 
+
+Il valore target predittivo è rappresentato dal punteggio di \texttt{rischio} (espresso su una scala continua $0-100$). Nel dataset di addestramento, tale valore viene calcolato tramite una funzione deterministica non lineare a tre livelli architetturali, che isola le debolezze strutturali dalle anomalie comportamentali, ponderando queste ultime in base alla criticità dell'asset invocato:
+\begin{equation}
+    \text{Rischio} = \text{Rischio}_{\text{Infra}} + \left( \text{Rischio}_{\text{Comp}} \times M_{\text{Sens}} \right) + \epsilon
+\end{equation}
+
+Il modello così concepito riflette severità architetturali precise, scorporando il calcolo nelle seguenti macro-componenti analitiche:
+
+\begin{enumerate}
+    \item \textbf{Rischio Infrastrutturale ($\text{Rischio}_{\text{Infra}}$):} Valuta lo stato di conformità e sicurezza del dispositivo e del canale di comunicazione prima dell'analisi delle azioni. È definito come:
+    \begin{equation}
+        \text{Rischio}_{\text{Infra}} = \Delta_{\text{HW}} + \Delta_{\text{Rete}} + \Delta_{\text{Combo}}
+    \end{equation}
+    \begin{itemize}
+        \item $\Delta_{\text{HW}} = +30$: Penalità applicata qualora il dispositivo sia sprovvisto di attestazione hardware tramite chip TPM (\texttt{missing\_tpm} o \texttt{unknown}). Rappresenta il fattore di rischio strutturale più grave.
+        \item $\Delta_{\text{Rete}} = +18$: Penalità per connessioni originata da reti esterne al perimetro ospedaliero (es. contesti di Smart Working, VPN domestiche o Wi-Fi pubblici).
+        \item $\Delta_{\text{Combo}} = +7$: Fattore di correlazione critica cumulativo applicato esclusivamente qualora si verifichino simultaneamente l'assenza di TPM e la provenienza da rete esterna ($\Delta_{\text{HW}} > 0 \land \Delta_{\text{Rete}} > 0$), configurando uno scenario ad alto potenziale di compromissione.
+    \end{itemize}
+
+    \item \textbf{Rischio Comportamentale ($\text{Rischio}_{\text{Comp}}$):} Aggrega le anomalie riscontrate durante la sessione operativa attraverso la somma algebrica di sei indicatori di compromissione (IoC) e deviazioni dalla \textit{baseline} utente:
+    \begin{equation}
+        \text{Rischio}_{\text{Comp}} = B_{\text{Logins}} + B_{\text{Night}} + B_{\text{Freq}} + B_{\text{Inact}} + B_{\text{Action}} + B_{\text{Soft}}
+    \end{equation}
+    \begin{itemize}
+        \item \textit{Autenticazioni Fallite ($B_{\text{Logins}}$):} Modellate tramite una funzione non lineare progressiva, logaritmica in base 2, vincolata superiormente a un tetto massimo di $+25$ punti per evitare la saturazione del rischio su singoli eventi isolati:
+        \begin{equation}
+            B_{\text{Logins}} = \min\left( \text{failed\_logins} \times 3.5 + \log_2(\text{failed\_logins} + 1) \times 2.5, \, 25 \right)
+        \end{equation}
+        \item \textit{Anomalia Oraria ($B_{\text{Night}}$):} Introduzione di un malus fisso di $+5$ punti qualora la richiesta avvenga in ambiente notturno, ovvero nell'intervallo temporale $[22:00, \, 06:00)$.
+        \item \textit{Frequenza di Sessione ($B_{\text{Freq}}$):} Funzione a scaglioni discreti che penalizza i comportamenti automatici tipici di \textit{botnet} o script di \textit{scraping}:
+        \begin{equation}
+            B_{\text{Freq}} = \begin{cases} 
+                +7 & \text{se } \text{session\_freq} > 30 \\
+                +4 & \text{se } 20 < \text{session\_freq} \le 30 \\
+                +2 & \text{se } 10 < \text{session\_freq} \le 20 \\
+                0 & \text{altrimenti}
+            \end{cases}
+        \end{equation}
+        \item \textit{Inattività Prolungata ($B_{\text{Inact}}$):} Penalizzazione progressiva legata alla riattivazione di account dormienti, calcolata come $+2$ punti per ogni blocco di 15 giorni di inattività, fino a un massimo di $+8$:
+        \begin{equation}
+            B_{\text{Inact}} = \min\left( \lfloor \text{days\_inactive} / 15 \rfloor \times 2, \, 8 \right)
+        \end{equation}
+        \item \textit{Severità dell'Operazione ($B_{\text{Action}}$):} Malus fisso di $+8$ punti qualora l'azione intercettata dal PEP preveda l'invocazione di comandi distruttivi o di alterazione strutturale sul database (\texttt{delete}, \texttt{drop}).
+        \item \textit{Software Sospetto ($B_{\text{Soft}}$):} Incremento di $+4$ punti nel caso in cui l'analisi dell'handshake o dell'User-Agent riveli strumenti di scansione o librerie non standard (\texttt{nmap}, \texttt{metasploit}, \texttt{curl}, script automatizzati in Python).
+    \end{itemize}
+
+    \item \textbf{Moltiplicatore di Sensibilità della Risorsa ($M_{\text{Sens}}$):} In linea con i paradigmi Zero Trust avanzati, l'impatto del rischio comportamentale viene linearmente amplificato in funzione della criticità della risorsa richiesta, lasciando inalterato l'indice se il comportamento è perfettamente allineato alla baseline ($\text{Rischio}_{\text{Comp}} \sim 0$). La funzione di amplificazione segue la legge:
+    \begin{equation}
+        M_{\text{Sens}} = 1.0 + (\text{sensitivity\_level} - 1) \times 0.175
+    \end{equation}
+    I livelli di sensibilità sono strettamente mappati sul dominio applicativo ospedaliero:
+    \begin{itemize}
+        \item \textit{Livello 1} ($M_{\text{Sens}} = 1.00$): Risorse a bassa criticità (es. collezione \texttt{utenti}).
+        \item \textit{Livello 2} ($M_{\text{Sens}} = 1.175$): Risorse a criticità moderata (es. collezioni \texttt{pazienti}, \texttt{system\_logs}).
+        \item \textit{Livello 3} ($M_{\text{Sens}} = 1.35$): Risorse ad alto rischio e dati ultrasensibili (es. \texttt{cartelle\_cliniche}, \texttt{config\_db}).
+    \end{itemize}
+\end{enumerate}
+
+Infine, il termine $\epsilon \sim \mathcal{N}(0, 2)$ introduce un rumore statistico gaussiano con media nulla e deviazione standard pari a $2$. L'inserimento di tale fluttuazione stocastica, unito a un operatore di \textit{clamping} rigido nell'intervallo $[0, \, 100]$, è di fondamentale importanza per l'addestramento del regressore (\texttt{GradientBoostingRegressor}) su Splunk MLTK: previene fenomeni di \textit{overfitting} derivanti da un dataset puramente geometrico e costringe l'algoritmo a generalizzare le relazioni non lineari latenti tra le sei dimensioni del contesto ZTA.
 
 \subsubsection{Selezione dell'algoritmo: Gradient Boosting vs Random Forest}
 La scelta dell'algoritmo \textbf{Gradient Boosting Regressor} in contrapposizione a tecniche parallele (come la \textit{Random Forest}) è motivata dall'intrinseca natura composita del rischio informatico. 
