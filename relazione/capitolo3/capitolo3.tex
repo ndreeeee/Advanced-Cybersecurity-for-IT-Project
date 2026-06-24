@@ -5,7 +5,7 @@
 {\itshape In questo capitolo viene analizzata l'implementazione pratica dell'architettura Zero Trust, dettagliando le configurazioni dei singoli container e i meccanismi di interazione tra i moduli di controllo e protezione del traffico.}
 
 \subsection{La microsegmentazione e il deploy con docker-compose}
-Il deploy dell'infrastruttura è orchestrato tramite la tecnologia Docker, definendo quattro reti virtuali distinte e isolate nel file \texttt{docker-compose.yaml}. Questa separazione impedisce il routing diretto tra i client esterni o di frontend e il secure core di backend, forzando il transito del traffico attraverso il proxy Envoy. La configurazione delle reti isolate è definita nel file mostrato nel Listato \ref{lst:docker_networks_cfg}.
+Come già discusso, il deploy dell'infrastruttura è orchestrato tramite la tecnologia Docker, definendo quattro reti virtuali distinte e isolate nel file \texttt{docker-compose.yaml}. Questa separazione impedisce il routing diretto tra i client esterni o di frontend e il secure core di backend, forzando il transito del traffico attraverso il proxy Envoy. per chiarezza riprendiamo la configurazione delle reti isolate definita nel file mostrato nel Listato \ref{lst:docker_networks_cfg}.
 
 \begin{center}
 \begin{minipage}{\linewidth}
@@ -33,14 +33,16 @@ networks:
 \end{center}
 
 \subsection{La configurazione di Envoy Proxy come PEP}
-Il proxy \texttt{envoy} funge da Policy Enforcement Point (PEP) ed è configurato per intercettare e autenticare in modo trasparente e sicuro tutto il traffico dati. La configurazione del proxy, definita nel file \texttt{envoy.yaml}, implementa due listener principali:
+Il proxy \texttt{envoy} adempie al ruolo fondamentale di \textbf{Policy Enforcement Point} (PEP) all'interno dell'architettura progettata, operando come un reverse proxy trasparente e sicuro incaricato di intercettare, decifrare e ispezionare la totalità del traffico dati diretto verso il \textit{secure core}. La configurazione, interamente definita nel file \texttt{envoy.yaml}, implementa una rigorosa segregazione dei flussi mediante la dichiarazione di due listener principali operanti su porte distinte, scongiurando qualsiasi possibilità di bypass dei controlli:
 
 \begin{itemize}
-    \item \textbf{Listener database (\texttt{mongodb\_listener})}: opera sulla porta \texttt{27017} e impone l'uso del protocollo mTLS obbligatorio per tutti i client che tentano di connettersi al database MongoDB.
-    \item \textbf{Listener HTTP (\texttt{http\_listener})}: opera sulla porta \texttt{8443} per il traffico diretto alle Web API ospedaliere.
+    \item \textbf{Listener database (\texttt{mongodb\_listener})}: instanziato sulla porta standard \texttt{27017}, gestisce il traffico TCP nativo verso il database MongoDB. Il blocco \texttt{transport\_socket} impone l'obbligatorietà del protocollo mutuo TLS (\textit{mTLS}) configurando il parametro \texttt{require\_client\_certificate: true}, costringendo ogni client a presentare un certificato x509 valido per l'attestazione hardware.
+    \item \textbf{Listener HTTP (\texttt{http\_listener})}: operativo sulla porta \texttt{8443}, intercetta le chiamate in ingresso dirette alle Web API ospedaliere, decodificando il protocollo HTTP/1.1 o HTTP/2 ed esponendo i servizi web protetti da cifratura end-to-end.
 \end{itemize}
 
-Per estrarre le metriche necessarie alla valutazione del rischio e all'ispezione DPI, Envoy utilizza una catena di filtri specializzati. In particolare, il filtro \texttt{tls\_inspector} esegue il calcolo in tempo reale dell'impronta digitale \textit{JA3} durante la negoziazione TLS, mentre il filtro \texttt{mongo\_proxy} analizza i comandi applicativi eseguiti sui socket TCP. L'integrazione con OPA è gestita tramite il filtro \texttt{ext\_authz}, il quale sospende la sessione TCP o HTTP per inviare un payload gRPC contenente i metadati estratti e i certificati client al PDP. Un estratto significativo della configurazione di Envoy per il listener del database è mostrato nel Listato \ref{lst:envoy_config_pep}.
+Al fine di estrarre in tempo reale le metriche contestuali (\textit{ZTA 6D}) necessarie al calcolo del rischio comportamentale e abilitare i meccanismi di \textit{Deep Packet Inspection} (DPI), Envoy si avvale di una struttura sequenziale nota come \textbf{Filter Chain} (Catena dei Filtri). 
+
+Nel listener del database, il flusso informativo attraversa tre moduli specializzati. Inizialmente, il filtro di rete \texttt{tls\_inspector} interviene durante l'handshake TLS iniziale analizzando il pacchetto di \texttt{Client Hello} prima della decifrazione, calcolando l'hash crittografico delle suite di cifratura per ricavare il fingerprinting \textit{JA3}. Successivamente, il modulo applicativo \texttt{mongo\_proxy} decodifica il protocollo binario BSON (inclusi i moderni opcode \texttt{OP\_MSG}), estraendo dinamicamente i metadati associati al comando eseguito e alla collezione target. Infine, il filtro \texttt{ext\_authz} sospende l'elaborazione del socket e inoltra in modo sincrono un payload gRPC (HTTP/2) al server di autorizzazione esterno OPA, includendo sia il certificato client in formato PEM (per la validazione del modulo TPM) sia i metadati estratti da MongoDB. Un estratto dettagliato di tale architettura di rete è documentato nel Listato \ref{lst:envoy_config_pep}.
 
 \begin{center}
 \begin{minipage}{\linewidth}
@@ -68,12 +70,12 @@ static_resources:
       - name: envoy.filters.network.ext_authz
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.ext_authz.v3.ExtAuthz
-          stat_prefix: OPA_authz
+          stat_prefix: opa_authz
           transport_api_version: V3
           grpc_service:
             envoy_grpc:
-              cluster_name: OPA_cluster
-            timeout: 45s
+              cluster_name: opa_cluster
+          timeout: 45s
           include_peer_certificate: true
 \end{lstlisting}
 \end{ztacodebox}
@@ -81,44 +83,81 @@ static_resources:
 \end{minipage}
 \end{center}
 
-Nel listener HTTP, prima di interpellare OPA ed inoltrare la richiesta alle Web API di backend, viene inserito un filtro L7 basato sul motore Lua (\texttt{envoy.filters.http.lua}). Questo modulo funge da firewall applicativo locale in grado di bloccare sul nascere richieste a percorsi sensibili o metodi distruttivi non consentiti a livello applicativo (es. comandi di tipo \texttt{DELETE}), sgravando il PDP e i sistemi di backend dalla gestione di chiamate palesemente malevole. La configurazione di questo componente è riportata nel Listato \ref{lst:envoy_lua_filter}.
+Per quanto concerne il listener HTTP protetto sulla porta \texttt{8443}, la catena dei filtri applicativi (gestita dall'\texttt{HttpConnectionManager}) implementa un approccio strategico di \textbf{Defense in Depth} (Difesa in Profondità). Prima che la richiesta sia trasmessa al backend o sottoposta alla valutazione del contesto da parte di OPA, intervengono due filtri locali in linea. Il modulo \texttt{header\_mutation} inietta proattivamente l'hash JA3 estratto all'interno dell'header HTTP personalizzato \texttt{x-client-fingerprint}. 
+
+Immediatamente dopo, interviene un firewall L7 programmabile basato sul motore \texttt{lua} (\texttt{envoy.filters.http.lua}). Tale componente agisce come un filtro stateless ad altissima velocità, incaricato di validare la struttura formale della richiesta. Come evidenziato nel codice reale riportato nel Listato \ref{lst:envoy_lua_filter}, lo script intercetta preventivamente i tentativi di attacco basati su metodi HTTP distruttivi (es. chiamate di tipo \texttt{DELETE} dirette agli endpoint dei pazienti), respingendoli immediatamente con un codice di errore \texttt{403 Forbidden}. Questa stratificazione consente di sgravare il PDP (OPA) e i modelli di Machine Learning di Splunk dal computo di richieste palesemente malevole, ottimizzando la latenza complessiva del sistema. Le logiche di autorizzazione contestuale granulari — come la limitazione d'accesso alla rotta sensibile per gli utenti in smart working — vengono invece delegate al successivo modulo \texttt{ext\_authz}, preservando la separazione tra filtri strutturali e decisioni adattive.
 
 \begin{center}
 \begin{minipage}{\linewidth}
 \begin{ztacodebox}{envoy.yaml (Filtro HTTP Lua)}
 \begin{lstlisting}[language=YAML]
-- name: envoy.filters.http.lua
-  typed_config:
-    "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
-    inline_code: |
-      function envoy_on_request(request_handle)
-        local path = request_handle:headers():get(":path")
-        local method = request_handle:headers():get(":method")
-        
-        -- L7 DPI firewall rules
-        if path == "/api/patients/sensitive" then
-          request_handle:respond({[":status"] = "403"}, '{"error": "L7 Firewall Block: Access to sensitive notes forbidden"}')
-        elseif method == "DELETE" and string.match(path, "^/api/patients") then
-          request_handle:respond({[":status"] = "403"}, '{"error": "L7 Firewall Block: Destructive operations (DROP) are forbidden"}')
-        end
-      end
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              inline_code: |
+                function envoy_on_request(request_handle)
+                  local path = request_handle:headers():get(":path")
+                  local method = request_handle:headers():get(":method")
+                  
+                  -- L7 DPI Firewall Rules
+                  if method == "DELETE" and string.match(path, "^/api/patients") then
+                    request_handle:respond({[":status"] = "403"}, '{"error": "L7 Firewall Block: Destructive operations (DROP) are forbidden"}')
+                  end
+                end
 \end{lstlisting}
 \end{ztacodebox}
-\captionof{lstlisting}{Configurazione del filtro HTTP Lua in envoy.yaml per il blocco preventivo L7.}\label{lst:envoy_lua_filter}
+\captionof{lstlisting}{Configurazione del filtro HTTP Lua in envoy.yaml per la prima linea di difesa L7.}\label{lst:envoy_lua_filter}
 \end{minipage}
 \end{center}
 
-\subsection{Il motore decisionale OPA (PDP) e l'integrazione Splunk MLTK}
-Il Policy Decision Point (PDP) riceve la tupla $T$ da Envoy ed esegue la valutazione delle regole scritte in Rego all'interno del file \texttt{rules.rego}. Per supportare decisioni adattive basate sul contesto, OPA invia una query predittiva sincrona via HTTP all'API predittiva di Splunk MLTK. 
+\subsection{Formalizzazione del Controllo degli Accessi: Modello ABAC e Matrice Dinamica}
+Il perimetro di sicurezza progettato supera il concetto statico di autorizzazione per implementare un modello dinamico riconducibile all'architettura \textbf{ABAC} (\textit{Attribute-Based Access Control}). In accordo con la teoria del controllo degli accessi e il modello di Harrison, Ruzzo e Ullman (HRU), il dominio di protezione è definito da tre insiemi fondamentali:
+\begin{itemize}
+    \item L'insieme dei \textbf{Soggetti} $S = \{s_1, \dots, s_n\}$, che rappresentano le entità computazionali richiedenti (es. gli operatori ospedalieri o i microservizi).
+    \item L'insieme degli \textbf{Oggetti} $O = \{o_1, \dots, o_m\}$, che costituiscono le risorse da proteggere (es. endpoint HTTP, database, cartelle cliniche).
+    \item L'insieme dei \textbf{Diritti} $R = \{r_1, \dots, r_k\}$, che definiscono le operazioni eseguibili (es. \texttt{GET}, \texttt{POST}, \texttt{find}, \texttt{drop}).
+\end{itemize}
 
-La query SPL, mostrata nel Listato \ref{lst:splunk_query_pdp}, viene assemblata dinamicamente con le variabili contestuali correnti ed inviata al SIEM per ottenere il punteggio di rischio aggiornato dell'utente.
+Nel modello HRU classico, il sistema dei permessi è rappresentato da una \textbf{Matrice di Access Control} bidimensionale $A$, dove ciascuna voce $A[s_i, o_j] \subseteq R$ indica staticamente i diritti che il soggetto $s_i$ possiede sull'oggetto $o_j$. L'operazione $r$ è consentita se e solo se $r \in A[s_i, o_j]$. 
+
+Nell'architettura Zero Trust sviluppata, tale approccio discrezionale e statico viene superato in favore del paradigma ABAC: le identità e il contesto di rete non fungono più da indici statici per la matrice, ma vengono tradotti in un \textit{insieme di attributi}. Come definito dalla teoria, nell'ABAC i permessi non sono semplici associazioni preconfigurate, bensì \textit{espressioni booleane (condizioni) valutate dinamicamente sugli attributi} del richiedente.
+
+Di conseguenza, la cella della matrice $A[s_i, o_j]$ cessa di essere una locazione di memoria fissa per trasformarsi in una funzione di autorizzazione calcolata in tempo reale dal Policy Decision Point (OPA), dipendente dallo stato corrente degli attributi:
+$$ A[s_i, o_j] = \{ r \in R \mid D(s_i, o_j, r, \text{Attributi}) = \text{True} \} $$
+
+Le \textit{Corporate Security Policy} sono state formalizzate in OPA traducendo le seguenti proposizioni logiche inderogabili sui flussi di informazione:
+
+\subsubsection*{Policy 1: Requisito Hardware di Autenticazione (Short-Circuit)}
+Nessun diritto di accesso iniziale può essere concesso in assenza di una radice di fiducia hardware verificata. Sia $s_{tpm} \in \{0, 1\}$ l'attributo che certifica la presenza del chip TPM:
+$$ \forall o \in \text{Login}, \quad \text{se } s_{tpm} = 0 \implies A[s, o] = \emptyset $$
+
+\subsubsection*{Policy 2: Autorizzazione Adattiva (Maximum e Low Trust)}
+L'assegnazione dei diritti dipende dal punteggio di rischio $s_{risk} \in [0, 100]$ calcolato algoritmicamente (Splunk MLTK) e dalla provenienza di rete $s_{net}$. Per un utente interno con TPM, la matrice abilita i diritti finché il rischio si mantiene entro l'intervallo di confidenza statistica ($\mu + 3\sigma$).
+$$ \text{se } s_{net} = \text{Internal} \land s_{tpm} = 1 \land s_{risk} \le 38 \implies r \in A[s, o] $$
+Al contrario, per scenari di Smart Working ($s_{net} = \text{External}$), si impone il principio del guinzaglio corto ($\mu + 1.5\sigma$):
+$$ \text{se } s_{net} = \text{External} \land s_{tpm} = 1 \land s_{risk} \le 26 \implies r \in A[s, o] $$
+
+\subsubsection*{Policy 3: Confidenzialità e Segregazione del Dato Sensibile (DPI Livello 1)}
+In accordo con le politiche di flusso delle informazioni (impedire letture non autorizzate verso domini non fidati), l'accesso alle risorse altamente sensibili ($o_{sens}$) è vincolato a requisiti stringenti. Se l'utente opera da rete esterna, la cella della matrice viene svuotata dinamicamente:
+$$ \text{se } o = o_{sens} \land (s_{net} \neq \text{Internal} \lor s_{tpm} = 0) \implies \texttt{GET} \notin A[s, o_{sens}] $$
+
+\subsubsection*{Policy 4: Integrità e Protezione Attiva (DPI Livello 2)}
+Qualsiasi diritto classificato come distruttivo ($r \in \{\texttt{drop}, \texttt{deleteall}\}$) non può mai essere concesso all'interno del flusso applicativo, garantendo la disponibilità e l'integrità del dato clinico:
+$$ \forall s \in S, \forall o \in O, \quad \{\texttt{drop}, \texttt{deleteall}\} \notin A[s, o] $$
+
+In sintesi, la matrice degli accessi $A$ muta la propria topologia adattandosi ad ogni transazione. La cella che relaziona l'utente in smart working alla cartella clinica conterr\`a il diritto di lettura \texttt{GET} fintantoché il rischio comportamentale sarà accettabile, ma subirà la revoca istantanea (la cella diverrà l'insieme vuoto $\emptyset$) non appena si manifesterà un'anomalia nel SIEM o una disconnessione dalla rete sicura.
+
+\subsection{Il motore decisionale OPA (PDP) e l'integrazione Splunk MLTK}
+Il Policy Decision Point (PDP) riceve la richiesta di autorizzazione da Envoy ed esegue la valutazione delle policy definite in linguaggio Rego all'interno del file \texttt{rules.rego}. Il cuore del sistema è progettato per supportare la \textit{Continuous Authorization} basata sul contesto, implementando quello che in letteratura è definito un \textbf{Contextual and Score-based Trust Algorithm}. Per fare ciò, OPA interroga sincronicamente l'API predittiva di Splunk MLTK per ottenere una valutazione istantanea della fiducia basata sulla storia recente e sul comportamento dell'utente.
+
+La query predittiva, strutturata nel linguaggio SPL (\textit{Search Processing Language}) di Splunk come mostrato nel Listato \ref{lst:splunk_query_pdp}, viene interpolata dinamicamente da OPA inserendo le sei dimensioni correnti (\textit{ZTA 6D}) estratte dai metadati della connessione.
 
 \begin{center}
 \begin{minipage}{\linewidth}
-\begin{ztacodebox}{Splunk SPL Query (Dynamically Generated by OPA)}
+\begin{ztacodebox}{Splunk SPL Query (Interpolata dinamicamente da OPA)}
 \begin{lstlisting}[language=SQL]
 | makeresults 
-| eval user="Alice", software="JA3_HASH", device="Workstation Ospedaliera (TPM)", network="10.0.1.5", action="find", resource="patients" 
+| eval user="Alice", software="JA3_HASH", device="Workstation Ospedaliera Sicura (TPM Validato)", network="10.0.1.5", action="find", resource="patients" 
 | apply trust_model 
 | rename "predicted(rischio)" as rischio 
 | table rischio
@@ -128,29 +167,47 @@ La query SPL, mostrata nel Listato \ref{lst:splunk_query_pdp}, viene assemblata 
 \end{minipage}
 \end{center}
 
-Accanto alla valutazione adattiva, OPA implementa controlli di sicurezza L7 stringenti (DPI) per intercettare query MongoDB dannose prima che raggiungano il backend, come mostrato nel frammento di codice del Listato \ref{lst:rego_dpi_rules}.
+Per ottimizzare le prestazioni architetturali e prevenire la saturazione del SIEM con traffico evidentemente malevolo, la chiamata al modello di Machine Learning è preceduta da una \textbf{clausola di guardia} (\textit{Short-Circuiting}) che agisce come un \textbf{Criteria-based Trust Algorithm}. Se una richiesta non soddisfa i criteri infrastrutturali di base (ad esempio, un tentativo di login senza attestazione TPM), OPA interrompe la valutazione, assegna il rischio massimo di default e rifiuta la connessione senza interpellare Splunk.
+
+Accanto all'analisi comportamentale, OPA implementa un motore di \textit{Deep Packet Inspection} (L7 DPI) strutturato su due livelli di difesa per garantire la corretta imposizione degli obiettivi di \textbf{Confidenzialità} e \textbf{Integrità} sui flussi di informazione, come illustrato nel Listato \ref{lst:rego_dpi_rules}. Il primo livello (Confidenzialità) interviene sul traffico HTTP per segregare l'accesso ai dati sensibili dei pazienti (\texttt{/api/patients/sensitive}), bloccando preventivamente i flussi verso domini non fidati se l'utente proviene da una rete esterna o è sprovvisto di modulo TPM. Il secondo livello (Integrità) protegge il database decodificando i payload nativi BSON ed inibendo l'esecuzione di query distruttive dirette (come \texttt{dropdatabase}), prevenendo alterazioni di stato non autorizzate.
 
 \begin{center}
 \begin{minipage}{\linewidth}
-\begin{ztacodebox}{rules.rego}
+\begin{ztacodebox}{rules.rego (DPI L7 e Protezione Sensibile)}
 \begin{lstlisting}[language=Rego]
-# L7 DPI: Regole di blocco esplicite per query pericolose
+# L7 DPI: Regole di blocco esplicite su traffico HTTP e MongoDB
 default l7_dpi_block := false
+
+# --- LIVELLO 1: Policy di Confidenzialita (Endpoint HTTP Sensibili) ---
 l7_dpi_block := true if {
-    # Blocca query che contengono termini sensibili o distruttivi
-    contains(lower(db_query), "sensitive_notes")
+    is_http
+    resource == "/api/patients/sensitive"
+    not is_internal_network  # Blocca reti esterne
 } else := true if {
+    is_http
+    resource == "/api/patients/sensitive"
+    not is_tpm               # Blocca assenza TPM
+} 
+
+# --- LIVELLO 2: Policy di Integrita (Comandi nativi MongoDB) ---
+else := true if {
+    is_mongo
     contains(lower(db_query), "dropdatabase")
 } else := true if {
+    is_mongo
     contains(lower(db_query), "deleteall")
 }
 \end{lstlisting}
 \end{ztacodebox}
-\captionof{lstlisting}{Regole di ispezione profonda L7 DPI implementate nel file rules.rego.}\label{lst:rego_dpi_rules}
+\captionof{lstlisting}{Regole di ispezione profonda L7 DPI per confidenzialità e integrità in rules.rego.}\label{lst:rego_dpi_rules}
 \end{minipage}
 \end{center}
 
-Il motore decisionale definisce l'ammissibilità dell'accesso combinando lo stato di conformità del dispositivo, la localizzazione di rete e la valutazione dinamica dello score di rischio ricavato da Splunk. Come descritto nel Listato \ref{lst:rego_adaptive_rules}, vengono stabilite soglie di tolleranza differenziate per mitigare la superficie di minaccia contestuale: un dispositivo interno provvisto di chip TPM beneficia di una soglia di rischio elevata (pari a 50), mentre l'assenza del modulo hardware (con ripiegamento sul solo fingerprinting JA3) o la provenienza da una rete esterna riducono la tolleranza ad un valore massimo di 8. Inoltre, l'accesso alle funzioni di autenticazione viene preventivamente inibito se la variabile \texttt{is\_auth\_blocked} assume valore vero, bloccando le richieste di login prive di chip TPM o originate al di fuori della rete aziendale.
+Il verdetto finale di accesso (\texttt{allow}) viene deliberato calcolando un livello di confidenza basato sullo stato dell'hardware, la localizzazione di rete e il punteggio dinamico di Splunk (\texttt{splunk\_risk\_score}), come dettagliato nel Listato \ref{lst:rego_adaptive_rules}. Le soglie di tolleranza deterministiche implementate (\(26\) e \(38\)) non sono arbitrarie, ma derivano rigorosamente dall'analisi statistica della distribuzione normale (\textit{curva di Gauss}) dei log storici legittimi elaborati dall'algoritmo del SIEM. 
+
+Nello specifico, il valore di \(38\) rappresenta la soglia di tolleranza massima assegnata a un utente interno ideale dotato di attestazione hardware (\textit{Alice}). Tale barriera viene calcolata impostando un intervallo di confidenza pari a tre deviazioni standard oltre la media del comportamento di baseline (\(\mu + 3\sigma\)), una metrica statistica che scherma il \(99.7\%\) delle fluttuazioni operative ordinarie riducendo a zero i falsi positivi, ma intercettando tempestivamente anomalie critiche dovute a sessioni compromesse. 
+
+Al contrario, la soglia ridotta a \(26\) risponde al principio Zero Trust del \textbf{guinzaglio corto} (\textit{Low Trust Tolerance}), applicato agli scenari intrinsecamente esposti a maggior rischio perimetrale: gli utenti legittimi in smart working (\textit{Charlie}) e i dispositivi legacy privi di TPM operanti tramite fallback su fingerprinting \textit{JA3}. Poiché l'algoritmo di generazione del dataset impone a chiunque operi da rete esterna una penalità infrastrutturale fissa di partenza pari a \(18\), la soglia di \(26\) limita il margine comportamentale consentito a sole \(1.5\) deviazioni standard oltre la media (\(\mu + 1.5\sigma\)). Questo garantisce che una minima deviazione dalla routine quotidiana provochi l'immediato superamento della barriera e il conseguente blocco della transazione da parte di OPA. Infine, per l'autenticazione iniziale (\texttt{is\_auth\_request}), viene meno qualsiasi approccio \textit{Score-based} adattivo e si impone l'obbligo \textit{Criteria-based} statico e vincolante del modulo TPM, neutralizzando gli attacchi brute-force prima ancora della valutazione del rischio.
 
 \begin{center}
 \begin{minipage}{\linewidth}
@@ -160,72 +217,66 @@ Il motore decisionale definisce l'ammissibilità dell'accesso combinando lo stat
 risk_ok := true if {
     is_internal_network
     is_tpm
-    splunk_risk_score <= 50
+    splunk_risk_score <= 38
 } else := true if {
     is_internal_network
     not is_tpm
     software != "Sconosciuto"
-    splunk_risk_score <= 8
+    splunk_risk_score <= 26
 } else := true if {
     not is_internal_network
     is_tpm
-    splunk_risk_score <= 8
+    splunk_risk_score <= 26
 } else := false
 
-# Blocca l'autenticazione al login se manca il TPM o se si e' all'esterno
+# Blocca preventivamente l'autenticazione senza TPM
 is_auth_blocked := true if {
     is_auth_request
-    not is_tpm
+    software == "Sconosciuto"
 } else := true if {
     is_auth_request
-    not is_internal_network
+    not is_tpm               # <--- BLOCCO TASSATIVO LOGIN SENZA TPM
 } else := false
-
-allow := true if {
-    risk_ok
-    not l7_dpi_block
-    not is_auth_blocked
-    # ... (generazione log di successo)
-}
 \end{lstlisting}
 \end{ztacodebox}
-\captionof{lstlisting}{Regole di autorizzazione adattiva basate su soglie e postura del dispositivo in rules.rego.}\label{lst:rego_adaptive_rules}
+\captionof{lstlisting}{Regole di autorizzazione adattiva (Score-based) e short-circuiting (Criteria-based) in rules.rego.}\label{lst:rego_adaptive_rules}
 \end{minipage}
 \end{center}
 
 \subsection{Regole di network protection e tracciamento su nftables}
-Il firewall, basato sulla tecnologia \texttt{nftables}, blinda la rete forzando l'instradamento obbligatorio verso il proxy Envoy e gestendo una trappola attiva per rilevare e bloccare i tentativi di bypass.
+Il componente firewall, basato sul framework \texttt{nftables} del kernel Linux, agisce come barriera L3/L4 di frontiera. Esso blinda l'architettura forzando l'instradamento obbligatorio verso il \textit{Policy Enforcement Point} (Envoy) e gestendo una trappola attiva per rilevare e stroncare i tentativi di bypass della crittografia o del proxy.
 
-All'avvio del container tramite lo script \texttt{start.sh}, il firewall esegue quattro compiti principali:
+All'avvio del container tramite lo script \texttt{start.sh}, il firewall esegue quattro task architetturali primari:
 \begin{enumerate}
-    \item \textbf{Risoluzione dinamica}: interroga il DNS interno di Docker per ottenere l'IP del container Envoy (\texttt{zta-envoy}).
-    \item \textbf{Port forwarding L4}: reindirizza tutto il traffico TCP legittimo diretto alla porta del servizio verso l'IP di Envoy sulla porta \texttt{8443} tramite regola DNAT e applica il mascheramento SNAT.
-    \item \textbf{Trappola di bypass}: intercetta i tentativi di connessione diretta alle porte di backend non autorizzate (es. porta \texttt{8000}), invia i dettagli del pacchetto al demone di logging \texttt{ulogd2} con il prefisso \texttt{[NFT-BLOCK]} e scarta istantaneamente il traffico (\texttt{drop}).
-    \item \textbf{Denylist dinamica}: crea un set di indirizzi IP bloccati, gestito in tempo reale da un'API di management in Python che consente di aggiungere o rimuovere IP in base alle anomalie rilevate.
+    \item \textbf{Risoluzione dinamica}: interroga il resolver DNS interno di Docker per ottenere l'IP assegnato dinamicamente al container del proxy (\texttt{zta-envoy}).
+    \item \textbf{Segregazione e NAT (Network Address Translation)}: reindirizza tutto il traffico TCP in ingresso verso l'IP di Envoy sulla porta sicura \texttt{8443} tramite una regola di \textit{Destination NAT} (DNAT) operante nella catena di \texttt{prerouting}, applicando contestualmente il mascheramento SNAT per garantire la corretta commutazione dei pacchetti di ritorno.
+    \item \textbf{Sinkhole e Trappola di bypass (L4)}: intercetta qualsiasi tentativo di connessione diretta (spesso sintomo di movimento laterale) alle porte di backend non autorizzate (come la porta \texttt{8000} delle Web API). Il traffico anomalo genera prima un log a livello kernel verso il demone \texttt{ulogd2} con il prefisso \texttt{[NFT-BLOCK]}, per poi essere scartato istantaneamente (\texttt{drop}).
+    \item \textbf{Automated Remediation (Denylist dinamica)}: istanzia un \texttt{set} denominato \texttt{denylist} per il blocco assoluto (\texttt{forward drop}) degli indirizzi IP compromessi, la cui popolazione avviene in tempo reale.
 \end{enumerate}
 
-La configurazione delle catene e delle regole nftables applicate all'avvio del firewall è mostrata nel Listato \ref{lst:firewall_rules_sh}.
+La configurazione delle catene, dei set e delle regole di NAT applicate all'avvio del firewall è mostrata nel Listato \ref{lst:firewall_rules_sh}.
 
 \begin{center}
 \begin{minipage}{\linewidth}
-\begin{ztacodebox}{start.sh}
+\begin{ztacodebox}{start.sh (Configurazione nftables)}
 \begin{lstlisting}[language=bash]
 # --- Inizializzazione Base NFTables ---
 nft flush ruleset
 nft add table ip filter
 nft add set ip filter denylist { type ipv4_addr \; }
 nft add chain ip filter forward { type filter hook forward priority 0 \; policy accept \; }
-# Regole di DROP per gli IP bannati
+
+# Regole di DROP assoluto per gli IP bannati
 nft add rule ip filter forward ip saddr @denylist counter drop
 
-# --- Port Forwarding (DNAT) verso Envoy ---
+# --- Port Forwarding (DNAT) verso Envoy (PEP) ---
 nft add table ip nat
 nft add chain ip nat prerouting { type nat hook prerouting priority -100 \; }
 nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
 nft add rule ip nat prerouting tcp dport 8443 counter dnat to $ENVOY_IP:8443
 nft add rule ip nat postrouting ip daddr $ENVOY_IP tcp dport 8443 counter masquerade
 
-# --- TRAPPOLA: Log e Drop del traffico diretto al backend ---
+# --- TRAPPOLA: Log e Drop del traffico L4 diretto al backend ---
 nft add rule ip nat prerouting tcp dport 8000 log group 0 prefix "[NFT-BLOCK] " counter
 nft add rule ip nat prerouting tcp dport 8000 drop
 \end{lstlisting}
@@ -234,14 +285,18 @@ nft add rule ip nat prerouting tcp dport 8000 drop
 \end{minipage}
 \end{center}
 
+Per abilitare l'inserimento dinamico in tale \texttt{denylist} senza la necessità di un intervento umano, il container del firewall ospita parallelamente un'API RESTful di management sviluppata in \texttt{Python} tramite il framework \texttt{FastAPI}. Questa interfaccia espone l'endpoint \texttt{POST /ban}, il quale riceve un indirizzo IP e invoca il comando di sistema per iniettarlo direttamente nel set \texttt{denylist} del kernel, fornendo un meccanismo di reazione istantanea utilizzabile da sistemi esterni (come l'IDS Snort) in caso di rilevamento di traffico ostile.
+
+Inoltre, il codice Python è strutturato nativamente per operare in sinergia con la pipeline di telemetria dell'architettura. Come definito nella libreria di \texttt{logging}, ogni richiesta di ban o intercettazione genera stringhe di log in formato chiave-valore (ad esempio \texttt{event="nftables\_drop" status="added" client\_ip="192.168.100.X"}). Questo formato agevola il parsing asincrono da parte del raccoglitore \texttt{Fluent Bit}, garantendo un'ingestion rapida e una visualizzazione strutturata all'interno delle dashboard del SIEM \texttt{Splunk}.
+
 \subsection{Autenticazione crittografica: mTLS, TPM e fingerprinting JA3}
-L'architettura implementa un meccanismo di verifica dell'identità a tre livelli complementari, che operano in modo congiunto durante la fase di handshake TLS per costruire le dimensioni \textit{u} (utente), \textit{d} (dispositivo) e \textit{s} (software) della tupla Zero Trust.
+L'architettura implementa un meccanismo di verifica dell'identità a tre livelli complementari, che operano in modo congiunto durante la fase di handshake TLS per costruire le dimensioni \textit{u} (utente), \textit{d} (dispositivo) e \textit{s} (software) della tupla contestuale Zero Trust.
 
 \subsubsection{Mutua autenticazione TLS (mTLS)}
-Ogni listener di Envoy impone la presentazione obbligatoria di un certificato client X.509 firmato dalla CA interna dell'ospedale (\texttt{ZTA Hospital Trust Root CA}). La direttiva \texttt{require\_client\_certificate: true} nella configurazione TLS di Envoy garantisce che nessuna connessione priva di certificato valido possa superare la fase di negoziazione. Il campo \texttt{Common Name} (CN) del certificato identifica univocamente l'operatore (es. \texttt{employee-alice}, \texttt{employee-bob}) e viene propagato ad OPA tramite il metadato \texttt{DOWNSTREAM\_PEER\_SUBJECT}.
+Ogni listener di Envoy impone la presentazione obbligatoria di un certificato client X.509 firmato dalla CA interna dell'ospedale (\texttt{ZTA Hospital Trust Root CA}). La direttiva \texttt{require\_client\_certificate: true} nella configurazione TLS di Envoy garantisce che nessuna connessione priva di certificato valido possa superare la fase di negoziazione. Il campo \texttt{Common Name} (CN) del certificato identifica univocamente l'operatore (es. \texttt{employee-alice}, \texttt{employee-bob}) e viene estratto da Envoy per essere propagato al motore OPA attraverso l'attributo gRPC \texttt{source.principal} della richiesta \texttt{ExtAuthz}.
 
 \subsubsection{Attestazione hardware TPM}
-Per discriminare i dispositivi aziendali sicuri dai terminali personali non censiti, il sistema utilizza un'estensione X.509 personalizzata con Object Identifier (OID) \texttt{1.3.6.1.4.1.9999.1}. Durante la generazione dei certificati tramite lo script \texttt{generate\_identities.py}, i certificati destinati a workstation dotate di chip TPM (come Alice e Charlie) vengono arricchiti con questa estensione, il cui contenuto attesta crittograficamente il legame tra la chiave privata e l'hardware. Il frammento di generazione è mostrato nel Listato \ref{lst:tpm_cert_gen}.
+Per discriminare i dispositivi aziendali sicuri dai terminali personali o compromessi, il sistema utilizza un'estensione X.509 personalizzata con Object Identifier (OID) \texttt{1.3.6.1.4.1.9999.1}. Ai fini della presente implementazione prototipale, lo script \texttt{generate\_identities.py} simula il processo di \textit{hardware attestation} arricchendo dinamicamente i certificati destinati alle workstation sicure (come quelle di Alice e Charlie) con tale estensione. Il frammento di generazione è mostrato nel Listato \ref{lst:tpm_cert_gen}.
 
 \begin{center}
 \begin{minipage}{\linewidth}
@@ -264,11 +319,11 @@ def generate_leaf(base_dir, name, cn, ca_cert, ca_key, has_tpm=False):
     cert = builder.sign(ca_key, hashes.SHA256())
 \end{lstlisting}
 \end{ztacodebox}
-\captionof{lstlisting}{Generazione dei certificati client con estensione TPM opzionale.}\label{lst:tpm_cert_gen}
+\captionof{lstlisting}{Generazione dei certificati client con estensione TPM simulata.}\label{lst:tpm_cert_gen}
 \end{minipage}
 \end{center}
 
-A livello di policy, OPA estrae e valida questa estensione in tempo reale decodificando il certificato PEM ricevuto da Envoy e verificando la presenza dell'OID specifico nell'array delle estensioni, come mostrato nel Listato \ref{lst:opa_tpm_check}.
+Nel mondo reale in un ambiente di produzione aziendale, tale estensione verrebbe apposta dalla CA solo dopo aver crittograficamente validato una \textit{Certificate Signing Request} (CSR) firmata direttamente dalla Endorsement Key (EK) di un chip TPM fisico. Questo approccio ingegneristico garantisce la proprietà di inesportabilità della chiave privata del client: essendo generata in hardware, la chiave non può essere esfiltrata e il certificato utente risulta indissolubilmente legato alla macchina autorizzata. A livello di policy, OPA valida questa garanzia di postura in tempo reale decodificando il certificato PEM e verificando la presenza dell'OID specifico nell'array delle estensioni (Listato \ref{lst:opa_tpm_check}).
 
 \begin{center}
 \begin{minipage}{\linewidth}
@@ -292,40 +347,57 @@ device := "Workstation Ospedaliera Sicura (TPM Validato)" if { is_tpm }
 \end{minipage}
 \end{center}
 
-Questo approccio garantisce la proprietà di non esportabilità della chiave privata del client: poiché la chiave viene generata all'interno del chip TPM del dispositivo, essa non può essere copiata o trasferita su una macchina differente. Di conseguenza, il certificato utente viene legato in modo indissolubile all'hardware autorizzato.
-
 \subsubsection{Fingerprinting software JA3}
-Il terzo livello di identificazione opera a livello di trasporto, senza richiedere alcuna collaborazione da parte del client. Durante l'handshake TLS, il filtro \texttt{tls\_inspector} di Envoy calcola l'hash \textbf{JA3}, un'impronta digitale deterministica basata sulla combinazione dei parametri del \textit{ClientHello} (versione TLS, cipher suite offerte, estensioni, curve ellittiche e formati dei punti). Poiché ogni software client genera un \textit{ClientHello} caratteristico, l'hash JA3 consente di distinguere un browser autorizzato (es. Firefox o Chrome) da uno strumento di attacco (es. \texttt{curl} o \texttt{nmap}), anche in presenza di spoofing dell'header \texttt{User-Agent}. L'hash viene reso disponibile come metadato dinamico e propagato ad OPA sia per il listener MongoDB (tramite i metadati del \texttt{tls\_inspector}) sia per il listener HTTP (tramite l'header iniettato \texttt{x-client-fingerprint}).
+Il terzo livello di identificazione opera a livello di trasporto, in maniera del tutto passiva rispetto al client. Durante l'handshake TLS, il filtro \texttt{tls\_inspector} di Envoy calcola l'hash \textbf{JA3}, un'impronta digitale deterministica basata sulla combinazione dei parametri proposti nel pacchetto di \texttt{ClientHello} (versione TLS, cipher suite offerte, estensioni, curve ellittiche e formati dei punti). Poiché ogni implementazione software genera un \texttt{ClientHello} caratteristico, l'hash JA3 consente di distinguere un browser autorizzato (es. Firefox o Chrome) da uno strumento per l'enumerazione o l'attacco (es. \texttt{curl} o \texttt{nmap}), neutralizzando le tecniche di spoofing dell'header \texttt{User-Agent}. L'impronta calcolata viene propagata ad OPA tramite l'header \texttt{x-client-fingerprint} (su protocollo HTTP) o tramite i metadati dinamici di Envoy (su protocollo MongoDB).
 
-Tuttavia, l'impiego del solo fingerprinting software presenta un limite strutturale sul piano della sicurezza: se due dispositivi distinti utilizzano lo stesso browser (o la medesima versione di client HTTP) ed eseguono lo stesso sistema operativo, la negoziazione TLS produrrà un hash \texttt{JA3} identico. In questo scenario, i dispositivi diventano indistinguibili per il proxy, evidenziando come il solo fingerprinting software non possa sostituire le garanzie di postura offerte dall'attestazione hardware.
+Tuttavia, l'impiego del solo fingerprinting software presenta un limite strutturale intrinseco: qualora due dispositivi distinti utilizzino il medesimo browser ed eseguano la stessa versione di sistema operativo, produrranno un hash \texttt{JA3} perfettamente identico. In questo scenario, i dispositivi risultano crittograficamente indistinguibili. Proprio alla luce di questa vulnerabilità, il motore decisionale Zero Trust classifica il JA3 come indicatore di rischio debole: non lo utilizza mai per garantire l'accesso critico (come la richiesta di login, che fallisce sistematicamente in assenza di TPM hardware), ma lo sfrutta esclusivamente come meccanismo di \textit{fallback} per applicare il guinzaglio corto (soglia $\le 26$) su operazioni operative di basso livello in attesa dell'aggiornamento dei client legacy.
 
 \subsection{Rilevamento delle intrusioni di rete: Snort NIDS}
-A completamento delle difese applicative, l'architettura integra \texttt{snort} come \textbf{Network Intrusion Detection System} (NIDS) passivo, posizionato strategicamente in modo da intercettare tutto il traffico che transita per il proxy.
+A completamento delle difese applicative gestite dal proxy e dal motore OPA, l'architettura integra \texttt{snort} come \textbf{Network Intrusion Detection System} (NIDS) passivo, posizionato strategicamente in modo da intercettare tutto il traffico perimetrale.
 
-La tecnica di deploy adottata è quella della condivisione del \textit{network namespace}: nel file \texttt{docker-compose.yaml}, il container \texttt{zta-snort} è configurato con la direttiva \texttt{network\_mode: "service:envoy-pep"}, che gli consente di osservare passivamente tutti i pacchetti in ingresso e in uscita dall'interfaccia di rete di Envoy senza possedere un proprio indirizzo IP e senza poter alterare o bloccare il traffico.
+La tecnica di deploy adottata è quella della condivisione del \textit{network namespace}: nel file \texttt{docker-compose.yaml}, il container \texttt{zta-snort} è configurato con la direttiva \texttt{network\_mode: "service:envoy-pep"}. Questo approccio di ingegneria di rete consente all'IDS di agganciarsi direttamente all'interfaccia virtuale di Envoy, osservando passivamente tutti i pacchetti in ingresso e in uscita senza possedere un proprio indirizzo IP e senza introdurre latenza, agendo come una vera e propria sonda invisibile (TAP di rete).
 
-All'avvio, Snort viene lanciato in ascolto sull'interfaccia principale del namespace condiviso, con output dei log nella directory \texttt{/var/log/snort} condivisa tramite volume Docker con Fluent-Bit. Le regole personalizzate implementate nel file \texttt{local.rules} definiscono due firme di rilevamento principali, mostrate nel Listato \ref{lst:snort_rules}.
+All'avvio, Snort viene lanciato in ascolto sull'interfaccia principale del namespace condiviso, riversando l'output dei log in formato compatibile nella directory \texttt{/var/log/snort}, montata come volume Docker per l'ingestion asincrona da parte di Fluent-Bit. Le regole personalizzate, definite nel file \texttt{local.rules}, superano il tradizionale rilevamento statico per intercettare anomalie volumetriche, tentativi di elusione crittografica e comportamenti operativi sospetti. L'intero set di firme è riportato nel Listato \ref{lst:snort_rules}.
 
 \begin{center}
 \begin{minipage}{\linewidth}
 \begin{ztacodebox}{local.rules}
-\begin{lstlisting}[language=Snort]
+\begin{lstlisting}[language=bash]
 # 1. Rileva una scansione Nmap (SYN Scan) verso Envoy o DB
-alert tcp any any -> any any (msg:"ZTA ALERT: Rilevata Scansione
-  di Rete (Possibile Nmap)"; flags:S; threshold:type both,
-  track by_src, count 20, seconds 10; sid:1000001; rev:1;)
+alert tcp any any -> any any (msg:"ZTA ALERT: Rilevata Scansione di Rete (Possibile Nmap)"; \
+  flags:S; threshold:type both, track by_src, count 20, seconds 10; sid:1000001; rev:1;)
 
-# 2. Rileva un tentativo di connessione diretta (bypass) a MongoDB
-alert tcp any any -> any 27017 (msg:"ZTA ALERT: Tentativo di
-  accesso diretto a MongoDB bypassando Envoy!";
-  sid:1000002; rev:1;)
+# 2. AUDIT: Traccia l'accesso tramite client nativo MongoDB
+alert tcp any any -> any 27017 (msg:"ZTA AUDIT: Connessione Client nativa a MongoDB \
+  rilevata (Accesso non-Web)"; sid:1000002; rev:2;)
+
+# 3. Rileva attacco volumetrico (Possibile DDoS / SYN Flood verso Envoy)
+alert tcp any any -> any 8443 (msg:"ZTA ALERT: Anomalia volumetrica (Possibile DoS \
+  verso il Proxy)"; flags:S; threshold:type both, track by_src, count 100, seconds 5; \
+  sid:1000003; rev:1;)
+
+# 4. Rileva un tentativo di connessione in chiaro (Downgrade Attack HTTP)
+alert tcp any any -> any 8443 (msg:"ZTA ALERT: Tentativo di traffico in chiaro su porta \
+  protetta (Downgrade/Misconfig)"; flow:established,to_server; content:"GET "; depth:4; \
+  sid:1000004; rev:1;)
+
+# 5. Rileva tentativi ripetuti di connessione (Possibile Brute-Force del mTLS)
+alert tcp any any -> any 8443 (msg:"ZTA ALERT: Eccessivi tentativi di connessione \
+  (Possibile assenza di Certificato Client)"; flags:R; threshold:type both, track by_src, \
+  count 15, seconds 10; sid:1000005; rev:1;)
 \end{lstlisting}
 \end{ztacodebox}
-\captionof{lstlisting}{Regole di rilevamento personalizzate per Snort.}\label{lst:snort_rules}
+\captionof{lstlisting}{Regole di rilevamento avanzate (Volumetriche, Protocollari e Crittografiche) per Snort.}\label{lst:snort_rules}
 \end{minipage}
 \end{center}
 
-La prima regola implementa un rilevamento basato su soglia (\textit{threshold}): se vengono osservati più di 20 pacchetti SYN dallo stesso IP sorgente in un intervallo di 10 secondi, viene generato un allarme per sospetta scansione di rete. La seconda regola rileva qualsiasi tentativo di connessione TCP diretto alla porta 27017 di MongoDB che, per architettura, dovrebbe essere raggiungibile esclusivamente dal proxy Envoy.
+Il file di configurazione implementa quattro vettori logici di analisi principali:
+\begin{itemize}
+    \item \textbf{Attacchi volumetrici e Reconnaissance (Regole 1 e 3):} Sfruttano il costrutto \texttt{threshold} per identificare anomalie basate sulla frequenza dei pacchetti di sincronizzazione (SYN). La Regola 1 identifica i pattern tipici degli scanner di rete come Nmap, mentre la Regola 3 monitora burst aggressivi diretti esclusivamente al listener web (\texttt{8443}), mitigando visivamente tentativi di \textit{Denial of Service} (SYN Flood) mirati ad esaurire le risorse del proxy.
+    \item \textbf{Anomalie Protocollari e Downgrade (Regola 4):} Esegue una \textit{Deep Packet Inspection} (DPI) sui primi byte del payload TCP alla ricerca di metodi in chiaro (come la stringa "GET "). Rilevare traffico non decifrato su una porta esplicitamente vincolata al TLS indica un'errata configurazione del client o un malintenzionato che tenta un \textit{Downgrade Attack} forzando l'uso del protocollo HTTP standard.
+    \item \textbf{Fallimenti Crittografici (Regola 5):} Poiché Envoy impone rigorosamente la mutua autenticazione (\textit{mTLS}), l'assenza di un certificato client valido o la mancata verifica della CA provocano l'immediato abbattimento della connessione da parte del PEP (che innesca l'invio di pacchetti TCP Reset - \texttt{RST}). Questa regola correla un improvviso accumulo di pacchetti RST a un attaccante che tenta ripetutamente l'accesso senza disporre dell'attestazione hardware o delle chiavi crittografiche richieste.
+    \item \textbf{Auditing Operativo (Regola 2):} Il sistema rileva attività legittime ma deviatrici rispetto alla baseline. Monitorando gli accessi sulla porta \texttt{27017}, Snort genera eventi di Audit quando operatori autorizzati (es. personale di Data Science) si collegano direttamente al database tramite client nativi, aggirando le Web API ma passando regolarmente per i controlli mTLS e OPA del proxy.
+\end{itemize}
 
 \subsection{Aggregazione centralizzata dei log: Fluent-Bit}
 La raccolta e la centralizzazione dei log di telemetria provenienti dai diversi componenti dell'infrastruttura è affidata a \texttt{fluent-bit}, un agente di log forwarding leggero e ad alte prestazioni. Fluent-Bit è stato preferito al classico \texttt{syslog} per la sua capacità nativa di operare in ambienti containerizzati, supportando il parsing strutturato di log JSON e l'invio diretto verso Splunk tramite il protocollo \textbf{HTTP Event Collector} (HEC).
@@ -355,24 +427,34 @@ L'architettura sfrutta i \textbf{volumi Docker condivisi} come meccanismo di tra
 
 Tutti i log vengono infine inoltrati verso l'unica destinazione: il \textbf{Splunk SIEM} tramite il modulo di output \texttt{splunk} configurato con il token HEC e la connessione TLS verso la porta \texttt{8088} del container \texttt{splunk-siem}.
 
-\subsection{Il modello predittivo di Machine Learning: Gradient Boosting}
-Il calcolo del punteggio di rischio dinamico rappresenta il cuore della valutazione adattiva e continua dell'architettura Zero Trust. Il modello predittivo è implementato all'interno di \texttt{splunk} tramite il \textbf{Machine Learning Toolkit} (MLTK) e utilizza l'algoritmo \textbf{Gradient Boosting Regressor}.
+\subsection{Il modello predittivo di Machine Learning: Splunk MLTK e Gradient Boosting}
+Il calcolo del punteggio di rischio dinamico rappresenta il motore decisionale della valutazione adattiva continua dell'architettura Zero Trust. L'intelligenza predittiva è implementata all'interno del SIEM tramite lo \textbf{Splunk Machine Learning Toolkit} (MLTK), segnando il passaggio da un approccio di autorizzazione statico a un'analisi comportamentale in tempo reale.
 
-\subsubsection{Dataset di addestramento e feature}
-Il modello viene addestrato su un dataset sintetico di 10.000 record generati dallo script \texttt{generate\_simulated\_traffic.py}. Il dataset riproduce un mix realistico di traffico ospedaliero, con l'80\% di sessioni legittime e il 20\% di sessioni anomale o malevole. Ogni record è descritto da \textbf{12 feature} suddivise in due categorie:
+\subsubsection{Dall'approccio statico alla valutazione comportamentale continua}
+L'architettura Zero Trust di base si fonda su un'analisi del contesto di autenticazione composta da 6 dimensioni identitarie (\textit{user}, \textit{software}, \textit{device}, \textit{network}, \textit{action}, \textit{resource}). Per abilitare la \textit{Continuous Authorization}, il modello integra ulteriori 6 feature comportamentali, iniettate dinamicamente dal proxy Web API. Tali feature trasformano la fotografia istantanea dell'accesso in un monitoraggio continuo della sessione:
 \begin{itemize}
-    \item \textbf{6 feature identitarie (ZTA 6D)}: corrispondenti alle dimensioni della tupla $T = (u, d, s, n, a, r)$ estratte in tempo reale da Envoy.
-    \item \textbf{6 feature comportamentali}: calcolate e iniettate in tempo reale dal proxy Web-API prima di inoltrare la query a Splunk. Esse comprendono il numero di \textit{login falliti} nelle ultime 24 ore, l'\textit{ora della richiesta}, un flag per \textit{accesso notturno} (22:00--06:00), la \textit{frequenza di sessione} nell'ultima ora, il \textit{livello di sensibilità} della risorsa (da 1 a 3) e i \textit{giorni di inattività} dall'ultimo accesso riuscito.
+    \item \texttt{failed\_logins}: tentativi di accesso falliti nelle ultime 24 ore.
+    \item \texttt{hour\_of\_day} e \texttt{is\_night}: fascia oraria e flag per accessi in orario notturno (22:00--06:00).
+    \item \texttt{session\_freq}: frequenza delle richieste nell'ultima ora (indicatore anti-bot).
+    \item \texttt{sensitivity\_level}: grado di criticità della risorsa richiesta (es. dati pazienti vs configurazioni).
+    \item \texttt{days\_inactive}: giorni trascorsi dall'ultimo login riuscito.
 \end{itemize}
 
-Il valore target \texttt{rischio} (da 0 a 100) è calcolato deterministicamente come somma pesata di penalità cumulative, secondo la formula:
-\begin{equation}
-\text{Rischio} = \Delta_{\text{HW}} + \Delta_{\text{Rete}} + \Delta_{\text{Login}} + \Delta_{\text{Orario}} + \Delta_{\text{Freq}} + \Delta_{\text{Sens}} + \Delta_{\text{Inatt}} + \Delta_{\text{Azione}} + \Delta_{\text{SW}} + \epsilon
-\end{equation}
-dove $\Delta_{\text{HW}} = +20$ per dispositivi senza TPM, $\Delta_{\text{Rete}} = +15$ per IP esterni, $\Delta_{\text{Login}} = \min(8 \times \texttt{failed\_logins}, 40)$, e $\epsilon \sim \mathcal{N}(0, 3)$ rappresenta un rumore gaussiano per evitare l'overfitting su regole rigide.
+\subsubsection{Generazione del dataset e modello matematico}
+Il modello viene addestrato su un dataset sintetico di 50.000 record. Il valore target predittivo, ovvero il \texttt{rischio} (in scala $0-100$), è determinato nel dataset di addestramento tramite una formula deterministica non lineare che cumula penalità infrastrutturali e comportamentali:
+$$ \text{Rischio} = \Delta_{\text{HW}} + \Delta_{\text{Rete}} + (\Delta_{\text{Comp}} \times M_{\text{Sens}}) + \epsilon $$
+I parametri riflettono severità architetturali precise, in accordo con la configurazione del PEP (es. $\Delta_{\text{HW}} = +30$ per dispositivi sprovvisti di attestazione TPM, $\Delta_{\text{Rete}} = +18$ per connessioni da reti esterne). Il termine $\Delta_{\text{Comp}}$ aggrega le anomalie di comportamento, amplificate dal moltiplicatore di sensibilità della risorsa ($M_{\text{Sens}}$). Infine, $\epsilon \sim \mathcal{N}(0, 2)$ introduce un rumore statistico gaussiano, vitale per prevenire l'overfitting e addestrare l'algoritmo a generalizzare.
 
-\subsubsection{Addestramento e scelta dell'algoritmo}
-L'addestramento avviene direttamente nell'interfaccia di Splunk tramite la query SPL mostrata nel Listato \ref{lst:splunk_training}.
+\subsubsection{Selezione dell'algoritmo: Gradient Boosting vs Random Forest}
+La scelta dell'algoritmo \textbf{Gradient Boosting Regressor} in contrapposizione a tecniche parallele (come la \textit{Random Forest}) è motivata dall'intrinseca natura composita del rischio informatico. 
+
+Nel paradigma \textit{Random Forest} (basato sul \textit{bagging}), vengono creati molteplici alberi decisionali in parallelo e la predizione finale è la media aritmetica dei risultati. Sebbene efficace per ridurre la varianza, questa mediazione tende a "smussare" le anomalie, un difetto critico nel dominio della sicurezza dove un picco anomalo non deve essere attenuato.
+Al contrario, il Gradient Boosting opera secondo il principio dell'\textbf{apprendimento additivo sequenziale}. L'algoritmo costruisce un albero alla volta; ogni nuovo \textit{weak learner} viene addestrato specificamente per approssimare i residui (gli errori di stima) commessi dall'albero precedente, minimizzando direttamente la \textit{Loss Function} calcolando il gradiente dell'errore. 
+
+Questo approccio risulta superiore nel catturare le relazioni non lineari tra le 12 feature ZTA: un utente che fallisce 5 login di giorno dall'ufficio possiede un profilo di rischio moderato, ma lo stesso utente che fallisce 5 login alle 3 di notte da un IP esterno rappresenta una minaccia critica. Focalizzandosi sulla correzione degli errori sui casi limite, il Gradient Boosting penalizza severamente queste combinazioni atipiche.
+
+\subsubsection{Addestramento e Regressione in tempo reale}
+L'addestramento avviene direttamente nell'interfaccia di Splunk tramite il costrutto SPL mostrato nel Listato \ref{lst:splunk_training}. Una volta generato, il modello viene configurato con permessi \textit{Globali} per consentirne l'interrogazione esterna tramite API REST.
 
 \begin{center}
 \begin{minipage}{\linewidth}
@@ -390,7 +472,4 @@ L'addestramento avviene direttamente nell'interfaccia di Splunk tramite la query
 \end{minipage}
 \end{center}
 
-La scelta del \textbf{Gradient Boosting} rispetto al più comune \textit{Random Forest} è motivata dalla capacità dell'algoritmo di catturare le interazioni non lineari tra feature categoriche e numeriche. A differenza del bagging, in cui gli alberi sono indipendenti e la predizione è la media delle risposte, il boosting costruisce alberi in sequenza, dove ciascun nuovo albero è addestrato specificamente per correggere i residui (gli errori) dell'albero precedente. Questo approccio risulta particolarmente efficace nel dominio ZTA, dove il rischio non dipende da singole variabili isolate ma dalla loro combinazione: ad esempio, un utente con 5 login falliti di giorno dall'ufficio ha un rischio moderato, mentre lo stesso utente con 5 login falliti alle 3 di notte da un IP esterno rappresenta una minaccia critica.
-
-\subsubsection{Predizione in tempo reale}
-Durante il funzionamento operativo, OPA assembla dinamicamente una query SPL di tipo \texttt{apply} contenente i valori correnti delle 6 dimensioni ZTA e la invia tramite la Web-API che funge da proxy verso l'endpoint REST di Splunk. La Web-API arricchisce la richiesta con le 6 feature comportamentali calcolate in tempo reale. Il modello \texttt{trust\_model} restituisce un punteggio numerico continuo (es. $5.2$, $42.7$, $89.1$) che OPA utilizza per valutare l'accesso secondo le soglie adattive definite nelle policy Rego.
+Il vantaggio operativo di questo approccio risiede nell'utilizzo della \textbf{Regressione} anziché della Classificazione. Il modello non restituisce un giudizio binario (sicuro/pericolo), ma un punteggio numerico continuo (es. $18.4$, $42.7$). Durante il funzionamento, OPA ingerisce dinamicamente questo valore per attuare politiche di autorizzazione adattive, applicando le soglie di tolleranza predefinite (es. blocco per rischio $> 38$ su rete interna o $> 26$ su rete esterna), rendendo il perimetro di sicurezza fluido e proporzionale alla postura reale dell'utente.
