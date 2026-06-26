@@ -155,23 +155,23 @@ def enrich_spl_with_behavioral_features(query: str, simulate_dormant_night: bool
         failed_logins = 4
         days_inactive = 90
         session_freq = get_session_freq(user)
-    elif is_external_charlie:
+    #elif is_external_charlie:
         # Scenario Smart Working per Charlie: simuliamo un'anomalia comportamentale
         # (es. account dormiente riattivato da rete esterna con tentativi falliti)
         # per costringere il modello a calcolare un risco molto elevato (> 50, quindi > 8 della soglia OPA)
-        hour_of_day = now.hour
-        is_night = 1 if (hour_of_day >= 22 or hour_of_day < 6) else 0
-        failed_logins = 3
-        days_inactive = 90
-        session_freq = get_session_freq(user)
-    elif is_compromised_alice:
+     #   hour_of_day = now.hour
+     #   is_night = 1 if (hour_of_day >= 22 or hour_of_day < 6) else 0
+     #   failed_logins = 3
+     #   days_inactive = 90
+     #   session_freq = get_session_freq(user)
+    #elif is_compromised_alice:
         # Scenario PC Alice Compromesso: simuliamo anomalie per far schizzare il rischio predittivo
         # in modo da superare la soglia interna di OPA (50) e bloccare la connessione al database
-        hour_of_day = now.hour
-        is_night = 1 if (hour_of_day >= 22 or hour_of_day < 6) else 0
-        failed_logins = 4
-        days_inactive = 60
-        session_freq = 30
+     #   hour_of_day = now.hour
+     #   is_night = 1 if (hour_of_day >= 22 or hour_of_day < 6) else 0
+     #   failed_logins = 4
+     #   days_inactive = 60
+     #   session_freq = 30
     else:
         hour_of_day = now.hour
         is_night = 1 if (hour_of_day >= 22 or hour_of_day < 6) else 0
@@ -258,6 +258,48 @@ import urllib3
 from pydantic import BaseModel
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+SPLUNK_HEC_URL = "https://zta-splunk:8088/services/collector/event"
+SPLUNK_HEC_TOKEN = "11111111-1111-1111-1111-111111111111"
+
+def send_risk_to_splunk(q: str, risk_score: float, simulate_dormant_night: bool = False):
+    """Salva il risk score calcolato su Splunk con tutte le 12 feature."""
+    user = extract_user_from_spl(q)
+    resource = extract_resource_from_spl(q)
+    network_ip = extract_network_from_spl(q)
+
+    # Estrai le feature già iniettate nella query
+    def extract_int(pattern, text, default=0):
+        m = re.search(pattern, text)
+        return int(m.group(1)) if m else default
+
+    payload = {
+        "sourcetype": "zta_ml_predictions",
+        "index": "main",
+        "event": {
+            "user": user,
+            "resource": resource,
+            "network": network_ip,
+            "failed_logins": extract_int(r'failed_logins=(\d+)', q),
+            "hour_of_day": extract_int(r'hour_of_day=(\d+)', q),
+            "is_night": extract_int(r'is_night=(\d+)', q),
+            "session_freq": extract_int(r'session_freq=(\d+)', q),
+            "sensitivity_level": extract_int(r'sensitivity_level=(\d+)', q),
+            "days_inactive": extract_int(r'days_inactive=(\d+)', q),
+            "rischio": risk_score
+        }
+    }
+    try:
+        requests.post(
+            SPLUNK_HEC_URL,
+            headers={"Authorization": f"Splunk {SPLUNK_HEC_TOKEN}"},
+            json=payload,
+            verify=False,
+            timeout=5.0
+        )
+        logger.info(f"[HEC] Risk score salvato su Splunk: user={user}, rischio={risk_score}")
+    except Exception as e:
+        logger.warning(f"[HEC] Errore invio HEC: {e}")
 
 class MLQuery(BaseModel):
     query: str
@@ -352,6 +394,9 @@ def predict_risk(ml_query: MLQuery):
                     user = extract_user_from_spl(q)
                     if risk_score > 50:
                         record_failed_login(user)
+                    
+                    # Salva su Splunk PRIMA del return
+                    send_risk_to_splunk(q, risk_score, simulate_dormant_night)
                     
                     return {"rischio": risk_score}
                     
