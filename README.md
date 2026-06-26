@@ -1,5 +1,3 @@
-![Zero Trust Architecture 2026 Project Banner](./docs/zta_project_banner.png)
-
 # 🛡️ Zero Trust Architecture (ZTA) 2026
 ### *Microsegmentazione, attestazione hardware, adaptive risk assessment e ispezione L7 per la protezione di database ospedalieri*
 
@@ -14,54 +12,87 @@
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://www.snort.org/"><img src="https://img.shields.io/badge/Snort_IDS-FF0000?style=for-the-badge&logo=security&logoColor=white" alt="Snort"></a>
   <a href="https://netfilter.org/projects/nftables/"><img src="https://img.shields.io/badge/nftables-FFA500?style=for-the-badge&logo=linux&logoColor=white" alt="nftables"></a>
-  
 </p>
 
 ---
 
-Questo repository contiene il codice sorgente, le configurazioni di rete dockerizzate, i modelli predittivi e la relazione accademica relativi al progetto di **Advanced Cybersecurity** (Anno Accademico 2025/2026). 
+Questo repository contiene il codice sorgente, le configurazioni di rete dockerizzate, i modelli predittivi e la relazione accademica relativi al progetto di **Advanced Cybersecurity** (Anno Accademico 2025/2026).
 
 L'obiettivo è la realizzazione pratica di un'infrastruttura di rete basata sul paradigma **Zero Trust (ZTA)** per la sicurezza e la microsegmentazione delle API e del database della collezione medica di un portale ospedaliero. Il sistema applica il principio cardine **"Never Trust, Always Verify"** scartando qualsiasi richiesta di default e sottoponendola a validazione continua a livello di rete, credenziali, postura hardware, impronta digitale software e rischio comportamentale in tempo reale.
 
 ---
 
 ## 📖 Indice
-1. [🔍 Panoramica del sistema](#-panoramica-del-sistema)
-2. [⚙️ Flusso di verifica dinamico (animato)](#%EF%B8%8F-flusso-di-verifica-dinamico-animato)
-3. [🌐 Architettura e microsegmentazione](#-architettura-e-microsegmentazione)
-4. [⛓️ Flusso logico delle richieste (sequence)](#%EF%B8%8F-flusso-logico-delle-richieste-sequence)
-5. [📊 La tupla multidimensionale ZTA (6D)](#-la-tupla-multidimensionale-zta-6d)
-6. [🛠️ Simulazione e validazione dei cinque scenari](#%EF%B8%8F-simulazione-e-validazione-dei-cinque-scenari)
-7. [🚀 Avvio dell'infrastruttura](#-avvio-dellinfrastruttura)
-8. [👥 Autori e contesto accademico](#-autori-e-contesto-accademico)
+1. [🔍 Panoramica del sistema e Threat Modeling](#-panoramica-del-sistema-e-threat-modeling)
+2. [🌐 Architettura e microsegmentazione](#-architettura-e-microsegmentazione)
+3. [⛓️ Flusso logico delle richieste (sequence)](#%EF%B8%8F-flusso-logico-delle-richieste-sequence)
+4. [📊 La tupla multidimensionale ZTA (7D)](#-la-tupla-multidimensionale-zta-7d)
+5. [🛠️ I 14 Scenari di Validazione](#%EF%B8%8F-i-14-scenari-di-validazione)
+6. [🚀 Avvio dell'infrastruttura](#-avvio-dellinfrastruttura)
+7. [👥 Autori e contesto accademico](#-autori-e-contesto-accademico)
 
 ---
 
-## 🔍 Panoramica del sistema
-Nelle reti tradizionali basate sul perimetro (*"castle-and-moat"*), l'intrusione all'interno della rete locale garantisce accesso illimitato alle risorse interne. Questo progetto neutralizza tale minaccia dividendo le risorse in aree segregate e ponendo all'ingresso un **Policy Enforcement Point (PEP)** rigido gestito da **Envoy Proxy**, coordinato con un **Policy Decision Point (PDP)** rappresentato da **Open Policy Agent (OPA)**.
+## 🔍 Panoramica del sistema e Threat Modeling
+Nelle reti tradizionali basate sul perimetro (*"castle-and-moat"*), l'intrusione all'interno della rete locale garantisce accesso illimitato alle risorse. Questo progetto implementa un modello a verifica continua basato su concetti di Threat Modeling quantitativo e metodologico:
 
-Ogni singola transazione viene validata controllando:
-- **identità forte**: certificati mTLS con crittografia asimmetrica.
-- **integrità hardware**: verifica dell'attestazione hardware del chip **TPM** (Trusted Platform Module).
-- **consistenza software**: fingerprinting **JA3** del browser per rilevare bot o manipolazioni di User-Agent.
-- **rischio comportamentale**: calcolato in tempo reale con algoritmi di machine learning (Gradient Boosting) su **Splunk SIEM**.
-- **analisi payload L7**: ispezione profonda dei verbi HTTP e delle query MongoDB per bloccare attacchi injection sul nascere.
+### Concetti Chiave di Threat Modeling
+*   **Asset ($O$)**: Risorse di valore da proteggere, tra cui il database MongoDB (*Data at Rest*), il traffico delle Web API (*Data in Transit*) e i dati sanitari dei pazienti. Ad ogni asset è associato un valore di **Impatto ($I$)** in caso di compromissione della triade CID (Confidenzialità, Integrità, Disponibilità).
+*   **Vulnerabilità ($V$)**: Debolezze intrinseche del sistema, come credenziali potenzialmente compromesse, dispositivi personali privi di modulo TPM, canali non cifrati o anomalie nei flussi operativi degli utenti.
+*   **Minacce ($T$)**: Agenti o eventi in grado di sfruttare le vulnerabilità $V$ per colpire gli asset $O$ (esfiltrazione dati, lateral movement, injection, bypass dei proxy).
 
----
+### Difesa in Profondità (Defense in Depth)
+1.  **Meccanismi di Prevenzione (*ex ante*)**: Cifratura mTLS forte, regole deterministiche OPA (PDP) ed Envoy Proxy (PEP).
+2.  **Meccanismi di Rilevamento (*ex post*)**: Analisi passiva e ispezione dei pacchetti con Snort NIDS, accoppiato con il monitoraggio e l'indicizzazione centralizzata su Splunk SIEM.
 
-## ⚙️ Flusso di verifica dinamico (animato)
-L'immagine vettoriale interattiva sottostante illustra graficamente il percorso dei pacchetti dati all'interno del nostro sistema ZTA: i tentativi di accesso validati fluiscono in verde fino al Secure Core, mentre i tentativi malevoli o non conformi vengono catturati ed espulsi al gateway con un verdetto di **DENY** immediato.
-
-![Dynamic ZTA Verification Flow](./docs/zta_verification_flow.svg)
+Il rischio complessivo viene modellato dinamicamente tramite la relazione:
+$$R = L \times I$$
+Dove **$L$ (Likelihood)** è calcolata continuamente in tempo reale basandosi sul **Trust Score** fornito da **Splunk MLTK** (tramite un modello predittivo *Gradient Boosting* su variabili comportamentali). Se il rischio $R$ supera la soglia di rischio accettabile $R_a$, scatta lo **Short-circuiting** logico ad opera del PEP (Envoy) o di `nftables`, bloccando immediatamente l'azione prima che possa raggiungere la risorsa.
 
 ---
 
 ## 🌐 Architettura e microsegmentazione
-La topologia di rete è strutturata in **quattro zone isolate** definite nel `docker-compose.yaml`. I client non possiedono alcuna via di instradamento diretto alle risorse protette, dovendo transitare obbligatoriamente per il canale cifrato controllato da Envoy.
+L'infrastruttura di rete è segmentata in **quattro zone isolate** definite all'interno del `docker-compose.yaml`. I client non possiedono vie di instradamento diretto alle risorse protette del Secure Core, dovendo transitare obbligatoriamente per il canale controllato e validato da Envoy.
 
-![Topologia di rete dell'infrastruttura](./docs/network_topology.svg)
+```mermaid
+graph TD
+    subgraph Rete Esterna [192.168.100.0/24]
+        Charlie[Client Esterno: Charlie]
+    end
 
+    subgraph Rete Interna DMZ [10.0.1.0/24]
+        Alice[Client Interno: Alice]
+        Bob[Client Interno: Bob]
+        FW[nftables Firewall]
+    end
 
+    subgraph Piano di Controllo [172.18.0.0/16]
+        OPA[Open Policy Agent - PDP]
+        Splunk[Splunk SIEM + MLTK]
+        Snort[Snort IDS]
+        Fluent[Fluent-Bit]
+    end
+
+    subgraph Risorse Protette Secure Core
+        API[Web API]
+        DB[(MongoDB)]
+    end
+
+    Charlie -->|mTLS| FW
+    Alice -->|mTLS| FW
+    Bob -->|mTLS| FW
+    FW -->|DNAT| Envoy[Envoy Proxy - PEP]
+    
+    Envoy -->|gRPC CheckRequest| OPA
+    OPA -->|ML Prediction Query| Splunk
+    Envoy -->|HTTP / TCP| API
+    API -->|TCP| DB
+    
+    FW -.->|Logs| Fluent
+    Envoy -.->|Logs| Fluent
+    Snort -.->|Alerts| Fluent
+    Fluent -.->|HEC| Splunk
+```
 
 ---
 
@@ -108,8 +139,8 @@ Per ogni richiesta, OPA valuta la tupla contestuale dinamica $T = (u, d, s, n, a
 1. **user ($u$)**: identità dell'utente autenticata via mTLS (`CN=employee-alice`).
 2. **device ($d$)**: postura del client. OPA cerca l'OID proprietario `1.3.6.1.4.1.9999.1` iniettato nel certificato tramite attestazione TPM.
 3. **software ($s$)**: hash del fingerprinting **JA3** calcolato da Envoy per garantire che il browser non sia emulato o compromesso.
-4. **network ($n$)**: subnet di provenienza (Internal `192.168.1.0/24` vs External `10.0.1.0/24`).
-5. **action ($a$)**: metodo di accesso applicativo (richieste `GET`/`POST` o query MongoDB `find`/`delete` ispezionate a livello L7).
+4. **network ($n$)**: subnet di provenienza (Internal `10.0.1.0/24` vs External `192.168.100.0/24`).
+5. **action ($a$)**: metodo di accesso applicativo (richieste `GET`/`POST`/`DELETE` o query MongoDB `find`/`delete` ispezionate a livello L7).
 6. **resource ($r$)**: endpoint o risorse target (es: `/api/patients`).
 7. **behavior ($b$)**: Trust Score comportamentale dinamico. Il valore è derivato dall'arricchimento del payload tramite le seguenti feature calcolate in tempo reale dall'API:
     * `failed_logins`: conteggio dei login falliti nelle ultime 24 ore.
@@ -119,106 +150,63 @@ Per ogni richiesta, OPA valuta la tupla contestuale dinamica $T = (u, d, s, n, a
     * `sensitivity_level`: livello di criticità della risorsa (scala 1-3).
     * `days_inactive`: indice di inattività storica dell'account.
 
-## 🛠️ Simulazione e validazione dei cinque scenari
-
-Di seguito sono dettagliati i cinque scenari operativi simulati all'interno della rete di test:
-
-| Scenario | Utente | Dispositivo | Rete | Azione / Payload | Esito OPA / Firewall | Logica di sicurezza |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1. Accesso legittimo** | Alice | Sicuro (TPM) | Interna | Ricerca pazienti | **ALLOW** | Risk score Splunk minimo ($\approx 9.96$), OPA autorizza l'accesso al DB. |
-| **2. Dispositivo BYOD** | Bob | Personale (No TPM) | Interna | Autenticazione | **DENY** | Mancanza di attestazione TPM. Blocco immediato al login. |
-| **3. Accesso da esterno** | Charlie | Sicuro (TPM) | Esterna | Autenticazione | **DENY** | Blocco preventivo dovuto alla localizzazione di rete non protetta. |
-| **4. Bypass di rete L4** | Charlie | - | Esterna | Connessione diretta DB | **DROP (Firewall)** | `nftables` scarta i pacchetti diretti su porta `8000`. Snort allerta il SIEM. |
-| **5. Injection L7** | Alice | Sicuro (TPM) | Interna | `DROP` / `DELETE` | **DENY (Envoy L7)** | Rilevamento payload malevolo a livello L7 tramite `mongo_proxy`. |
-
 ---
 
-### 📂 Dettagli tecnici degli scenari ed evidenze grafiche
+## 🛠️ I 14 Scenari di Validazione
+Di seguito sono descritti i 14 scenari operativi simulati all'interno della rete di test:
 
-<details>
-<summary><b>🟢 Scenario 1: accesso legittimo di Alice</b></summary>
+### Layer 1: Identità Crittografica & Trasporto (mTLS Envoy)
+*   **Scenario 1: Connessione senza certificato client**
+    *   *Descrizione*: Un client tenta di connettersi alle API senza fornire alcun certificato.
+    *   *Esito*: **DENY (TLS alert)**. Envoy rileva la mancanza del certificato client e interrompe l'handshake in modo preventivo (`alert certificate required`), azzerando l'overhead per il resto del sistema.
+*   **Scenario 2: Certificato non firmato dalla CA**
+    *   *Descrizione*: Un attaccante tenta di autenticarsi con un certificato self-signed.
+    *   *Esito*: **DENY (TLS alert)**. Envoy verifica la catena di fiducia e rigetta la connessione (`alert unknown ca`).
 
-* **descrizione**: l'utente Alice si connette dalla workstation ospedaliera interna dotata di chip TPM. 
-* **flusso**: mTLS handshake OK $\rightarrow$ TPM check OK $\rightarrow$ Splunk risk score OK ($\approx 9.96 \le 50$) $\rightarrow$ Accesso consentito.
-* **risultati**: Alice visualizza correttamente le informazioni cliniche dei pazienti.
-* **evidenze**:
-  
-  *Schermata del portale di login ospedaliero:*
-  ![Login Page](relazione/capitolo4/img/login_page.png)
-  
-  *Portale pazienti sbloccato con successo:*
-  ![Alice Dashboard](relazione/capitolo4/img/alice_dashboard.png)
-  
-  *Log di autorizzazione OPA indicizzato in Splunk:*
-  ![Splunk Alice Allowed](relazione/capitolo4/img/splunk_alice_allowed.png)
+### Layer 2: Microsegmentazione L3/L4 (nftables)
+*   **Scenario 3: Tentativo di bypass L4**
+    *   *Descrizione*: Un client esterno prova a bypassare Envoy e collegarsi direttamente alle porte delle API (`8000`) o del DB (`27017`).
+    *   *Esito*: **DROP (Firewall)**. Il firewall `nftables` applica una regola di drop silenzioso. Snort genera un allarme e Fluent-Bit invia i log `[NFT-BLOCK]` a Splunk per il monitoraggio.
 
-</details>
+### Layer 4-7: Policy Zero Trust (Envoy + OPA + Splunk MLTK)
+*   **Scenario 4: Accesso legittimo da rete interna (Alice)**
+    *   *Descrizione*: Alice accede dalla rete aziendale ospedaliera con PC dotato di TPM.
+    *   *Esito*: **ALLOW**. mTLS valido, TPM presente, risk score Splunk minimo ($\approx 1$). Accesso consentito.
+*   **Scenario 5: Blocco login per mancanza TPM (Bob)**
+    *   *Descrizione*: Bob tenta l'accesso con credenziali corrette ma da un computer personale senza TPM.
+    *   *Esito*: **DENY (OPA)**. OPA rileva l'assenza del TPM (`tpm_present: false`) ed effettua short-circuit restituendo HTTP 403 Forbidden.
+*   **Scenario 6: Accesso legittimo da rete esterna (Charlie)**
+    *   *Descrizione*: Charlie si connette da remoto per smart working usando il laptop aziendale (con TPM).
+    *   *Esito*: **ALLOW**. Il modello ML calcola un rischio basso ($17.7$), inferiore alla soglia consentita per gli utenti remoti ($26$).
+*   **Scenario 7: Accesso dati sensibili da interna (Alice)**
+    *   *Descrizione*: Alice richiede l'accesso a note cliniche riservate (`/api/patients/sensitive`).
+    *   *Esito*: **ALLOW**. Essendo in un contesto a massima fiducia (interna, TPM, no anomalie), l'accesso è concesso.
+*   **Scenario 8: Accesso dati sensibili da esterna (Charlie)**
+    *   *Descrizione*: Charlie prova ad accedere allo stesso endpoint sensibile da remoto.
+    *   *Esito*: **DENY (OPA L7)**. OPA nega l'autorizzazione a livello L7 per via delle restrizioni di smart working (`l7_dpi_block: true`).
+*   **Scenario 9: Accesso TCP diretto al database (Alice vs Bob)**
+    *   *Descrizione*: Connessione TCP al database nativo su porta Envoy `27017` tramite script `pymongo`.
+    *   *Esito*: **ALLOW** per Alice (TPM presente), **DENY (Connection Closed)** per Bob (TPM assente).
+*   **Scenario 10: Protezione da payload dannosi L7**
+    *   *Descrizione*: Alice tenta una query distruttiva (metodo `DELETE`) su `/api/patients`.
+    *   *Esito*: **DENY (OPA L7)**. Envoy blocca la richiesta a livello L7 e restituisce un errore HTTP 403.
+*   **Scenario 11: Compromissione del dispositivo e blocco comportamentale**
+    *   *Descrizione*: Un attaccante ruba il PC di Alice (TPM e certificati validi) e tenta di accedere direttamente al DB MongoDB. Il modulo PIP inietta le metriche anomale (60 giorni di inattività, orario notturno, alta frequenza sessione).
+    *   *Esito*: **DENY (OPA)**. Il modello ML Splunk rileva le anomalie calcolando un rischio estremo ($95.49 > 38$). OPA scatta bloccando la connessione TCP.
 
-<details>
-<summary><b>🔴 Scenario 2: dispositivo BYOD non autorizzato (Bob)</b></summary>
-
-* **descrizione**: Bob tenta l'accesso usando credenziali valide ma dal proprio portatile personale (privo del chip TPM aziendale).
-* **flusso**: mTLS handshake $\rightarrow$ OPA rileva `tpm_present: false` $\rightarrow$ Blocco al login.
-* **risultati**: Bob riceve un errore HTTP 403 Forbidden e non può accedere a nessuna sessione.
-* **logica chiave**: nonostante il rischio comportamentale stimato da Splunk sia bassissimo ($\approx 5.5$), l'assenza di TPM agisce come vincolo rigido non compensabile, determinando il verdetto di **DENY**.
-* **evidenze**:
-  
-  *Schermata di blocco visualizzata da Bob:*
-  ![Bob Blocked](relazione/capitolo4/img/bob_blocked.png)
-  
-  *Log di blocco Splunk (evidenziata la mancanza di TPM):*
-  ![Splunk Bob Blocked](relazione/capitolo4/img/splunk_bob_blocked.png)
-
-</details>
-
-<details>
-<summary><b>🟡 Scenario 3: accesso da rete esterna (Charlie)</b></summary>
-
-* **descrizione**: Charlie tenta di collegarsi da casa (rete esterna/Smart Working) usando il suo laptop aziendale sicuro con TPM.
-* **flusso**: mTLS handshake $\rightarrow$ OPA rileva `network_internal: false` $\rightarrow$ Blocco preventivo.
-* **risultati**: Charlie viene bloccato al portale di login a causa delle politiche di restrizione geografica/IP.
-* **evidenze**:
-  
-  *Schermata di blocco visualizzata da Charlie:*
-  ![Charlie Blocked](relazione/capitolo4/img/charlie_blocked.png)
-  
-  *Log Splunk (blocco dovuto a network non interna):*
-  ![Splunk Charlie Blocked](relazione/capitolo4/img/splunk_charlie_blocked.png)
-
-</details>
-
-<details>
-<summary><b>💥 Scenario 4: tentativo di bypass di rete a livello L4</b></summary>
-
-* **descrizione**: un attaccante tenta di bypassare Envoy (PEP) provando a inviare query dirette alla porta interna delle API (`8000`) o del DB (`27017`).
-* **flusso**: il client Charlie esegue un curl diretto $\rightarrow$ `nftables` intercetta il traffico anomalo $\rightarrow$ Regola `DROP` applicata $\rightarrow$ La sonda Snort NIDS rileva l'attività e allerta il SIEM $\rightarrow$ IP isolato permanentemente in denylist.
-* **comandi di test**:
-  ```bash
-  docker exec -it zta-client-charlie curl -v --connect-timeout 3 http://zta-firewall:8000/api/patients
-  ```
-* **risultati**: connessione in timeout immediato. Il traffico anomalo viene scartato silenziosamente.
-* **evidenze**:
-  
-  *Visualizzazione dei log di blocco nftables indicizzati in tempo reale in Splunk:*
-  ![Splunk Logs](relazione/capitolo4/img/splunk_logs.png)
-
-</details>
-
-<details>
-<summary><b>🛑 Scenario 5: ispezione e blocco di payload dannosi L7</b></summary>
-
-* **descrizione**: Alice (compromessa o malintenzionata) tenta di inviare una query distruttiva (ad es. query di cancellazione MongoDB come `DROP` o `DELETE`) tramite la barra di ricerca.
-* **flusso**: Envoy intercetta la richiesta L7 $\rightarrow$ Il filtro `mongo_proxy` inoltra il payload ad OPA $\rightarrow$ OPA individua le chiavi proibite nel corpo della richiesta $\rightarrow$ Verdetto **DENY L7** $\rightarrow$ MongoDB protetto.
-* **risultati**: l'attacco injection fallisce immediatamente e ad Alice viene mostrato un errore HTTP 403 Forbidden.
-* **evidenze**:
-  
-  *Schermata di errore injection intercettata a livello applicativo:*
-  ![Alice SQL Blocked](relazione/capitolo4/img/alice_sql_blocked.png)
-  
-  *Log di blocco L7 in Splunk (intercettazione chiamata DELETE/DROP):*
-  ![Splunk Alice Blocked](relazione/capitolo4/img/splunk_alice_blocked.png)
-
-</details>
+### Layer NIDS: Monitoraggio Perimetrale (Snort)
+*   **Scenario 12: Rilevamento scansione di rete attiva (Nmap)**
+    *   *Descrizione*: Un utente effettua una scansione dei servizi tramite `nmap -sV` verso Envoy.
+    *   *Esito*: **DETECTION**. Snort rileva la scansione SYN e invia un alert a Splunk (sid: 1000001).
+*   **Scenario 13: Audit delle connessioni native MongoDB**
+    *   *Descrizione*: Tentativo di connessione diretta al database nativo bypassando le API.
+    *   *Esito*: **DETECTION**. Snort traccia l'accesso non standard alla porta `27017` (sid: 1000002).
+*   **Scenario 14: Rilevamento attacchi volumetrici (DoS)**
+    *   *Descrizione*: Simulazione di attacco DoS SYN Flood verso la porta mTLS di Envoy.
+    *   *Esito*: **DETECTION**. Snort rileva l'attacco al superamento delle soglie temporali ed allerta il SIEM (sid: 1000003).
+*   **Scenario 15: Rilevamento attacco di downgrade (traffico in chiaro)**
+    *   *Descrizione*: Invio di richieste HTTP non cifrate sulla porta protetta.
+    *   *Esito*: **DETECTION**. Snort allerta per traffico HTTP in chiaro su porta TLS (sid: 1000004).
 
 ---
 
@@ -244,7 +232,7 @@ Di seguito sono dettagliati i cinque scenari operativi simulati all'interno dell
    ```
 
 ### Accessi di test
-- **portale web (login)**: `http://localhost:8081` `http://localhost:8082` e `http://localhost:8083`(per simulare i client Alice, Bob, Charlie).
+- **portale web (login)**: `http://localhost:8081`, `http://localhost:8082` e `http://localhost:8083` (per simulare i client Alice, Bob, Charlie).
 - **console Splunk Enterprise**: `http://localhost:8000` (user: `admin`, password configurata in `.env`).
 - **Open Policy Agent (regole API)**: `http://localhost:8181/v1/policies`
 
@@ -256,33 +244,8 @@ Di seguito sono dettagliati i cinque scenari operativi simulati all'interno dell
 * **Ateneo**: Università Politecnica delle Marche (UNIVPM)
 * **Docente**: Prof. Luca Spalazzi
 
-<table align="center">
-  <thead>
-    <tr>
-      <th align="center">Avatar</th>
-      <th align="left">Candidato</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center"><img src="https://github.com/ndreeeee.png" width="50" style="border-radius:50%"></td>
-      <td align="left"><b>Andrea Flaiani</b> (Matr. 1126928)</td>
-    </tr>
-    <tr>
-      <td align="center"><img src="https://ui-avatars.com/api/?name=Andrea+Altieri&background=0D8ABC&color=fff&rounded=true" width="50"></td>
-      <td align="left"><b>Andrea Altieri</b> (Matr. 1128865)</td>
-    </tr>
-    <tr>
-      <td align="center"><img src="https://ui-avatars.com/api/?name=Niccolo+de+Pascali&background=1abc9c&color=fff&rounded=true" width="50"></td>
-      <td align="left"><b>Niccolò de Pascali</b> (Matr. 1123958)</td>
-    </tr>
-    <tr>
-      <td align="center"><img src="https://ui-avatars.com/api/?name=Matteo+Risolo&background=2ecc71&color=fff&rounded=true" width="50"></td>
-      <td align="left"><b>Matteo Risolo</b> (Matr. 1122743)</td>
-    </tr>
-    <tr>
-      <td align="center"><img src="https://ui-avatars.com/api/?name=Simone+Murazzo&background=9b59b6&color=fff&rounded=true" width="50"></td>
-      <td align="left"><b>Simone Murazzo</b> (Matr. 1113295)</td>
-    </tr>
-  </tbody>
-</table>
+*   **Andrea Flaiani** (Matr. 1126928)
+*   **Andrea Altieri** (Matr. 1128865)
+*   **Niccolò de Pascali** (Matr. 1123958)
+*   **Matteo Risolo** (Matr. 1122743)
+*   **Simone Murazzo** (Matr. 1113295)
