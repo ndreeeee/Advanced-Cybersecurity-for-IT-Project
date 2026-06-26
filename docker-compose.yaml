@@ -82,6 +82,7 @@ services:
     depends_on:
       - envoy-pep  # FONDAMENTALE: il namespace di rete di Envoy deve esistere prima
     network_mode: "service:envoy-pep"
+    
 
   # 5b. DECISION MAKER (OPA) — ext_authz gRPC + http.send verso Splunk
   opa-pdp:

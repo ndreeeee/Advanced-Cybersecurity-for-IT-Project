@@ -15,7 +15,3 @@ alert tcp any any -> any 8443 (msg:"ZTA ALERT: Anomalia volumetrica (Possibile D
 # 4. Rileva un tentativo di connessione in chiaro (Downgrade Attack HTTP)
 # Se qualcuno cerca di usare HTTP normale invece di HTTPS, cerchiamo il metodo "GET " in chiaro
 alert tcp any any -> any 8443 (msg:"ZTA ALERT: Tentativo di traffico in chiaro su porta protetta (Downgrade/Misconfig)"; flow:established,to_server; content:"GET "; depth:4; sid:1000004; rev:1;)
-
-# 5. Rileva tentativi ripetuti di connessione (Possibile Brute-Force del Certificato mTLS)
-# (Molteplici handshake falliti generano reset/fin rapidi)
-alert tcp any any -> any 8443 (msg:"ZTA ALERT: Eccessivi tentativi di connessione (Possibile assenza di Certificato Client)"; flags:R; threshold:type both, track by_src, count 15, seconds 10; sid:1000005; rev:1;)

@@ -1,14 +1,9 @@
 #!/bin/bash
-echo "Avvio di Snort IDS in modalità Cloud-Native (Zero Trust)..."
-
-# Creiamo la cartella dei log nel caso non esista, per evitare crash
+echo "Avvio di Snort su eth2 (rete esterna Charlie 192.168.100.0/24)..."
 mkdir -p /var/log/snort
-
-# Puliamo eventuali vecchi "file lucchetto" di esecuzioni precedenti
-rm -f /var/run/snort_eth0.pid
-
-# Avviamo Snort
-# -i eth0 : Ascolta sull'interfaccia principale (che abbiamo attaccato a Envoy)
-# -c      : Usa il file di configurazione base
-# -l      : Scrivi i file di log nella cartella condivisa con Fluent Bit!
-exec snort -i eth0 -c /opt/etc/snort.conf -l /var/log/snort
+ 
+# -A fast: scrive alert leggibili in /var/log/snort/alert
+# -l /var/log/snort: cartella di output
+# -i eth2: interfaccia rete esterna (Charlie)
+# -k none: disabilita checksum validation (necessario in ambiente Docker)
+exec snort -q -i eth2 -c /opt/etc/snort.conf -l /var/log/snort -A fast -k none
