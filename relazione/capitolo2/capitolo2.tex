@@ -102,41 +102,43 @@ La sicurezza dell'infrastruttura si basa sul principio della \textbf{microsegmen
 
     % ==================== FRECCE DATI (solide) ====================
 
-    % Tutti i client → Firewall (tutte le frecce finiscono sullo stesso punto: fw.west)
-    \draw[arr] (charlie.east) -- node[above, lbl, color=copper]{mTLS} (fw.west);
+    % Tutti i client → Firewall
+    \draw[arr] (charlie.east) -- node[above, lbl, color=copper]{TCP 8443/27017} (fw.west);
     \draw[arr] (alice.east)   -- node[above, lbl, pos=0.5, color=terracotta]{mTLS+TPM} (fw.west);
     \draw[arr] (bob.east)     -- node[below, lbl, pos=0.5, color=terracotta]{mTLS} (fw.west);
 
     % Firewall → PEP
-    \draw[arr] (fw.east) -- node[above, lbl, color=copper]{DNAT} (pep.west);
+    \draw[arr] (fw.east) -- node[above, lbl, color=copper]{DNAT L4} (pep.west);
 
-    % PEP → Backend (frecce partono dallo stesso punto: pep.east)
-    \draw[arr] (pep.east) -- node[above, lbl, pos=0.5, color=sand]{HTTP} (webapi.west);
-    \draw[arr] (webapi.south) -- node[right, lbl, color=sand]{TCP} (mongodb.north);
+    % PEP → Backend (BIFORCAZIONE: come nella prima immagine)
+    \draw[arr] (pep.east) -- node[above, lbl, sloped, color=sand]{TCP 8443} (webapi.west);
+    \draw[arr] (pep.east) -- node[below, lbl, sloped, color=sand]{TCP 27017} (mongodb.west);
+    
+    % Web API -> MongoDB
+    \draw[arr] (webapi.south) -- node[right, lbl, color=sand]{TCP 27017} (mongodb.north);
 
-    % Firewall → Snort (L-shape: giù poi a sinistra)
-    \draw[arr] (fw.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=textmuted]{DPI} (snort.north);
+    % Firewall → Snort
+    \draw[arr] (fw.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=textmuted]{L2 Mirror / DPI} (snort.north);
 
-    % PEP → OPA (L-shape: giù poi a destra, nel gap fra data e control plane)
-    \draw[arr] (pep.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=textmuted]{gRPC} (opa.north);
+    % PEP → OPA
+    \draw[arr] (pep.south) -- ++(0,-2.5) -| node[pos=0.2, above, lbl, color=textmuted]{ext\_authz gRPC} (opa.north);
 
-    % OPA → Splunk (L-shape sotto, passa sotto Fluent-Bit senza incrociarlo)
-    \draw[arr] (opa.south) -- ++(0,-1.4) -| node[pos=0.5, above, lbl, color=textmuted]{Query Risk} (splunk.south);
+    % OPA → Splunk
+    \draw[arr] (opa.south) -- ++(0,-1.4) -| node[pos=0.5, above, lbl, color=textmuted]{REST API (ML)} (splunk.south);
 
-    % ==================== TELEMETRIA (Frecce Eleganti e Curve → Fluent-Bit) ====================
-    % Frecce curve e fluide che confluiscono armoniosamente tutte in un unico punto: fluentbit.north
+    % ==================== TELEMETRIA ====================
 
     \draw[darr] (fw.south)      to [bend right=15] node[right, lbl, pos=0.7, color=textmuted]{Log} (fluentbit.north);
-    \draw[darr] (snort.east)    to [bend left=15]  node[above, lbl, pos=0.5, color=textmuted]{Log} (fluentbit.north);
+    \draw[darr] (snort.east)    to [bend left=15]  node[above, lbl, pos=0.5, color=textmuted]{Alerts} (fluentbit.north);
     \draw[darr] (pep.south)     to [bend left=10]  node[right, lbl, pos=0.6, color=textmuted]{Log} (fluentbit.north);
-    \draw[darr] (mongodb.south) to [bend left=15]  node[left, lbl, pos=0.4, color=textmuted]{Log}  (fluentbit.north);
+    \draw[darr] (mongodb.south) to [bend left=15]  node[left, lbl, pos=0.4, color=textmuted]{Audit}  (fluentbit.north);
 
-    % Fluent-Bit → Splunk (da destra a sinistra)
-    \draw[darr] (fluentbit.west) -- node[above, lbl, color=cream]{Inoltro Log} (splunk.east);
+    % Fluent-Bit → Splunk
+    \draw[darr] (fluentbit.west) -- node[above, lbl, color=textmuted]{HEC (Inoltro Log)} (splunk.east);
 
 \end{tikzpicture}%
 }
-\caption{Topologia di rete dell'infrastruttura Zero Trust con flussi logici e di telemetria.}
+\caption{Topologia di rete dell'infrastruttura Zero Trust con flussi logici (inclusa l'ispezione diretta Envoy-MongoDB) e canali di telemetria.}
 \label{fig:microsegmentazione_reti}
 \end{figure}
 
