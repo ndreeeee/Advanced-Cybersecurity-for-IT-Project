@@ -1,0 +1,2919 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zero Trust Architecture 2026 — Presentazione Tecnica Completa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-page:#1C1A1B; --bg-white:#282526; --bg-card2:#2E2A2B;
+  --border:rgba(255,255,255,0.08); --border-strong:rgba(255,255,255,0.18);
+  --text-heading:#FFFFFF; --text-body:#D2CAC5; --text-muted:#9C9490;
+  --accent-copper:#B0604F; --accent-terracotta:#CD8770; --accent-sand:#E6BA92; --accent-cream:#F7DEBE;
+  --status-green:#71A078; --status-red:#BC6363; --status-amber:#D19E5F; --status-blue:#658FAF;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;scroll-snap-type:y mandatory;}
+body{font-family:'Inter',sans-serif;background:var(--bg-page);color:var(--text-body);overflow-x:hidden;line-height:1.6;-webkit-font-smoothing:antialiased;font-size:21px;}
+code,.code-block,.pill,.slide-number,.bar-fill{font-family:'JetBrains Mono',monospace;}
+
+.bg-cover{background-image:linear-gradient(rgba(18,17,17,0.90),rgba(18,17,17,0.95)),url('https://images.unsplash.com/photo-1614064641938-3bbee52942c7?auto=format&fit=crop&w=1920&q=80');background-size:cover;background-position:center;background-attachment:fixed;}
+.bg-net{background-image:linear-gradient(rgba(18,17,17,0.93),rgba(18,17,17,0.96)),url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1920&q=80');background-size:cover;background-position:center;background-attachment:fixed;}
+.bg-log{background-image:linear-gradient(rgba(18,17,17,0.95),rgba(18,17,17,0.97)),url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1920&q=80');background-size:cover;background-position:center;background-attachment:fixed;}
+
+#progress-bar{position:fixed;top:0;left:0;height:4px;background:var(--accent-copper);width:0%;z-index:1001;transition:width .1s ease-out;}
+.slide{min-height:100vh;max-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:4vh 5vw;position:relative;overflow-y:auto;overflow-x:hidden;scroll-snap-align:start;scroll-snap-stop:always;}
+.slide-number{position:absolute;bottom:20px;right:70px;font-size:13px;color:var(--text-muted);}
+.top-logo{position:absolute;top:20px;right:70px;font-size:12px;font-weight:800;letter-spacing:3px;color:var(--accent-terracotta);}
+.chapter-tag{position:absolute;top:20px;left:5vw;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;}
+
+.slide-header{margin-bottom:18px;}
+h1{font-size:clamp(3rem,4.5vw,4.2rem);font-weight:800;letter-spacing:-1.5px;line-height:1.08;color:var(--text-heading);}
+h2{font-size:clamp(2rem,3vw,2.8rem);font-weight:750;letter-spacing:-0.6px;color:var(--text-heading);margin-bottom:10px;}
+.eyebrow{font-size:0.95rem;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;color:var(--accent-sand);margin-bottom:10px;display:block;}
+.subtitle{font-size:1.3rem;font-weight:400;color:var(--text-body);max-width:1000px;}
+.slide-divider{border:0;height:2px;background:var(--border-strong);margin-top:14px;margin-bottom:20px;width:100%;}
+h3{font-size:1.35rem;font-weight:650;color:var(--text-heading);margin-bottom:10px;}
+p,li{font-size:1.15rem;line-height:1.6;}
+
+.card{background:var(--bg-white);border:1px solid var(--border);padding:22px 26px;border-radius:12px;}
+.card2{background:var(--bg-card2);}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:24px;width:100%;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;width:100%;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;width:100%;}
+.grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:15px;width:100%;}
+
+.code-block{background:#131213;border:1px solid var(--border-strong);border-left:4px solid var(--accent-copper);padding:20px 24px;border-radius:12px;font-size:1.05rem;line-height:1.8;overflow-x:auto;position:relative;color:#E1D9D3;white-space:pre;}
+.code-block .code-label{position:absolute;top:0;right:0;font-size:0.75rem;letter-spacing:1px;color:var(--text-muted);background:var(--bg-white);padding:6px 14px;border-bottom-left-radius:12px;border-left:1px solid var(--border-strong);border-bottom:1px solid var(--border-strong);}
+.kw{color:#E6BA92;font-weight:600;}.fn{color:#F7DEBE;}.str{color:#98CBA6;}.cm{color:#877F79;font-style:italic;}.num{color:#F2CC94;font-weight:600;}.op,.var{color:#F5EFEA;}
+code{background:var(--bg-white);padding:3px 8px;border:1px solid var(--border);border-radius:6px;color:var(--accent-cream);font-size:0.95em;}
+
+.tag{display:inline-block;padding:5px 14px;font-size:0.8rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:var(--border-strong);color:var(--text-heading);border-radius:20px;}
+.icon-badge{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;font-size:0.9rem;font-weight:600;border:1px solid var(--border-strong);background:var(--bg-white);color:var(--text-heading);border-radius:20px;}
+
+/* Placeholder Box Visuale (Stile Richiesto) */
+.visual-box {
+  background: var(--bg-card2);
+  border: 2px dashed var(--accent-copper);
+  border-radius: 12px;
+  min-height: 380px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.2rem;
+  text-align: center;
+  padding: 2rem;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  flex-grow: 1;
+}
+.visual-box span {
+  display: block;
+  margin-bottom: 1rem;
+  color: var(--accent-copper);
+  font-family: 'Inter', sans-serif;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+
+.data-table{width:100%;border-collapse:collapse;font-size:1.1rem;}
+.data-table th{padding:14px 20px;text-align:left;font-weight:700;font-size:0.95rem;letter-spacing:1px;text-transform:uppercase;color:#FFF;background:var(--accent-copper);border-bottom:2px solid var(--accent-copper);}
+.data-table td{padding:14px 20px;border-bottom:1px solid var(--border-strong);color:var(--text-body);}
+.data-table tr:nth-child(even) td{background:rgba(255,255,255,0.03);}
+
+.pill{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;font-size:0.8rem;font-weight:700;text-transform:uppercase;border-radius:6px;}
+.pill-green{background:rgba(113,160,120,0.2);color:#B7D6BB;border:1px solid var(--status-green);}
+.pill-amber{background:rgba(209,158,95,0.2);color:#ECCB9C;border:1px solid var(--status-amber);}
+.pill-red{background:rgba(188,99,99,0.2);color:#EBB3B3;border:1px solid var(--status-red);}
+.pill-blue{background:rgba(101,143,175,0.2);color:#BAD6E9;border:1px solid var(--status-blue);}
+
+ul.feature-list,ul.check-list{list-style:none;padding:0;}
+ul.feature-list li,ul.check-list li{padding:6px 0;padding-left:28px;position:relative;font-size:1.15rem;}
+ul.feature-list li::before{content:'';position:absolute;left:4px;top:15px;width:7px;height:7px;background:var(--accent-sand);border-radius:50%;}
+ul.check-list li::before{content:'✓';position:absolute;left:2px;top:2px;color:var(--accent-terracotta);font-weight:900;font-size:1.3rem;}
+
+.dots-nav{position:fixed;right:16px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px;z-index:1000;max-height:90vh;overflow-y:auto;padding:6px;scrollbar-width:none;}
+.dots-nav::-webkit-scrollbar{display:none;}
+.dot{width:8px;height:8px;background:var(--border-strong);border-radius:50%;transition:all .3s;cursor:pointer;position:relative;flex-shrink:0;}
+.dot:hover{background:var(--accent-sand);transform:scale(1.6);}
+.dot.active{background:var(--accent-copper);transform:scale(1.6);}
+.dot::after{content:attr(title);position:absolute;right:20px;top:50%;transform:translateY(-50%);background:var(--bg-white);color:var(--text-body);padding:4px 12px;font-size:12px;border:1px solid var(--border);border-radius:6px;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap;font-weight:600;}
+.dot:hover::after{opacity:1;}
+
+.animate-in-up{opacity:0;transform:translateY(20px);transition:opacity .6s cubic-bezier(.16,1,.3,1),transform .6s cubic-bezier(.16,1,.3,1);}
+.animate-in-up.visible{opacity:1;transform:translateY(0);}
+
+.flow-box{background:var(--bg-white);border:2px solid var(--border-strong);border-radius:10px;padding:16px 20px;text-align:center;font-size:1.1rem;font-weight:700;color:var(--text-heading);}
+.flow-arrow{color:var(--accent-sand);font-size:1.5rem;text-align:center;}
+.net-box{border-radius:10px;padding:18px;border:2px solid var(--border-strong);}
+.zone-external{background:rgba(188,99,99,0.1);border-color:var(--status-red);}
+.zone-frontend{background:rgba(209,158,95,0.1);border-color:var(--status-amber);}
+.zone-backend{background:rgba(113,160,120,0.1);border-color:var(--status-green);}
+.zone-control{background:rgba(101,143,175,0.1);border-color:var(--status-blue);}
+
+.formula-box{background:#131213;border:2px dashed var(--accent-copper);border-radius:12px;padding:24px 30px;font-family:'JetBrains Mono',monospace;font-size:1.6rem;color:var(--accent-cream);text-align:center;margin:20px auto;box-shadow:0 10px 25px rgba(0,0,0,0.5);font-weight:700;}
+.card .formula-box{font-size:1.25rem;padding:15px;margin:10px 0;border-width:1px;}
+
+.scroll-note{position:fixed;bottom:12px;left:24px;font-size:13px;color:var(--text-muted);z-index:999;letter-spacing:1px;font-weight:600;}
+
+.bar-chart{display:flex;flex-direction:column;gap:16px;}
+.bar-row{display:flex;align-items:center;gap:16px;}
+.bar-label{flex:0 0 180px;font-size:1.05rem;font-weight:600;color:var(--text-heading);text-align:right;}
+.bar-track{flex:1;height:28px;background:var(--bg-page);border:1px solid var(--border-strong);border-radius:14px;overflow:hidden;}
+.bar-fill{height:100%;display:flex;align-items:center;justify-content:flex-end;padding-right:12px;font-size:0.85rem;font-weight:700;color:#1C1A1B;transition:width 1s ease-out;width:0%;}
+.fill-copper{background:var(--accent-copper); color:#fff;}
+.fill-terracotta{background:var(--accent-terracotta); color:#241716;}
+.fill-sand{background:var(--accent-sand);}
+.fill-cream{background:var(--accent-cream);}
+.fill-red{background:var(--status-red); color:#fff;}
+
+.timeline-wrap{position:relative;padding:40px 10px 10px;}
+.timeline-line{position:absolute;top:50%;left:0;right:0;height:3px;background:var(--border-strong);}
+.timeline-nodes{display:flex;justify-content:space-between;position:relative;}
+.t-node{flex:1;text-align:center;position:relative;}
+.t-dot{width:18px;height:18px;border-radius:50%;background:var(--accent-copper);border:4px solid var(--bg-page);margin:0 auto;position:relative;z-index:2;}
+.t-title{font-size:1.1rem;font-weight:700;color:var(--text-heading);margin-top:12px;}
+.t-sub{font-size:0.95rem;color:var(--text-muted);margin-top:4px;}
+
+@media (max-width:1024px){.slide{padding:30px 40px;}.grid-2,.grid-3,.grid-4,.grid-5{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+<div class="scroll-note">↑ ↓ per navigare</div>
+
+<nav class="dots-nav" id="navbar">
+<a href="#s0" title="00 · Copertina" class="dot"></a>
+<a href="#s1" title="00 · Executive Summary" class="dot"></a>
+<a href="#s2" title="00 · Indice" class="dot"></a>
+<a href="#s3" title="1.1 · Protezione dati" class="dot"></a>
+<a href="#s4" title="1.2 · Filosofia ZT" class="dot"></a>
+<a href="#s5" title="1.3 · Caso di studio" class="dot"></a>
+<a href="#s6" title="1.4 · Obiettivi progetto" class="dot"></a>
+<a href="#s7" title="2.1 · Threat modeling" class="dot"></a>
+<a href="#s8" title="2.1 · Defense in depth" class="dot"></a>
+<a href="#s9" title="2.2 · Le 4 reti" class="dot"></a>
+<a href="#s10" title="2.2 · Topologia" class="dot"></a>
+<a href="#s11" title="2.3 · Envoy choke-point" class="dot"></a>
+<a href="#s12" title="2.4 · ZTA 6D" class="dot"></a>
+<a href="#s13" title="2.5 · Container" class="dot"></a>
+<a href="#s14" title="2.6 · MongoDB" class="dot"></a>
+<a href="#s15" title="2.7 · Web API & PIP" class="dot"></a>
+<a href="#s16" title="2.7 · Portale client" class="dot"></a>
+<a href="#s17" title="3.2 · Catena filtri" class="dot"></a>
+<a href="#s18" title="3.2 · Envoy listener DB" class="dot"></a>
+<a href="#s19" title="3.2 · Envoy listener HTTP" class="dot"></a>
+<a href="#s20" title="3.3 · ABAC/HRU" class="dot"></a>
+<a href="#s21" title="3.3 · Policy 1&2" class="dot"></a>
+<a href="#s22" title="3.3 · Policy 3&4" class="dot"></a>
+<a href="#s23" title="3.4 · OPA + MLTK" class="dot"></a>
+<a href="#s24" title="3.4 · DPI L7 due livelli" class="dot"></a>
+<a href="#s25" title="3.5 · nftables config" class="dot"></a>
+<a href="#s26" title="3.5 · nftables flusso" class="dot"></a>
+<a href="#s27" title="3.6.1 · mTLS & PKI" class="dot"></a>
+<a href="#s28" title="3.6.2 · TPM" class="dot"></a>
+<a href="#s29" title="3.6.3 · JA3" class="dot"></a>
+<a href="#s30" title="3.7 · Snort" class="dot"></a>
+<a href="#s31" title="3.8 · Fluent-Bit" class="dot"></a>
+<a href="#s32" title="3.9.1 · Feature comportamentali" class="dot"></a>
+<a href="#s33" title="3.9.2 · Dataset & formula" class="dot"></a>
+<a href="#s34" title="3.9.2 · Rischio Infra" class="dot"></a>
+<a href="#s35" title="3.9.2 · Rischio Comp" class="dot"></a>
+<a href="#s36" title="3.9.2 · Sensibilità & Noise" class="dot"></a>
+<a href="#s37" title="3.9.3 · GB vs RF" class="dot"></a>
+<a href="#s38" title="3.9.4 · Training" class="dot"></a>
+<a href="#s39" title="4 · Overview scenari" class="dot"></a>
+<a href="#s40" title="4.1 · Scenario 1" class="dot"></a>
+<a href="#s41" title="4.2 · Scenario 2" class="dot"></a>
+<a href="#s42" title="4.3 · Scenario 3" class="dot"></a>
+<a href="#s43" title="4.4 · Scenario 4" class="dot"></a>
+<a href="#s44" title="4.5 · Scenario 5" class="dot"></a>
+<a href="#s45" title="4.6 · Scenario 6" class="dot"></a>
+<a href="#s46" title="4.7-4.8 · Dati sensibili" class="dot"></a>
+<a href="#s47" title="4.9 · Scenario 9" class="dot"></a>
+<a href="#s48" title="4.10 · Scenario 10" class="dot"></a>
+<a href="#s49" title="4.10.1 · Insider Threat" class="dot"></a>
+<a href="#s50" title="4.11-4.12 · Detection I" class="dot"></a>
+<a href="#s51" title="4.13-4.14 · Detection II" class="dot"></a>
+<a href="#s52" title="4.15 · Dashboard Executive" class="dot"></a>
+<a href="#s53" title="4.15 · Dashboard Incident" class="dot"></a>
+<a href="#s54" title="4.15 · Dashboard ML" class="dot"></a>
+<a href="#s55" title="5.1 · Risultati" class="dot"></a>
+<a href="#s56" title="5.2 · Sviluppi futuri I" class="dot"></a>
+<a href="#s57" title="5.2 · Sviluppi futuri II" class="dot"></a>
+<a href="#s58" title="Chiusura" class="dot"></a>
+</nav>
+
+<section class="slide bg-cover" id="s0" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+  
+  <div class="animate-in-up" style="max-width: 1100px; width: 100%;">
+    
+    <div style="display: flex; justify-content: center; margin-bottom: 25px;">
+      <div style="display: flex; align-items: center; gap: 18px; border: 1px solid var(--border-strong); padding: 12px 30px 12px 24px; border-radius: 50px; background: rgba(230,186,146,0.06);">
+        
+        <img src="logo-univpm.png" alt="Logo UnivPM" style="height: 130px; width: auto; object-fit: contain;">
+        
+        <span style="font-size: 2.05rem; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: var(--accent-sand);">
+          Università Politecnica delle Marche
+        </span>
+      </div>
+    </div>
+    
+    <span class="eyebrow" style="display: block; text-align: center; letter-spacing: 2px; margin-bottom: 15px; color: var(--text-muted);">
+      Ingegneria Informatica e dell'Automazione <span style="margin: 0 10px; color: var(--accent-copper);">|</span> Advanced Cybersecurity for IT
+    </span>
+    
+    <h1 style="font-size: clamp(3rem, 5vw, 4.5rem); margin-bottom: 10px; text-shadow: 0 4px 20px rgba(0,0,0,0.5);">Zero Trust Architecture</h1>
+    <h2 style="font-size: clamp(1.6rem, 2.5vw, 2.2rem); color: var(--accent-sand); font-weight: 300; margin-top: 0; margin-bottom: 25px;">Protezione Adattiva di un'Infrastruttura Ospedaliera</h2>
+    
+    <p class="subtitle" style="margin: 0 auto 35px; text-align: center; max-width: 800px; font-size: 1.1rem; line-height: 1.5;">
+      Protezione adattiva di database e API con verifica continua, Machine Learning e micro-segmentazione.
+    </p>
+    
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 45px;">
+      <span class="icon-badge">Envoy PEP</span>
+      <span class="icon-badge">OPA PDP</span>
+      <span class="icon-badge">Splunk MLTK</span>
+      <span class="icon-badge">nftables</span>
+      <span class="icon-badge">Snort NIDS</span>
+      <span class="icon-badge">MongoDB</span>
+      <span class="icon-badge">FastAPI</span>
+    </div>
+    
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: stretch; max-width: 950px; margin: 0 auto; text-align: left; background: rgba(34,31,32,0.5); padding: 35px 40px; border-radius: 12px; border: 1px solid var(--border-strong); backdrop-filter: blur(10px); box-shadow: 0 15px 35px rgba(0,0,0,0.4);">
+      
+      <div style="flex: 2; min-width: 300px;">
+        <h3 style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px; margin-top: 0; margin-bottom: 20px;">Candidati</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 20px;">
+          <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-heading);">Andrea Flaiani <span style="color: var(--accent-sand); font-size: 0.9rem; font-weight: 400; margin-left: 4px;">1126928</span></div>
+          <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-heading);">Andrea Altieri <span style="color: var(--accent-sand); font-size: 0.9rem; font-weight: 400; margin-left: 4px;">1128865</span></div>
+          <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-heading);">Niccolò de Pascali <span style="color: var(--accent-sand); font-size: 0.9rem; font-weight: 400; margin-left: 4px;">1123958</span></div>
+          <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-heading);">Matteo Risolo <span style="color: var(--accent-sand); font-size: 0.9rem; font-weight: 400; margin-left: 4px;">1122743</span></div>
+          <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-heading);">Simone Murazzo <span style="color: var(--accent-sand); font-size: 0.9rem; font-weight: 400; margin-left: 4px;">1113295</span></div>
+        </div>
+      </div>
+      
+      <div style="width: 1px; background: var(--border-strong); margin: 0 30px;"></div>
+      
+      <div style="flex: 1; min-width: 200px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <h3 style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px; margin-top: 0; margin-bottom: 12px;">Docente</h3>
+          <div style="font-weight: 700; font-size: 1.2rem; color: var(--text-heading);">Prof. Luca Spalazzi</div>
+        </div>
+        <div style="margin-top: 20px;">
+          <h3 style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px; margin-top: 0; margin-bottom: 10px;">Anno Accademico</h3>
+          <div style="color: var(--accent-copper); font-weight: 800; font-size: 1.2rem; font-family: 'JetBrains Mono', monospace;">2025 / 2026</div>
+        </div>
+      </div>
+      
+    </div>
+    
+  </div>
+</section>
+
+<section class="slide" id="s1">
+  <div class="slide-header animate-in-up"><span class="eyebrow">Executive Summary</span><h2>Dal perimetro statico alla fiducia continua e quantificata</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Il problema</h3>
+      <p>Il modello a "castello" presume che la rete interna sia sicura. Una volta violato il perimetro (phishing, exploit, insider threat), l'attaccante ottiene libertà di movimento laterale. In un dominio ospedaliero — cartelle cliniche, dati diagnostici, credenziali — questo è inaccettabile: violazioni di confidenzialità/integrità impattano normative internazionali e la business continuity.</p>
+      <h3 style="margin-top:16px;">L'approccio</h3>
+      <p>NIST SP 800-207: nessuna fiducia implicita basata sulla localizzazione di rete. Ogni richiesta è autenticata, autorizzata e valutata nel contesto, indipendentemente dalla provenienza.</p>
+    </div>
+    <div class="card">
+      <h3>Obiettivi del progetto</h3>
+      <ul class="check-list">
+        <li>Continuous Authorization basata su identità, dispositivo, rete, comportamento</li>
+        <li>Policy Enforcement Point unico e obbligato (Envoy) su HTTP e MongoDB nativo</li>
+        <li>Motore decisionale ABAC (OPA) su 6 dimensioni contestuali (ZTA 6D)</li>
+        <li>Risk scoring comportamentale in tempo reale (Splunk MLTK, Gradient Boosting)</li>
+        <li>Difesa in profondità: microsegmentazione L3/L4 + DPI L7 + NIDS passivo</li>
+        <li>Validazione empirica su 14 scenari operativi</li>
+      </ul>
+    </div>
+  </div>
+  <div class="grid-5 animate-in-up" style="margin-top:24px;">
+    <div class="card" style="text-align:center;"><h1 style="font-size:2.4rem; color:var(--accent-sand);">6</h1><p>Dimensioni ZTA</p></div>
+    <div class="card" style="text-align:center;"><h1 style="font-size:2.4rem; color:var(--accent-sand);">4</h1><p>Reti Docker segregate</p></div>
+    <div class="card" style="text-align:center;"><h1 style="font-size:2.4rem; color:var(--accent-sand);">12</h1><p>Feature del modello ML</p></div>
+    <div class="card" style="text-align:center;"><h1 style="font-size:2.4rem; color:var(--accent-sand);">50k</h1><p>Record dataset sintetico</p></div>
+    <div class="card" style="text-align:center;"><h1 style="font-size:2.4rem; color:var(--accent-sand);">14</h1><p>Scenari di validazione</p></div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s2">
+  <div class="slide-header animate-in-up"><span class="eyebrow">Indice della Relazione</span><h2>Struttura della presentazione — fedele all'indice del documento</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Cap. 1 — Introduzione e obiettivi</h3>
+      <p style="color:var(--text-muted);">Contesto, filosofia Zero Trust, caso di studio, obiettivi</p>
+      <h3 style="margin-top:20px;">Cap. 2 — Architettura di sistema</h3>
+      <p style="color:var(--text-muted);">Threat modeling, reti segregate, Envoy, ZTA 6D, container, MongoDB, Web API</p>
+      <h3 style="margin-top:20px;">Cap. 3 — Implementazione pratica</h3>
+      <p style="color:var(--text-muted);">Envoy config, ABAC/OPA, nftables, mTLS/TPM/JA3, Snort, Fluent-Bit, ML risk model</p>
+    </div>
+    <div class="card">
+      <h3>Cap. 4 — Simulazione degli scenari e validazione</h3>
+      <p style="color:var(--text-muted);">14 scenari operativi + dashboard Splunk</p>
+      <h3 style="margin-top:20px;">Cap. 5 — Conclusioni e sviluppi futuri</h3>
+      <p style="color:var(--text-muted);">Obiettivi raggiunti, roadmap enterprise</p>
+    </div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide bg-net" id="s3">
+  <div class="chapter-tag">Capitolo 1 · Introduzione e Obiettivi</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 1.1</span><h2>La protezione dei dati aziendali e delle risorse critiche</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Superficie d'attacco in espansione</h3>
+      <p>Digitalizzazione e cloud hanno esteso enormemente la superficie d'attacco: accesso condiviso a risorse sensibili, automazione dei flussi, monitoraggio IoT. I database aziendali custodiscono dati finanziari, proprietà intellettuale, credenziali e profili utente.</p>
+    </div>
+    <div class="card">
+      <h3>Tre fattori di criticità</h3>
+      <ul class="check-list">
+        <li>Violazione di normative su protezione dati e sicurezza delle reti</li>
+        <li>Impatto sulla business continuity — un ransomware può bloccare i servizi</li>
+        <li>Eterogeneità degli accessi: workstation interne e smart working, con vettori esterni non controllati</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide bg-net" id="s4">
+  <div class="chapter-tag">Capitolo 1 · Introduzione e Obiettivi</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 1.2</span><h2>La filosofia Zero Trust: "Never Trust, Always Verify"</h2><hr class="slide-divider"></div>
+  <div class="grid-3 animate-in-up">
+    <div class="card"><span class="tag">01</span><h3 style="margin-top:10px;">Never Trust, Always Verify</h3><p>Ogni richiesta di accesso, indipendentemente dalla rete di provenienza, deve essere autenticata, autorizzata e validata crittograficamente prima dell'inoltro.</p></div>
+    <div class="card"><span class="tag">02</span><h3 style="margin-top:10px;">Least Privilege</h3><p>Accesso concesso in modo granulare e ristretto, limitando scrittura e cancellazione dei record sensibili ai soli operatori autorizzati.</p></div>
+    <div class="card"><span class="tag">03</span><h3 style="margin-top:10px;">Assume Breach</h3><p>Si progetta assumendo che segmenti siano già compromessi: micro-segmentazione, crittografia end-to-end, monitoraggio continuo del traffico.</p></div>
+  </div>
+  <div class="card animate-in-up" style="margin-top:20px;">
+    <h3>Il modello obsoleto: la sicurezza "a castello"</h3>
+    <p>Il paradigma perimetrale classico presume la rete interna intrinsecamente sicura. Una volta violato il perimetro (phishing, exploit, insider threat) l'attaccante ottiene libertà di movimento laterale. Il paradigma ZTA, codificato dal NIST in SP 800-207, abbatte questa fiducia implicita basata sulla localizzazione di rete.</p>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide bg-net" id="s5">
+  <div class="chapter-tag">Capitolo 1 · Introduzione e Obiettivi</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 1.3</span><h2>Il caso di studio: l'infrastruttura ospedaliera</h2><hr class="slide-divider"></div>
+  <div class="grid-3 animate-in-up">
+    <div class="card" style="border-top:4px solid var(--status-green);"><h3>👩‍⚕️ Alice — Rischio minimo</h3><p>Personale medico interno, workstation aziendale con chip TPM hardware, collegata dalla rete locale <code>10.0.1.0/24</code>.</p></div>
+    <div class="card" style="border-top:4px solid var(--status-red);"><h3>💻 Bob — Insider potenziale</h3><p>Operatore interno con dispositivo personale privo di attestazione TPM. Rappresenta un possibile scenario di credenziali rubate senza possesso del TPM.</p></div>
+    <div class="card" style="border-top:4px solid var(--status-amber);"><h3>🌐 Charlie — Smart working</h3><p>Professionista dotato di certificato e TPM ma collegato da rete esterna non controllata <code>192.168.100.0/24</code>. Politiche più restrittive.</p></div>
+  </div>
+  <p class="animate-in-up" style="margin-top:20px; font-size:1.1rem;">Il sistema gestisce un database MongoDB con anagrafiche pazienti, cartelle cliniche e dati diagnostici. Lo scenario dimostra l'adattamento dinamico delle soglie di sicurezza in funzione del contesto multidimensionale di ciascun accesso: identità, postura del dispositivo, localizzazione di rete.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s6">
+  <div class="chapter-tag">Capitolo 1 · Introduzione e Obiettivi</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 1.4</span><h2>Obiettivi del progetto e stack tecnologico</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Continuous Authorization</h3>
+      <p>Valutazione continua e adattiva del rischio basata su contesto di rete, comportamento utente e postura di sicurezza del dispositivo (inclusa attestazione hardware TPM).</p>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Componente</th><th>Ruolo</th></tr></thead>
+      <tbody>
+        <tr><td>Envoy</td><td>PEP — intercetta ogni richiesta HTTP/MongoDB, mTLS, JA3, L7 DPI</td></tr>
+        <tr><td>OPA</td><td>PDP decentralizzato — valuta le 6 dimensioni ZTA (u,d,s,n,a,r)</td></tr>
+        <tr><td>Splunk MLTK</td><td>Rischio dinamico via Gradient Boosting</td></tr>
+        <tr><td>Splunk SIEM</td><td>Ingestion asincrona dei log, correlazione storica</td></tr>
+        <tr><td>nftables + Snort</td><td>Microsegmentazione L3/L4 e rilevamento movimento laterale</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide bg-net" id="s7">
+  <div class="chapter-tag">Capitolo 2 · Architettura di Sistema</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 2.1</span><h2>Modellazione delle minacce e analisi del rischio</h2><hr class="slide-divider"></div>
+  <div class="grid-3 animate-in-up">
+    <div class="card"><h3>Asset (O)</h3><p>Database MongoDB (data at rest), flussi verso le Web API (data in transit), cartelle cliniche. Impatto (I) classificato come <b>severo</b> sulla triade CID.</p></div>
+    <div class="card"><h3>Vulnerabilità (V)</h3><p>Compromissione credenziali, terminali privi di TPM, canali non cifrati, anomalie comportamentali fisiologiche.</p></div>
+    <div class="card"><h3>Minacce (T)</h3><p>Esfiltrazione dati, privilege escalation, attacchi injection, lateral movement tra container.</p></div>
+  </div>
+  <div class="formula-box animate-in-up" style="max-width:900px;">R = L × I &nbsp;→&nbsp; nei sistemi tradizionali L è statica; qui L è stimata in tempo reale da Splunk MLTK</div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide bg-net" id="s8">
+  <div class="chapter-tag">Capitolo 2 · Architettura di Sistema</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 2.1</span><h2>Difesa in profondità: Prevenzione e Rilevamento</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card" style="border-top:4px solid var(--status-green);"><h3>Meccanismi di Prevenzione (ex ante)</h3><ul class="check-list"><li>Autenticazione mTLS obbligatoria</li><li>Policy di microsegmentazione (nftables)</li><li>Regole deterministiche OPA via filtri Envoy</li></ul></div>
+    <div class="card" style="border-top:4px solid var(--status-amber);"><h3>Meccanismi di Rilevamento (ex post)</h3><ul class="check-list"><li>Snort NIDS per minacce che bypassano il primo strato</li><li>Dashboard di correlazione Splunk</li><li>Riduzione del dwell time dell'attaccante</li></ul></div>
+  </div>
+  <div class="card animate-in-up" style="margin-top:20px;">
+    <h3>Il rischio operativo come funzione dinamica</h3>
+    <p>Ad ogni richiesta il PDP calcola il rischio attuale R e lo confronta con il Rischio Accettabile R<sub>a</sub>. Il sistema autorizza solo se R ≤ R<sub>a</sub>; in caso contrario scatta lo short-circuiting: blocco immediato L7 (OPA) o L3/L4 (nftables).</p>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s9">
+  <div class="chapter-tag">Capitolo 2 · Architettura di Sistema</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 2.2</span><h2>Le quattro reti segregate</h2><hr class="slide-divider"></div>
+  <div class="grid-4 animate-in-up" style="margin-bottom:20px;">
+    <div class="net-box zone-external"><h3 style="color:var(--status-red);">external-net</h3><p><code>192.168.100.0/24</code><br>Rete untrusted, smart working. Unico contatto: listener Envoy.</p></div>
+    <div class="net-box zone-frontend"><h3 style="color:var(--status-amber);">frontend-net</h3><p><code>10.0.1.0/24</code><br>Rete locale ospedaliera. Il firewall forza il routing verso Envoy.</p></div>
+    <div class="net-box zone-backend"><h3 style="color:var(--status-green);">backend-net</h3><p>Secure core: MongoDB + Web API. Raggiungibile solo dal proxy.</p></div>
+    <div class="net-box zone-control"><h3 style="color:var(--status-blue);">control-plane-net</h3><p>OPA, Fluent-Bit, Splunk. Verdetti e telemetria.</p></div>
+  </div>
+  <div class="code-block animate-in-up">
+    <span class="code-label">docker-compose.yaml</span>
+<span class="kw">networks</span>:
+  frontend-net:
+    <span class="var">driver</span>: bridge
+    <span class="var">ipam</span>:
+      <span class="var">config</span>: [<span class="str">subnet: 10.0.1.0/24</span>]
+  backend-net:
+    <span class="var">driver</span>: bridge
+  control-plane-net:
+    <span class="var">driver</span>: bridge
+  external-net:
+    <span class="var">driver</span>: bridge
+    <span class="var">ipam</span>:
+      <span class="var">config</span>: [<span class="str">subnet: 192.168.100.0/24</span>]
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s10">
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 2.2 · Figura 1</span>
+    <h2>Topologia di rete completa</h2>
+    <p class="subtitle">Flussi logici e canali di telemetria. Envoy è l'unico choke-point: dialoga con OPA per ogni verdetto di autorizzazione.</p>
+    <hr class="slide-divider">
+  </div>
+  
+  <div class="diagram-container animate-in-up" style="margin-top:10px; background:var(--bg-card2); border: 1px solid var(--border-strong); display: flex; justify-content: center; align-items: center; width: 100%; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 10px; flex-grow: 1;">
+    <svg viewBox="0 -20 1100 740" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif" style="width:100%; height:100%; max-height: 60vh; overflow: visible;">
+      
+      <style>
+        .flow-line-data { stroke-dasharray: 8 6; animation: flow-forward 1.2s linear infinite; }
+        .flow-line-telemetry { stroke-dasharray: 5 4; animation: flow-forward 1.8s linear infinite; }
+        @keyframes flow-forward { to { stroke-dashoffset: -28; } }
+        .hover-node { transition: filter 0.3s, transform 0.3s; }
+        .hover-node:hover { filter: drop-shadow(0 0 15px var(--accent-copper)); }
+      </style>
+
+      <defs>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000000" flood-opacity="0.5"/>
+        </filter>
+        <marker id="arrow-copper" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-copper)"/></marker>
+        <marker id="arrow-terracotta" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-terracotta)"/></marker>
+        <marker id="arrow-sand" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-sand)"/></marker>
+        <marker id="arrow-textmuted" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--text-muted)"/></marker>
+        <marker id="arrow-cream" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-cream)"/></marker>
+      </defs>
+
+      <rect x="30" y="70" width="180" height="120" fill="rgba(176, 96, 79, 0.04)" stroke="var(--accent-copper)" stroke-width="1.5" stroke-dasharray="4 4" rx="6"/>
+      <text x="40" y="90" fill="var(--accent-copper)" font-size="11" font-weight="800" letter-spacing="1px">RETE ESTERNA</text>
+
+      <rect x="30" y="210" width="180" height="210" fill="rgba(205, 135, 112, 0.04)" stroke="var(--accent-terracotta)" stroke-width="1.5" stroke-dasharray="4 4" rx="6"/>
+      <text x="40" y="230" fill="var(--accent-terracotta)" font-size="11" font-weight="800" letter-spacing="1px">RETE INTERNA (DMZ)</text>
+
+      <rect x="830" y="110" width="220" height="280" fill="rgba(230, 186, 146, 0.04)" stroke="var(--accent-sand)" stroke-width="1.5" stroke-dasharray="4 4" rx="6"/>
+      <text x="840" y="130" fill="var(--accent-sand)" font-size="11" font-weight="800" letter-spacing="1px">RISORSE PROTETTE</text>
+
+      <rect x="150" y="440" width="840" height="220" fill="rgba(156, 148, 144, 0.04)" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="4 4" rx="6"/>
+      <text x="160" y="460" fill="var(--text-muted)" font-size="11" font-weight="800" letter-spacing="1px">PIANO DI CONTROLLO</text>
+
+      <path class="flow-line-data" d="M 185,130 L 315,260" fill="none" stroke="var(--accent-copper)" stroke-width="2.5" marker-end="url(#arrow-copper)"/>
+      <path class="flow-line-data" d="M 185,260 L 315,260" fill="none" stroke="var(--accent-terracotta)" stroke-width="2.5" marker-end="url(#arrow-terracotta)"/>
+      <path class="flow-line-data" d="M 185,360 L 315,260" fill="none" stroke="var(--accent-terracotta)" stroke-width="2.5" marker-end="url(#arrow-terracotta)"/>
+      <path class="flow-line-data" d="M 445,260 L 570,260" fill="none" stroke="var(--accent-copper)" stroke-width="2.5" marker-end="url(#arrow-copper)"/>
+      <path class="flow-line-data" d="M 710,260 L 875,180" fill="none" stroke="var(--accent-sand)" stroke-width="2.5" marker-end="url(#arrow-sand)"/>
+      <path class="flow-line-data" d="M 710,260 L 875,320" fill="none" stroke="var(--accent-sand)" stroke-width="2.5" marker-end="url(#arrow-sand)"/>
+      <path class="flow-line-data" d="M 940,210 L 940,290" fill="none" stroke="var(--accent-sand)" stroke-width="2.5" marker-end="url(#arrow-sand)"/>
+      <path class="flow-line-data" d="M 380,290 L 380,390 L 245,390 L 245,470" fill="none" stroke="var(--text-muted)" stroke-width="2" marker-end="url(#arrow-textmuted)"/>
+      <path class="flow-line-data" d="M 640,295 L 640,390 L 820,390 L 820,570" fill="none" stroke="var(--text-muted)" stroke-width="2" marker-end="url(#arrow-textmuted)"/>
+      <path class="flow-line-data" d="M 820,630 L 820,660 L 245,660 L 245,630" fill="none" stroke="var(--text-muted)" stroke-width="2" marker-end="url(#arrow-textmuted)"/>
+
+      <path class="flow-line-telemetry" d="M 380,290 Q 400,450 530,570" fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arrow-textmuted)"/>
+      <path class="flow-line-telemetry" d="M 310,500 Q 420,490 530,570" fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arrow-textmuted)"/>
+      <path class="flow-line-telemetry" d="M 640,295 Q 600,450 530,570" fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arrow-textmuted)"/>
+      <path class="flow-line-telemetry" d="M 940,350 Q 800,480 530,570" fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arrow-textmuted)"/>
+      <path class="flow-line-telemetry" d="M 465,600 L 310,600" fill="none" stroke="var(--accent-cream)" stroke-width="2" marker-end="url(#arrow-cream)"/>
+
+      <g font-size="11" font-weight="800" text-anchor="middle">
+        <rect x="200" y="163" width="105" height="22" fill="var(--bg-white)" rx="4" stroke="var(--border-strong)" stroke-width="1.5"/>
+        <text x="252" y="178" fill="var(--accent-copper)">TCP 8443/27017</text>
+        <rect x="205" y="248" width="85" height="22" fill="var(--bg-white)" rx="4" stroke="var(--border-strong)" stroke-width="1.5"/>
+        <text x="247" y="263" fill="var(--accent-terracotta)">mTLS+TPM</text>
+        <rect x="220" y="313" width="55" height="22" fill="var(--bg-white)" rx="4" stroke="var(--border-strong)" stroke-width="1.5"/>
+        <text x="247" y="328" fill="var(--accent-terracotta)">mTLS</text>
+        <rect x="470" y="248" width="65" height="22" fill="var(--bg-white)" rx="4" stroke="var(--border-strong)" stroke-width="1.5"/>
+        <text x="502" y="263" fill="var(--accent-copper)">DNAT L4</text>
+        <rect x="750" y="206" width="70" height="22" fill="var(--bg-white)" rx="4" stroke="var(--border-strong)" stroke-width="1.5" transform="rotate(-25 785 218)"/>
+        <text x="785" y="221" fill="var(--accent-sand)" transform="rotate(-25 785 218)">TCP 8443</text>
+        <rect x="750" y="278" width="75" height="22" fill="var(--bg-white)" rx="4" stroke="var(--border-strong)" stroke-width="1.5" transform="rotate(20 787 290)"/>
+        <text x="787" y="293" fill="var(--accent-sand)" transform="rotate(20 787 290)">TCP 27017</text>
+        <rect x="250" y="378" width="115" height="22" fill="var(--bg-white)" rx="4" stroke="var(--border-strong)" stroke-width="1.5"/>
+        <text x="307" y="393" fill="var(--text-muted)">L2 Mirror / DPI</text>
+        <rect x="675" y="378" width="110" height="22" fill="var(--bg-white)" rx="4" stroke="var(--border-strong)" stroke-width="1.5"/>
+        <text x="730" y="393" fill="var(--text-muted)">ext_authz gRPC</text>
+        <rect x="480" y="648" width="105" height="22" fill="var(--bg-white)" rx="4" stroke="var(--border-strong)" stroke-width="1.5"/>
+        <text x="532" y="663" fill="var(--text-muted)">REST API (ML)</text>
+        <rect x="320" y="588" width="130" height="22" fill="var(--bg-white)" rx="4" stroke="var(--border-strong)" stroke-width="1.5"/>
+        <text x="385" y="603" fill="var(--accent-cream)">HEC (Inoltro Log)</text>
+      </g>
+
+      <g font-size="10" font-weight="700" fill="var(--text-muted)" text-anchor="middle">
+        <rect x="420" y="420" width="35" height="18" fill="var(--bg-page)" rx="4"/><text x="437" y="433">Log</text>
+        <rect x="360" y="505" width="45" height="18" fill="var(--bg-page)" rx="4"/><text x="382" y="518">Alerts</text>
+        <rect x="575" y="440" width="35" height="18" fill="var(--bg-page)" rx="4"/><text x="592" y="453">Log</text>
+        <rect x="740" y="480" width="40" height="18" fill="var(--bg-page)" rx="4"/><text x="760" y="493">Audit</text>
+      </g>
+
+      <g transform="translate(55, 100)" filter="url(#shadow)" class="hover-node">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--accent-copper)" stroke-width="2" rx="6"/>
+        <image href="relazione/capitolo2/img/charlie.png" x="52" y="8" width="26" height="26" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '35');"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Charlie</text>
+      </g>
+      <g transform="translate(55, 230)" filter="url(#shadow)" class="hover-node">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--accent-terracotta)" stroke-width="2" rx="6"/>
+        <image href="relazione/capitolo2/img/alice.png" x="52" y="8" width="26" height="26" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '35');"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Alice</text>
+      </g>
+      <g transform="translate(55, 330)" filter="url(#shadow)" class="hover-node">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--accent-terracotta)" stroke-width="2" rx="6"/>
+        <image href="relazione/capitolo2/img/bob.png" x="52" y="8" width="26" height="26" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '35');"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Bob</text>
+      </g>
+      <g transform="translate(315, 230)" filter="url(#shadow)" class="hover-node">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--accent-copper)" stroke-width="2" rx="6"/>
+        <image href="relazione/capitolo2/img/nftables.png" x="50" y="8" width="30" height="24" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '35');"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Firewall</text>
+      </g>
+      <g transform="translate(570, 225)" filter="url(#shadow)" class="hover-node">
+        <rect width="140" height="70" fill="var(--accent-copper)" stroke="none" rx="8"/>
+        <image href="relazione/capitolo2/img/envoy.png" x="55" y="10" width="30" height="26" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '40');"/>
+        <text x="70" y="54" fill="#FFF" font-size="13" font-weight="800" text-anchor="middle">Envoy PEP</text>
+      </g>
+      <g transform="translate(875, 150)" filter="url(#shadow)" class="hover-node">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--accent-sand)" stroke-width="2" rx="6"/>
+        <image href="relazione/capitolo2/img/python.png" x="51" y="8" width="28" height="26" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '35');"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Web API</text>
+      </g>
+      <g transform="translate(875, 290)" filter="url(#shadow)" class="hover-node">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--accent-sand)" stroke-width="2" rx="6"/>
+        <image href="relazione/capitolo2/img/mongodb.png" x="51" y="8" width="28" height="26" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '35');"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">MongoDB</text>
+      </g>
+      <g transform="translate(180, 470)" filter="url(#shadow)" class="hover-node">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="2" rx="6"/>
+        <image href="relazione/capitolo2/img/snort.png" x="51" y="8" width="28" height="26" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '35');"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Snort</text>
+      </g>
+      <g transform="translate(180, 570)" filter="url(#shadow)" class="hover-node">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="2" rx="6"/>
+        <image href="relazione/capitolo2/img/splunk.png" x="51" y="8" width="28" height="26" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '35');"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Splunk</text>
+      </g>
+      <g transform="translate(465, 570)" filter="url(#shadow)" class="hover-node">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="2" rx="6"/>
+        <image href="relazione/capitolo2/img/fluentbit.png" x="51" y="8" width="28" height="26" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '35');"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Fluent-Bit</text>
+      </g>
+      <g transform="translate(755, 570)" filter="url(#shadow)" class="hover-node">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="2" rx="6"/>
+        <image href="relazione/capitolo2/img/opa.png" x="51" y="8" width="28" height="26" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.nextElementSibling.setAttribute('y', '35');"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">OPA</text>
+      </g>
+    </svg>
+  </div>
+  
+  <p class="animate-in-up" style="text-align:center; margin-top:16px; font-size:1.1rem; color:var(--text-muted);">Nessun client possiede rotte dirette verso il backend: Envoy è l'unico choke-point, e ogni sua decisione passa dal verdetto sincrono di OPA.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s11" style="padding-top: 3vh; padding-bottom: 3vh;">
+  <div class="slide-header animate-in-up" style="margin-bottom: 10px;">
+    <span class="eyebrow">§ 2.3 · Figura 2</span>
+    <h2 style="margin-bottom: 5px;">Il choke-point obbligato: Envoy Proxy</h2>
+    <hr class="slide-divider" style="margin-top: 10px; margin-bottom: 10px;">
+  </div>
+  
+  <div class="diagram-container animate-in-up" style="background:var(--bg-card2); border: 2px solid var(--border-strong); display: flex; justify-content: center; align-items: center; width: 100%; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 10px; flex: 1 1 0; min-height: 0; overflow: hidden;">
+    
+    <svg viewBox="-30 -30 1460 710" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif" style="width:100%; height:100%; max-height: 100%;">
+      
+      <style>
+        .flow-line-data { stroke-dasharray: 10 8; animation: flow-forward 1.2s linear infinite; }
+        @keyframes flow-forward { to { stroke-dashoffset: -36; } }
+        .hover-node { transition: filter 0.3s, transform 0.3s; }
+        .hover-node:hover { filter: drop-shadow(0 0 20px var(--accent-copper)); }
+      </style>
+
+      <defs>
+        <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000000" flood-opacity="0.6"/>
+        </filter>
+        <marker id="arrow-copper" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-copper)"/></marker>
+        <marker id="arrow-terracotta" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-terracotta)"/></marker>
+        <marker id="arrow-sand" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-sand)"/></marker>
+        <marker id="arrow-textmuted" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--text-muted)"/></marker>
+        <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-green)"/></marker>
+      </defs>
+
+      <rect x="360" y="30" width="620" height="390" fill="rgba(176, 96, 79, 0.04)" stroke="var(--accent-copper)" stroke-width="2.5" stroke-dasharray="8 8" rx="16"/>
+      <image href="relazione/capitolo2/img/envoy.png" x="390" y="50" width="40" height="40" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none';"/>
+      <text x="450" y="78" fill="var(--accent-copper)" font-size="22" font-weight="800" letter-spacing="2px">ENVOY PROXY (PEP)</text>
+
+      <path class="flow-line-data" d="M 230,225 C 320,225 320,145 420,145" fill="none" stroke="var(--accent-copper)" stroke-width="4" marker-end="url(#arrow-copper)"/>
+      <path class="flow-line-data" d="M 230,225 C 320,225 320,325 420,325" fill="none" stroke="var(--accent-terracotta)" stroke-width="4" marker-end="url(#arrow-terracotta)"/>
+
+      <path class="flow-line-data" d="M 610,145 L 730,145" fill="none" stroke="var(--text-muted)" stroke-width="3" marker-end="url(#arrow-textmuted)"/>
+      <path class="flow-line-data" d="M 610,325 L 730,325" fill="none" stroke="var(--text-muted)" stroke-width="3" marker-end="url(#arrow-textmuted)"/>
+
+      <path class="flow-line-data" d="M 780,370 L 780,480" fill="none" stroke="var(--text-muted)" stroke-width="3" marker-end="url(#arrow-textmuted)"/>
+      <path class="flow-line-data" d="M 860,480 L 860,370" fill="none" stroke="var(--status-green)" stroke-width="3" marker-end="url(#arrow-green)"/>
+
+      <path class="flow-line-data" d="M 910,145 L 1120,145" fill="none" stroke="var(--accent-sand)" stroke-width="4" marker-end="url(#arrow-sand)"/>
+      <path class="flow-line-data" d="M 910,325 L 1120,325" fill="none" stroke="var(--accent-sand)" stroke-width="4" marker-end="url(#arrow-sand)"/>
+
+      <path class="flow-line-data" d="M 1215,190 L 1215,280" fill="none" stroke="var(--accent-sand)" stroke-width="3.5" marker-end="url(#arrow-sand)"/>
+
+      <g font-size="14" font-weight="800" text-anchor="middle">
+        <rect x="250" y="140" width="160" height="30" fill="var(--bg-card2)" rx="6" stroke="var(--border-strong)" stroke-width="2"/>
+        <text x="330" y="161" fill="var(--accent-copper)">TCP 8443 (mTLS)</text>
+        
+        <rect x="250" y="280" width="160" height="30" fill="var(--bg-card2)" rx="6" stroke="var(--border-strong)" stroke-width="2"/>
+        <text x="330" y="301" fill="var(--accent-terracotta)">TCP 27017 (mTLS)</text>
+        
+        <rect x="580" y="415" width="170" height="30" fill="var(--bg-white)" rx="6" stroke="var(--border-strong)" stroke-width="2"/>
+        <text x="665" y="436" fill="var(--text-muted)">gRPC Authz Req</text>
+        
+        <rect x="890" y="415" width="170" height="30" fill="var(--bg-white)" rx="6" stroke="var(--status-green)" stroke-width="2"/>
+        <text x="975" y="436" fill="var(--status-green)">Verdetto: ALLOW</text>
+
+        <rect x="940" y="110" width="130" height="30" fill="var(--bg-card2)" rx="6" stroke="var(--border-strong)" stroke-width="2"/>
+        <text x="1005" y="131" fill="var(--accent-sand)">HTTP / REST</text>
+        
+        <rect x="940" y="335" width="130" height="30" fill="var(--bg-card2)" rx="6" stroke="var(--border-strong)" stroke-width="2"/>
+        <text x="1005" y="356" fill="var(--accent-sand)">TCP / BSON</text>
+
+        <rect x="1235" y="220" width="110" height="30" fill="var(--bg-card2)" rx="6" stroke="var(--border-strong)" stroke-width="2"/>
+        <text x="1290" y="241" fill="var(--accent-sand)">TCP 27017</text>
+      </g>
+
+      <g transform="translate(40, 180)" filter="url(#shadow)" class="hover-node">
+        <rect width="190" height="90" fill="var(--bg-white)" stroke="var(--accent-copper)" stroke-width="2.5" rx="10"/>
+        <image href="relazione/capitolo2/img/nftables.png" x="80" y="10" width="30" height="30" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none';"/>
+        <text x="95" y="60" fill="var(--text-heading)" font-size="16" font-weight="800" text-anchor="middle">Firewall</text>
+        <text x="95" y="78" fill="var(--text-muted)" font-size="13" font-weight="600" text-anchor="middle">(DNAT L4)</text>
+      </g>
+
+      <g transform="translate(420, 100)" class="hover-node">
+        <rect width="190" height="90" fill="var(--bg-white)" stroke="var(--accent-copper)" stroke-width="2" rx="8"/>
+        <text x="95" y="30" fill="var(--text-heading)" font-size="15" font-weight="800" text-anchor="middle">Listener HTTP</text>
+        <text x="95" y="55" fill="var(--accent-copper)" font-size="13" font-weight="600" text-anchor="middle">TLS Termination</text>
+        <text x="95" y="75" fill="var(--text-muted)" font-size="13" font-weight="600" text-anchor="middle">Filtro WAF Lua</text>
+      </g>
+
+      <g transform="translate(420, 280)" class="hover-node">
+        <rect width="190" height="90" fill="var(--bg-white)" stroke="var(--accent-terracotta)" stroke-width="2" rx="8"/>
+        <text x="95" y="30" fill="var(--text-heading)" font-size="15" font-weight="800" text-anchor="middle">Listener MongoDB</text>
+        <text x="95" y="55" fill="var(--accent-terracotta)" font-size="13" font-weight="600" text-anchor="middle">TLS Termination</text>
+        <text x="95" y="75" fill="var(--text-muted)" font-size="13" font-weight="600" text-anchor="middle">mongo_proxy (L7)</text>
+      </g>
+
+      <g transform="translate(730, 100)" class="hover-node">
+        <rect width="180" height="270" fill="var(--accent-copper)" stroke="none" rx="10"/>
+        <text x="90" y="130" fill="#FFF" font-size="20" font-weight="900" text-anchor="middle">ext_authz</text>
+        <text x="90" y="155" fill="#FFF" font-size="13" opacity="0.9" font-weight="700" text-anchor="middle">(Blocco Sincrono)</text>
+      </g>
+
+      <g transform="translate(730, 480)" filter="url(#shadow)" class="hover-node">
+        <rect width="180" height="90" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="2.5" rx="10"/>
+        <image href="relazione/capitolo2/img/opa.png" x="75" y="10" width="30" height="30" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none';"/>
+        <text x="90" y="60" fill="var(--text-heading)" font-size="16" font-weight="800" text-anchor="middle">OPA (PDP)</text>
+        <text x="90" y="78" fill="var(--text-muted)" font-size="13" font-weight="600" text-anchor="middle">Policy Decision Point</text>
+      </g>
+
+      <g transform="translate(1120, 100)" filter="url(#shadow)" class="hover-node">
+        <rect width="190" height="90" fill="var(--bg-white)" stroke="var(--accent-sand)" stroke-width="2.5" rx="10"/>
+        <image href="relazione/capitolo2/img/python.png" x="80" y="10" width="30" height="30" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none';"/>
+        <text x="95" y="60" fill="var(--text-heading)" font-size="16" font-weight="800" text-anchor="middle">Web API</text>
+        <text x="95" y="78" fill="var(--text-muted)" font-size="13" font-weight="600" text-anchor="middle">FastAPI Backend</text>
+      </g>
+
+      <g transform="translate(1120, 280)" filter="url(#shadow)" class="hover-node">
+        <rect width="190" height="90" fill="var(--bg-white)" stroke="var(--accent-sand)" stroke-width="2.5" rx="10"/>
+        <image href="relazione/capitolo2/img/mongodb.png" x="80" y="10" width="30" height="30" preserveAspectRatio="xMidYMid meet" onerror="this.style.display='none';"/>
+        <text x="95" y="60" fill="var(--text-heading)" font-size="16" font-weight="800" text-anchor="middle">MongoDB</text>
+        <text x="95" y="78" fill="var(--text-muted)" font-size="13" font-weight="600" text-anchor="middle">Database Storage</text>
+      </g>
+    </svg>
+  </div>
+  
+  <div class="grid-2 animate-in-up" style="margin-top: 14px;">
+    <div class="card" style="padding: 16px 20px;">
+      <p style="font-size: 1.05rem; line-height: 1.5; margin: 0;">Porte separate per protocollo: <code>8443</code> per HTTP cifrato, <code>27017</code> per MongoDB nativo, entrambe con <b>mTLS obbligatorio</b>. Il proxy decifra il payload e lo invia al blocco <code>ext_authz</code>, che sospende il socket attendendo il verdetto gRPC.</p>
+    </div>
+    <div class="card" style="padding: 16px 20px;">
+      <p style="font-size: 1.05rem; line-height: 1.5; margin: 0;">Stratificazione ISO/OSI: nftables opera a L3/L4 agendo da portinaio per instradare a Envoy; Envoy estende il controllo fino al Livello 7, abilitando una validazione contestuale profonda impossibile per un firewall tradizionale.</p>
+    </div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s12">
+  <div class="chapter-tag">Capitolo 2 · Architettura di Sistema</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 2.4</span><h2>La tupla multidimensionale Zero Trust (ZTA 6D)</h2><div class="formula-box" style="max-width:600px;">T = (u, d, s, n, a, r)</div><hr class="slide-divider"></div>
+  <div class="grid-3 animate-in-up">
+    <div class="card"><h3>u · Utente</h3><p>Identità dal Subject del certificato X.509 durante handshake mTLS (<code>DOWNSTREAM_PEER_SUBJECT</code>). Identifica Alice, Bob, Charlie.</p></div>
+    <div class="card"><h3>d · Dispositivo</h3><p>Postura hardware, validata dall'estensione X.509 OID <code>1.3.6.1.4.1.9999.1</code> (TPM hardware o emulato).</p></div>
+    <div class="card"><h3>s · Software</h3><p>Fingerprint JA3 della suite client — identifica browser autorizzato vs script Python malevolo.</p></div>
+    <div class="card"><h3>n · Contesto di Rete</h3><p>Provenienza IP (<code>DOWNSTREAM_REMOTE_ADDRESS</code>): interna 10.0.1.0/24 vs esterna 192.168.100.0/24.</p></div>
+    <div class="card"><h3>a · Azione</h3><p>Metodo HTTP (GET/POST) o comando MongoDB estratto via L7 dal filtro mongo_proxy (find/insert/update/delete).</p></div>
+    <div class="card"><h3>r · Risorsa</h3><p>URI del servizio API o nome collezione MongoDB (<code>patients</code>, <code>medical_records</code>) via DPI.</p></div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s13">
+  <div class="chapter-tag">Capitolo 2 · Architettura di Sistema</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 2.5</span><h2>Orchestrazione e isolamento dei container</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Reti come VLAN tagging</h3>
+      <p><code>zta-mongodb</code> collegato esclusivamente a <code>backend-net</code>: inaccessibile a chiunque non possieda un'interfaccia sulla stessa rete. <code>zta-firewall</code> espone interfacce su tre reti, fungendo da gateway.</p>
+    </div>
+    <div class="card">
+      <h3>Isolamento a livello namespace</h3>
+      <p><code>zta-snort</code> condivide il network namespace di Envoy: <code>network_mode: "service:envoy-pep"</code>. Intercetta passivamente tutto il traffico del proxy senza possibilità di interferire o bloccare direttamente.</p>
+    </div>
+  </div>
+  <p class="animate-in-up" style="margin-top:20px; font-size:1.1rem; color:var(--text-muted);">L'intera infrastruttura è implementata con Docker e Docker Compose per garantire portabilità e isolamento rigoroso a livello di sistema operativo, seguendo il principio del minimo privilegio per ogni container.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s14">
+  <div class="chapter-tag">Capitolo 2 · Architettura di Sistema</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 2.6</span><h2>Il server database di risorsa (MongoDB)</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Collezione patients</h3>
+      <p>Documenti con <code>patient_id</code>, <code>name</code>, <code>age</code>, <code>ward</code>, <code>blood_type</code> e piano terapeutico. Il database è isolato interamente in <code>backend-net</code>, senza porte esposte verso l'esterno.</p>
+    </div>
+    <div class="card">
+      <h3>Evoluzione architetturale</h3>
+      <p>Nelle iterazioni iniziali lo stato di fiducia dei dispositivi era memorizzato in collezioni dedicate (ZTA Policy Store). Nell'architettura definitiva questo è demandato interamente ai modelli predittivi del SIEM — il database torna un puro contenitore di dati operativi (Separation of Concerns).</p>
+    </div>
+  </div>
+  <div class="card animate-in-up" style="margin-top:20px;">
+    <h3>Deep Packet Inspection via mongo_proxy</h3>
+    <p>Ogni query transita attraverso <code>envoy.filters.network.mongo_proxy</code>, che decodifica il protocollo (incl. OP_MSG) ed estrae il payload. Questo consente ad OPA di bloccare istantaneamente query distruttive (<code>dropDatabase</code>, cancellazioni massive) prima che raggiungano il motore di storage.</p>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s15">
+  <div class="chapter-tag">Capitolo 2 · Architettura di Sistema</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 2.7</span><h2>Le Web API: FastAPI come Policy Information Point</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Ruolo PIP nel framework ABAC</h3>
+      <p>Il backend FastAPI (<code>zta-web-api</code>) espone <code>/api/patients</code> e <code>/api/patients/sensitive</code>, e arricchisce dinamicamente la query OPA con 6 variabili comportamentali dell'utente.</p>
+    </div>
+    <table class="data-table">
+      <tr><td>failed_logins</td><td>Tasso di fallimento nelle ultime 24h</td></tr>
+      <tr><td>session_freq</td><td>Frequenza di sessione nell'ultima ora</td></tr>
+      <tr><td>hour_of_day / is_night</td><td>Indicatori di contesto temporale</td></tr>
+      <tr><td>sensitivity_level</td><td>Criticità della risorsa target</td></tr>
+      <tr><td>days_inactive</td><td>Indice di inattività dell'account</td></tr>
+    </table>
+  </div>
+  <p class="animate-in-up" style="margin-top:20px; font-size:1.1rem; color:var(--text-muted);">Scelta architetturale: il tracciamento comportamentale è demandato all'API anziché a query di aggregazione Splunk sui log storici — interrogare continuamente indici di log introdurrebbe latenza incompatibile con la Continuous Authorization. Splunk MLTK resta puro motore di inferenza matematica.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s16">
+  <div class="chapter-tag">Capitolo 2 · Architettura di Sistema</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 2.7</span><h2>Il portale client di simulazione</h2><hr class="slide-divider"></div>
+  <div class="grid-3 animate-in-up">
+    <div class="card" style="border-top:4px solid var(--status-green);"><h3>client-alice</h3><p>Workstation d'ufficio interna autorizzata, TPM valido, subnet 10.0.1.0/24. Consulta senza limitazioni dati standard e sensibili.</p></div>
+    <div class="card" style="border-top:4px solid var(--status-red);"><h3>client-bob</h3><p>Dispositivo sprovvisto di TPM: OPA blocca la sessione già dal form di login (403), applicando Short-Circuiting per evitare chiamate ridondanti al SIEM.</p></div>
+    <div class="card" style="border-top:4px solid var(--status-amber);"><h3>client-charlie</h3><p>Smart working da rete esterna. Dispositivo con TPM: accesso concesso avendo rischio inferiore alla soglia ristretta (≤26).</p></div>
+  </div>
+  <p class="animate-in-up" style="margin-top:20px; font-size:1.1rem;">Ogni container esegue un server web locale (<code>simulator.py</code>) con interfaccia HTML/CSS. La barra di ricerca del portale è usata anche per simulare attacchi L7 (parole chiave <code>DROP</code>/<code>DELETE</code>) intercettati dal filtro Lua di Envoy.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s17">
+  
+  <style>
+    /* CSS Isolato e garantito per la timeline alternata (Slide 17) */
+    .tl-container {
+      position: relative;
+      margin: 80px 0; /* Spazio per i testi sopra e sotto */
+      padding: 0 20px;
+    }
+    .tl-line {
+      position: absolute;
+      top: 50%;
+      left: 30px;
+      right: 30px;
+      height: 2px;
+      background: var(--border-strong, rgba(255,255,255,0.18));
+      transform: translateY(-50%);
+      z-index: 1;
+    }
+    .tl-nodes {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+    .tl-node {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 24px;
+      height: 24px;
+    }
+    /* I famosi pallini */
+    .tl-pallino {
+      width: 24px;
+      height: 24px;
+      background: var(--accent-copper, #B0604F);
+      border-radius: 50%;
+      border: 4px solid var(--bg-page, #1C1A1B);
+      box-shadow: 0 0 0 1px var(--accent-copper, #B0604F);
+      z-index: 3;
+    }
+    /* Posizionamento assoluto dei testi per non sminchiare la linea */
+    .tl-text-up, .tl-text-down {
+      position: absolute;
+      width: 150px;
+      text-align: center;
+    }
+    .tl-text-up { bottom: 100%; margin-bottom: 14px; }
+    .tl-text-down { top: 100%; margin-top: 14px; }
+    
+    .tl-title { font-size: 0.95rem; font-weight: 700; color: var(--text-heading, #FFF); line-height: 1.2; }
+    .tl-sub { font-size: 0.8rem; color: var(--text-muted, #9C9490); margin-top: 4px; }
+  </style>
+
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 3.2</span>
+    <h2>La catena dei filtri di Envoy: ispezione sequenziale</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <!-- TIMELINE CON PALLINI GARANTITI -->
+  <div class="tl-container animate-in-up">
+    <div class="tl-line"></div>
+    <div class="tl-nodes">
+      
+      <!-- Nodo 1: Testo Sopra -->
+      <div class="tl-node">
+        <div class="tl-text-up">
+          <div class="tl-title">TLS Inspector</div>
+          <div class="tl-sub">calcolo hash JA3</div>
+        </div>
+        <div class="tl-pallino"></div>
+      </div>
+
+      <!-- Nodo 2: Testo Sotto -->
+      <div class="tl-node">
+        <div class="tl-pallino"></div>
+        <div class="tl-text-down">
+          <div class="tl-title">mTLS Handshake</div>
+          <div class="tl-sub">verifica certificato CA</div>
+        </div>
+      </div>
+
+      <!-- Nodo 3: Testo Sopra -->
+      <div class="tl-node">
+        <div class="tl-text-up">
+          <div class="tl-title">mongo_proxy / Lua</div>
+          <div class="tl-sub">parsing BSON o WAF</div>
+        </div>
+        <div class="tl-pallino"></div>
+      </div>
+
+      <!-- Nodo 4: Testo Sotto -->
+      <div class="tl-node">
+        <div class="tl-pallino"></div>
+        <div class="tl-text-down">
+          <div class="tl-title">ext_authz</div>
+          <div class="tl-sub">gRPC sincrono OPA</div>
+        </div>
+      </div>
+
+      <!-- Nodo 5: Testo Sopra -->
+      <div class="tl-node">
+        <div class="tl-text-up">
+          <div class="tl-title">Router</div>
+          <div class="tl-sub">inoltro upstream</div>
+        </div>
+        <div class="tl-pallino"></div>
+      </div>
+
+    </div>
+  </div>
+  
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Porta 27017 — MongoDB</h3>
+      <ul class="check-list">
+        <li>TLS Inspector & JA3 Fingerprinting</li>
+        <li>mTLS strict enforcement (<code>require_client_certificate</code>)</li>
+        <li>Parsing BSON L7 via <code>mongo_proxy</code></li>
+        <li>Autorizzazione gRPC esterna verso OPA</li>
+      </ul>
+    </div>
+    <div class="card" style="transition-delay:0.1s;">
+      <h3>Porta 8443 — HTTP API</h3>
+      <ul class="check-list">
+        <li>Iniezione header <code>x-client-fingerprint</code> (JA3)</li>
+        <li>Filtro Lua inline per drop rapido</li>
+        <li>Validazione gRPC estesa verso il PDP</li>
+        <li>Log JSON destrutturato per Fluent-Bit</li>
+      </ul>
+    </div>
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s18">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.1-3.2 · envoy.yaml</span><h2>Configurazione Envoy: Listener MongoDB (porta 27017)</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="code-block">
+      <span class="code-label">envoy.yaml</span>
+listeners:
+- <span class="var">name</span>: mongodb_listener
+  <span class="var">port_value</span>: <span class="num">27017</span>
+  listener_filters:
+  - <span class="var">name</span>: tls_inspector
+    <span class="var">enable_ja3_fingerprinting</span>: <span class="num">true</span>
+  filter_chains:
+  - filters:
+    - <span class="var">name</span>: mongo_proxy
+      <span class="var">emit_dynamic_metadata</span>: <span class="num">true</span>
+    - <span class="var">name</span>: ext_authz
+      <span class="var">grpc_service.cluster_name</span>: opa_cluster
+      <span class="var">timeout</span>: 45s
+      <span class="var">include_peer_certificate</span>: <span class="num">true</span>
+    </div>
+    <div>
+      <h3>Filter chain in tre fasi</h3>
+      <ul class="check-list">
+        <li><b>tls_inspector</b> — analizza il Client Hello, calcola JA3 prima della decifrazione</li>
+        <li><b>mongo_proxy</b> — decodifica BSON (incl. OP_MSG), estrae comando e collezione</li>
+        <li><b>ext_authz</b> — sospende il socket, invia gRPC a OPA con certificato PEM + metadati</li>
+      </ul>
+      <p style="margin-top:16px;"><code>require_client_certificate: true</code> impone mTLS obbligatorio: nessuna connessione priva di certificato valido supera l'handshake.</p>
+    </div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s19">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.2 · envoy.yaml</span><h2>Listener HTTP (porta 8443) e firewall Lua</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="code-block">
+      <span class="code-label">Filtro HTTP Lua</span>
+- <span class="var">name</span>: envoy.filters.http.lua
+  inline_code: |
+    <span class="kw">function</span> envoy_on_request(h)
+      path   = h:headers():get(<span class="str">":path"</span>)
+      method = h:headers():get(<span class="str">":method"</span>)
+
+      <span class="cm">-- L7 DPI Firewall Rules</span>
+      <span class="kw">if</span> method == <span class="str">"DELETE"</span>
+         <span class="kw">and</span> match(path, <span class="str">"^/api/patients"</span>)
+      <span class="kw">then</span>
+        h:respond(
+          {[<span class="str">":status"</span>] = <span class="str">"403"</span>},
+          <span class="str">'Destructive ops forbidden'</span>
+        )
+      <span class="kw">end</span>
+    <span class="kw">end</span>
+    </div>
+    <div>
+      <h3>Difesa in profondità sull'HTTP listener</h3>
+      <ul class="check-list">
+        <li><b>header_mutation</b> — inietta JA3 in <code>x-client-fingerprint</code></li>
+        <li><b>filtro Lua</b> — WAF stateless: blocca metodi distruttivi prima di interpellare OPA</li>
+        <li><b>ext_authz</b> — decisioni granulari (es. limitazione rotta sensibile per smart working)</li>
+      </ul>
+      <p style="margin-top:16px;">Questa stratificazione sgrava PDP e motore ML da richieste palesemente malevole, ottimizzando la latenza.</p>
+    </div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s20">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.3</span><h2>Formalizzazione del controllo degli accessi: dal modello HRU all'ABAC</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div>
+      <p>Modello HRU: dominio definito da Soggetti S, Oggetti O, Diritti R. Matrice bidimensionale A dove A[s<sub>i</sub>,o<sub>j</sub>] ⊆ R indica staticamente i diritti. L'operazione r è consentita ⟺ r ∈ A[s<sub>i</sub>,o<sub>j</sub>].</p>
+      <div class="formula-box">A[s<sub>i</sub>, o<sub>j</sub>] = { r ∈ R | D(s<sub>i</sub>, o<sub>j</sub>, r, Attributi) = True }</div>
+      <p style="margin-top:16px;">Nell'ABAC sviluppato, la cella non è più una locazione fissa: diventa una funzione ricalcolata in tempo reale da OPA, dipendente dagli attributi correnti.</p>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Matrice A (istante t)</th><th>Standard</th><th>Sensibili</th><th>DB</th></tr></thead>
+      <tbody>
+        <tr><td>s₁ Alice — Intranet, TPM</td><td><span class="pill pill-green">GET,POST</span></td><td><span class="pill pill-green">GET</span></td><td><span class="pill pill-green">find</span></td></tr>
+        <tr><td>s₂ Charlie — Esterno, TPM</td><td><span class="pill pill-green">GET</span></td><td><span class="pill pill-red">∅</span></td><td><span class="pill pill-red">∅</span></td></tr>
+        <tr><td>s₃ Attaccante — No TPM</td><td><span class="pill pill-red">∅</span></td><td><span class="pill pill-red">∅</span></td><td><span class="pill pill-red">∅</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s21">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.3 · rules.rego</span><h2>Policy 1 — Requisito Hardware · Policy 2 — Autorizzazione Adattiva</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Policy 1 — Short-Circuit TPM</h3>
+      <div class="formula-box">∀o∈Login, se s<sub>tpm</sub>=0 ⇒ A[s,o]=∅</div>
+      <p>Nessun diritto iniziale senza radice di fiducia hardware verificata — neutralizza brute-force prima della valutazione del rischio.</p>
+    </div>
+    <div class="card">
+      <h3>Policy 2 — Score-based (Max/Low Trust)</h3>
+      <div class="bar-chart" style="margin-top:16px;">
+        <div class="bar-row"><div class="bar-label">Interno + TPM</div><div class="bar-track"><div class="bar-fill fill-cream" data-width="100%">≤ 38</div></div></div>
+        <div class="bar-row"><div class="bar-label">Interno + no TPM (JA3)</div><div class="bar-track"><div class="bar-fill fill-sand" data-width="68%">≤ 26</div></div></div>
+        <div class="bar-row"><div class="bar-label">Esterno + TPM</div><div class="bar-track"><div class="bar-fill fill-terracotta" data-width="68%">≤ 26</div></div></div>
+        <div class="bar-row"><div class="bar-label">Esterno + no TPM</div><div class="bar-track"><div class="bar-fill fill-red" data-width="4%">∅ (Deny)</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="code-block animate-in-up" style="margin-top:20px;">
+    <span class="code-label">rules.rego</span>
+risk_ok := <span class="num">true</span> <span class="kw">if</span> {
+    is_internal_network
+    is_tpm
+    splunk_risk_score <= <span class="num">38</span>
+} <span class="kw">else</span> := <span class="num">true</span> <span class="kw">if</span> {
+    is_internal_network
+    not is_tpm
+    software != <span class="str">"Sconosciuto"</span>
+    splunk_risk_score <= <span class="num">26</span>
+} <span class="kw">else</span> := <span class="num">true</span> <span class="kw">if</span> {
+    not is_internal_network
+    is_tpm
+    splunk_risk_score <= <span class="num">26</span>
+} <span class="kw">else</span> := <span class="num">false</span>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s22">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.3 · rules.rego</span><h2>Policy 3 — Confidenzialità · Policy 4 — Integrità</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Policy 3 — Segregazione dato sensibile</h3>
+      <div class="formula-box">se o=o<sub>sens</sub> ∧ (n≠Internal ∨ TPM=0) ⇒ GET∉A[s,o<sub>sens</sub>]</div>
+      <p>Endpoint <code>/api/patients/sensitive</code> negato se la rete non è interna o il TPM è assente, indipendentemente dall'identità.</p>
+    </div>
+    <div class="card">
+      <h3>Policy 4 — Protezione attiva database</h3>
+      <div class="formula-box">∀s,o: {drop, deleteall} ∉ A[s,o]</div>
+      <p>Comandi distruttivi mai concessi su nessuna risorsa, per nessun soggetto.</p>
+    </div>
+  </div>
+  <div class="code-block animate-in-up" style="margin-top:20px;">
+    <span class="code-label">rules.rego — L7 DPI</span>
+default l7_dpi_block := <span class="num">false</span>
+
+<span class="cm"># --- LIVELLO 1: Confidenzialità (HTTP) ---</span>
+l7_dpi_block := <span class="num">true</span> <span class="kw">if</span> {
+    is_http
+    resource == <span class="str">"/api/patients/sensitive"</span>
+    not is_internal_network
+} <span class="kw">else</span> := <span class="num">true</span> <span class="kw">if</span> {
+    is_http
+    resource == <span class="str">"/api/patients/sensitive"</span>
+    not is_tpm
+}
+
+<span class="cm"># --- LIVELLO 2: Integrità (MongoDB nativo) ---</span>
+<span class="kw">else</span> := <span class="num">true</span> <span class="kw">if</span> {
+    is_mongo
+    contains(lower(db_query), <span class="str">"dropdatabase"</span>)
+} <span class="kw">else</span> := <span class="num">true</span> <span class="kw">if</span> {
+    is_mongo
+    contains(lower(db_query), <span class="str">"deleteall"</span>)
+}
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s23">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.4</span><h2>Il motore decisionale OPA e l'integrazione Splunk MLTK</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div>
+      <h3>Contextual & Score-based Trust Algorithm</h3>
+      <p>OPA interpola le 6 dimensioni ZTA nella query SPL e interroga sincronicamente Splunk MLTK per il rischio comportamentale istantaneo, tramite <code>http.send</code> verso la Web API.</p>
+      <h3 style="margin-top:16px;">Criteria-based Short-Circuiting</h3>
+      <p>Se i criteri infrastrutturali di base falliscono (login senza TPM), OPA nega e assegna rischio massimo <b>senza interpellare Splunk</b> — riduce latenza e carico sul SIEM.</p>
+      <h3 style="margin-top:16px;">Logica dichiarativa Rego</h3>
+      <ul class="check-list"><li><code>default allow = false</code> — postura fail-closed di base</li><li>Parsing X.509 ASN.1 nativo in Rego</li><li>Ispezione di estensioni custom (TPM OID)</li></ul>
+    </div>
+    <div class="code-block">
+      <span class="code-label">rules.rego — chiamata a Splunk</span>
+resp := <span class="fn">http.send</span>({
+  <span class="str">"method"</span>: <span class="str">"POST"</span>,
+  <span class="str">"url"</span>: <span class="str">"http://zta-web-api:8000/api/ml/predict"</span>,
+  <span class="str">"body"</span>: {<span class="str">"query"</span>: query}
+})
+risk := <span class="fn">to_number</span>(resp.body.rischio)
+
+<span class="cm"># SPL interpolata dinamicamente</span>
+<span class="cm">| makeresults | eval user="alice", ...</span>
+<span class="cm">| apply trust_model | table rischio</span>
+    </div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s24">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.4</span><h2>Deep Packet Inspection su due livelli difensivi</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card"><h3>Livello 1 — Confidenzialità (HTTP)</h3><p>Segrega l'accesso a <code>/api/patients/sensitive</code>, bloccando preventivamente flussi verso domini non fidati se l'utente proviene da rete esterna o è privo di TPM.</p></div>
+    <div class="card"><h3>Livello 2 — Integrità (MongoDB)</h3><p>Decodifica i payload nativi BSON e inibisce l'esecuzione di query distruttive dirette (<code>dropDatabase</code>), prevenendo alterazioni di stato non autorizzate.</p></div>
+  </div>
+  <p class="animate-in-up" style="margin-top:20px; font-size:1.15rem;">Il verdetto finale di accesso (<code>allow</code>) è deliberato calcolando un livello di confidenza basato su stato hardware, localizzazione di rete e punteggio dinamico Splunk. Le soglie 26 e 38 derivano dall'analisi statistica della distribuzione normale dei log storici legittimi.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s25">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.5</span><h2>Regole di network protection: nftables</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Quattro task all'avvio (start.sh)</h3>
+      <ul class="check-list">
+        <li><b>Risoluzione dinamica</b> — DNS Docker per l'IP di Envoy</li>
+        <li><b>Segregazione e NAT</b> — DNAT verso Envoy:8443, SNAT di ritorno</li>
+        <li><b>Sinkhole L4</b> — log <code>[NFT-BLOCK]</code> + drop su porte non autorizzate (es. 8000)</li>
+        <li><b>Denylist dinamica</b> — set <code>denylist</code> + API FastAPI (<code>fw_api.py</code>) per ban IP in tempo reale</li>
+      </ul>
+    </div>
+    <div class="code-block">
+      <span class="code-label">start.sh</span>
+<span class="cm"># Routing sicuro verso Envoy (PEP)</span>
+nft add rule ip nat prerouting \
+  tcp dport <span class="num">8443</span> counter dnat to $ENVOY_IP:8443
+
+<span class="cm"># Denylist dinamica (ban IP via Management API)</span>
+nft add set ip filter denylist { type ipv4_addr; }
+nft add rule ip filter forward ip saddr @denylist drop
+
+<span class="cm"># --- TRAPPOLA: log e drop L4 ---</span>
+nft add rule ip nat prerouting \
+  tcp dport <span class="num">8000</span> log group 0 prefix <span class="str">"[NFT-BLOCK]"</span> counter
+nft add rule ip nat prerouting \
+  tcp dport <span class="num">8000</span> drop
+    </div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s26">
+  <div class="top-logo">Advanced Cybersecurity for IT</div>
+  
+  <div class="slide-header animate-in-up">
+    <h2>nftables: flusso decisionale del pacchetto</h2>
+    <p class="subtitle">Microsegmentazione L3/L4: DNAT, protezione porte e ban dinamico in kernel space.</p>
+    <hr class="slide-divider">
+  </div>
+  
+  <div class="diagram-container animate-in-up" style="background:rgba(22,21,21,0.5); padding:16px; border-color:rgba(255,255,255,0.05); display: flex; justify-content: center; align-items: center; margin-top:10px; margin-bottom: 20px;">
+    <svg viewBox="0 0 1000 360" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif" style="width:100%; max-height:48vh;">
+      <defs>
+        <filter id="shadow-nft" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.4"/>
+        </filter>
+        <marker id="arrow-copper-nft" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-copper)"/>
+        </marker>
+        <marker id="arrow-red-nft" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-red)"/>
+        </marker>
+        <marker id="arrow-green-nft" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-green)"/>
+        </marker>
+        <marker id="arrow-amber-nft" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-amber)"/>
+        </marker>
+      </defs>
+
+      <rect x="150" y="40" width="600" height="280" fill="rgba(140, 71, 59, 0.03)" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="6 4" rx="8" opacity="0.6"/>
+      <text x="170" y="65" fill="var(--text-muted)" font-size="11" font-weight="800" letter-spacing="2px">LINUX KERNEL SPACE (NFTABLES)</text>
+
+      <path class="flow-line-data" d="M 120 230 L 170 230" fill="none" stroke="var(--accent-copper)" stroke-width="2.5" marker-end="url(#arrow-copper-nft)"/>
+      <path class="flow-line-data" d="M 245 200 L 245 150" fill="none" stroke="var(--status-red)" stroke-width="2.5" marker-end="url(#arrow-red-nft)"/>
+      <path class="flow-line-data" d="M 320 230 L 380 230" fill="none" stroke="var(--accent-copper)" stroke-width="2.5" marker-end="url(#arrow-copper-nft)"/>
+      <path class="flow-line-data" d="M 500 230 L 560 230" fill="none" stroke="var(--accent-copper)" stroke-width="2.5" marker-end="url(#arrow-copper-nft)"/>
+      <path class="flow-line-data" d="M 630 200 L 630 150" fill="none" stroke="var(--status-red)" stroke-width="2.5" marker-end="url(#arrow-red-nft)"/>
+      <path class="flow-line-data" d="M 700 230 L 830 230" fill="none" stroke="var(--status-green)" stroke-width="2.5" marker-end="url(#arrow-green-nft)"/>
+      <path class="flow-line-telemetry" d="M 830 110 L 690 110" fill="none" stroke="var(--status-amber)" stroke-width="2" marker-end="url(#arrow-amber-nft)"/>
+
+      <g font-size="10" font-weight="700" text-anchor="middle">
+        <text x="145" y="220" fill="var(--text-muted)">Traffico In</text>
+        <text x="245" y="180" fill="var(--status-red)">dport 8000</text>
+        <text x="350" y="220" fill="var(--accent-copper)">dport 8443</text>
+        <text x="530" y="220" fill="var(--accent-copper)">Routing IP</text>
+        <text x="630" y="180" fill="var(--status-red)">IP in @denylist</text>
+        <text x="765" y="220" fill="var(--status-green)">Traffico Validato</text>
+        <text x="760" y="100" fill="var(--status-amber)">Popola Set L3</text>
+      </g>
+
+      <g transform="translate(20, 200)" filter="url(#shadow-nft)">
+        <rect width="100" height="60" fill="var(--bg-white)" stroke="var(--border-strong)" stroke-width="1.5" rx="6"/>
+        <text x="50" y="28" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Client</text>
+        <text x="50" y="45" fill="var(--text-muted)" font-size="10" text-anchor="middle">Rete Ext/Int</text>
+      </g>
+
+      <g transform="translate(170, 200)" filter="url(#shadow-nft)">
+        <rect width="150" height="60" fill="var(--bg-white)" stroke="var(--accent-copper)" stroke-width="2" rx="6"/>
+        <text x="75" y="28" fill="var(--text-heading)" font-size="12" font-weight="800" text-anchor="middle">PREROUTING</text>
+        <text x="75" y="45" fill="var(--accent-copper)" font-size="10" font-weight="600" text-anchor="middle">Filtro Porte</text>
+      </g>
+
+      <g transform="translate(195, 90)" filter="url(#shadow-nft)">
+        <rect width="100" height="60" fill="var(--bg-page)" stroke="var(--status-red)" stroke-width="2" rx="6"/>
+        <text x="50" y="28" fill="var(--status-red)" font-size="12" font-weight="800" text-anchor="middle">DROP L4</text>
+        <text x="50" y="45" fill="var(--text-muted)" font-size="10" text-anchor="middle">Log ULOGD2</text>
+      </g>
+
+      <g transform="translate(380, 200)" filter="url(#shadow-nft)">
+        <rect width="120" height="60" fill="var(--bg-white)" stroke="var(--accent-copper)" stroke-width="2" rx="6"/>
+        <text x="60" y="28" fill="var(--text-heading)" font-size="12" font-weight="800" text-anchor="middle">DNAT</text>
+        <text x="60" y="45" fill="var(--accent-copper)" font-size="10" font-weight="600" text-anchor="middle">to Envoy:8443</text>
+      </g>
+
+      <g transform="translate(560, 200)" filter="url(#shadow-nft)">
+        <rect width="140" height="60" fill="var(--bg-white)" stroke="var(--accent-copper)" stroke-width="2" rx="6"/>
+        <text x="70" y="28" fill="var(--text-heading)" font-size="12" font-weight="800" text-anchor="middle">FORWARD</text>
+        <text x="70" y="45" fill="var(--accent-copper)" font-size="10" font-weight="600" text-anchor="middle">Check Sicurezza</text>
+      </g>
+
+      <g transform="translate(580, 90)" filter="url(#shadow-nft)">
+        <rect width="100" height="60" fill="var(--bg-page)" stroke="var(--status-red)" stroke-width="2" rx="6"/>
+        <text x="50" y="28" fill="var(--status-red)" font-size="12" font-weight="800" text-anchor="middle">DROP IP</text>
+        <text x="50" y="45" fill="var(--text-muted)" font-size="10" text-anchor="middle">Host Bannato</text>
+      </g>
+
+      <g transform="translate(840, 195)" filter="url(#shadow-nft)">
+        <rect width="140" height="70" fill="var(--status-green)" stroke="none" rx="8"/>
+        <text x="70" y="32" fill="#FFF" font-size="13" font-weight="800" text-anchor="middle">Envoy PEP</text>
+        <text x="70" y="50" fill="#FFF" opacity="0.9" font-size="10" font-weight="600" text-anchor="middle">Ispezione L7 &amp; mTLS</text>
+      </g>
+
+      <g transform="translate(840, 80)" filter="url(#shadow-nft)">
+        <rect width="140" height="60" fill="var(--bg-white)" stroke="var(--status-amber)" stroke-width="2" rx="6"/>
+        <text x="70" y="28" fill="var(--text-heading)" font-size="12" font-weight="800" text-anchor="middle">fw_api.py</text>
+        <text x="70" y="45" fill="var(--status-amber)" font-size="10" font-weight="600" text-anchor="middle">Management REST</text>
+      </g>
+
+    </svg>
+  </div>
+  
+  <p class="animate-in-up" style="font-size:1rem; color:var(--text-body); text-align:center; max-width: 900px; margin: 0 auto;">Ogni pacchetto transita per la denylist dinamica (nella catena <code>FORWARD</code>) anche <b>dopo</b> aver subito il <code>DNAT</code> verso Envoy. Un IP bannato dall'API di management viene quindi scartato a livello kernel indipendentemente dalla risorsa finale richiesta.</p>
+  
+  <span class="slide-number">26 / 28</span>
+</section>
+
+<section class="slide" id="s27">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 3.6.1</span>
+    <h2>Mutua autenticazione TLS (mTLS) e ciclo PKI</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <div class="diagram-container animate-in-up" style="background:var(--bg-card2); border: 1px solid var(--border-strong); display: flex; justify-content: center; align-items: center; width: 100%; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); padding: 20px; flex-grow: 1; min-height: 360px;">
+    <svg viewBox="0 0 1050 340" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif" style="width:100%; height:100%; max-height: 50vh; overflow: visible;">
+      <defs>
+        <filter id="shadow-s27" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000000" flood-opacity="0.5"/>
+        </filter>
+        <marker id="arr-copper-s27" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-copper)"/></marker>
+        <marker id="arr-sand-s27" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-sand)"/></marker>
+        <marker id="arr-green-s27" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-green)"/></marker>
+      </defs>
+
+      <rect x="15" y="45" width="220" height="250" fill="rgba(176, 96, 79, 0.02)" stroke="var(--accent-copper)" stroke-width="1.5" stroke-dasharray="4 4" rx="8"/>
+      <text x="30" y="68" fill="var(--accent-copper)" font-size="11" font-weight="800" letter-spacing="1px">PKI & EMISSIONE</text>
+
+      <g transform="translate(30, 90)" filter="url(#shadow-s27)" class="hover-node">
+        <rect width="190" height="60" fill="var(--bg-white)" stroke="var(--accent-copper)" stroke-width="2" rx="6"/>
+        <text x="95" y="28" fill="var(--text-heading)" font-size="12" font-weight="800" text-anchor="middle">ZTA Hospital Root CA</text>
+        <text x="95" y="45" fill="var(--text-muted)" font-size="10" text-anchor="middle">Ancora di Fiducia Privata</text>
+      </g>
+
+      <path class="flow-line-telemetry" d="M 125 150 L 125 205" fill="none" stroke="var(--accent-copper)" stroke-width="2" marker-end="url(#arr-copper-s27)"/>
+      <text x="135" y="185" fill="var(--accent-copper)" font-size="10" font-weight="700">Firma X.509</text>
+
+      <g transform="translate(30, 210)" filter="url(#shadow-s27)" class="hover-node">
+        <rect width="190" height="60" fill="var(--bg-white)" stroke="var(--accent-terracotta)" stroke-width="1.5" rx="6"/>
+        <text x="95" y="26" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Identity Cert (CN)</text>
+        <text x="95" y="44" fill="var(--accent-sand)" font-size="10" font-weight="600" text-anchor="middle">Iniezione OID TPM Hardware</text>
+      </g>
+
+      <path class="flow-line-data" d="M 220 240 C 270 240, 270 170, 315 170" fill="none" stroke="var(--accent-sand)" stroke-width="2" marker-end="url(#arr-sand-s27)"/>
+
+      <g transform="translate(320, 125)" filter="url(#shadow-s27)" class="hover-node">
+        <rect width="160" height="90" fill="var(--bg-white)" stroke="var(--accent-terracotta)" stroke-width="2" rx="8"/>
+        <text x="80" y="32" fill="var(--text-heading)" font-size="14" font-weight="800" text-anchor="middle">Workstation</text>
+        <text x="80" y="52" fill="var(--text-body)" font-size="11" text-anchor="middle">employee-alice</text>
+        <rect x="25" y="64" width="110" height="18" fill="rgba(230,186,146,0.1)" stroke="var(--accent-sand)" stroke-width="0.5" rx="3"/>
+        <text x="80" y="76" fill="var(--accent-sand)" font-size="9" font-weight="700" text-anchor="middle">Chiave Non Esportabile</text>
+      </g>
+
+      <path class="flow-line-data" d="M 480 155 L 610 155" fill="none" stroke="var(--accent-copper)" stroke-width="2.5" marker-end="url(#arr-copper-s27)"/>
+      <text x="545" y="145" fill="var(--accent-copper)" font-size="10" font-weight="700" text-anchor="middle">1. ClientHello + Cert Client</text>
+
+      <path class="flow-line-data" d="M 610 185 L 480 185" fill="none" stroke="var(--accent-sand)" stroke-width="2.5" marker-end="url(#arr-sand-s27)"/>
+      <text x="545" y="202" fill="var(--accent-sand)" font-size="10" font-weight="700" text-anchor="middle">2. ServerHello + Cert Server</text>
+
+      <g transform="translate(610, 125)" filter="url(#shadow-s27)" class="hover-node">
+        <rect width="160" height="90" fill="var(--accent-copper)" stroke="none" rx="8"/>
+        <text x="80" y="35" fill="#FFF" font-size="15" font-weight="900" text-anchor="middle">Envoy Proxy</text>
+        <text x="80" y="55" fill="#FFF" opacity="0.8" font-size="11" font-weight="700" text-anchor="middle">Policy Enforcement</text>
+        <text x="80" y="72" fill="var(--accent-cream)" font-size="10" font-weight="700" text-anchor="middle">require_client_cert: true</text>
+      </g>
+
+      <path class="flow-line-data" d="M 770 170 L 870 170" fill="none" stroke="var(--status-green)" stroke-width="2.5" marker-end="url(#arr-green-s27)"/>
+      <text x="820" y="160" fill="var(--status-green)" font-size="10" font-weight="800" text-anchor="middle">ext_authz (gRPC)</text>
+
+      <g transform="translate(870, 125)" filter="url(#shadow-s27)" class="hover-node">
+        <rect width="160" height="90" fill="var(--bg-white)" stroke="var(--status-green)" stroke-width="2" rx="8"/>
+        <text x="80" y="32" fill="var(--text-heading)" font-size="14" font-weight="800" text-anchor="middle">OPA (PDP)</text>
+        <text x="80" y="52" fill="var(--status-green)" font-size="11" font-weight="700" text-anchor="middle">source.principal</text>
+        <text x="80" y="72" fill="var(--text-muted)" font-size="10" text-anchor="middle">Validazione Rego CN</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="grid-2 animate-in-up" style="margin-top:10px;">
+    <div class="card">
+      <h3>Certificato client obbligatorio</h3>
+      <p>Ogni listener Envoy impone la presentazione di un certificato X.509 firmato dalla CA interna (<code>ZTA Hospital Trust Root CA</code>). L'istruzione <code>require_client_certificate: true</code> garantisce che nessuna connessione anonima superi l'handshake crittografico iniziale.</p>
+    </div>
+    <div class="card" style="transition-delay:0.1s;">
+      <h3>Propagazione dell'identità</h3>
+      <p>Il campo Common Name (CN) identifica univocamente l'operatore (es. <code>employee-alice</code>). Envoy lo estrae a runtime dal record di trasporto TLS e lo propaga in modo sicuro a OPA nel contesto della chiamata gRPC sincrona tramite l'attributo <code>source.principal</code>.</p>
+    </div>
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s28">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.6.2</span><h2>Attestazione hardware TPM</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="code-block">
+      <span class="code-label">generate_identities.py</span>
+TPM_OID = ObjectIdentifier(
+    <span class="str">"1.3.6.1.4.1.9999.1"</span>)
+
+<span class="kw">if</span> has_tpm:
+    builder = builder.add_extension(
+      x509.UnrecognizedExtension(
+        TPM_OID,
+        b<span class="str">"TPM-VERIFIED-HARDWARE-</span>
+        <span class="str">ROOT-OF-TRUST-PCR0-OK"</span>
+      ),
+      critical=<span class="num">False</span>
+    )
+    </div>
+    <div>
+      <h3>Simulazione dell'hardware attestation</h3>
+      <p>Lo script <code>generate_identities.py</code> simula il processo arricchendo i certificati delle workstation sicure (Alice, Charlie) con l'estensione custom OID <code>1.3.6.1.4.1.9999.1</code>.</p>
+      <h3 style="margin-top:16px;">In un ambiente reale</h3>
+      <p>L'estensione sarebbe apposta dalla CA solo dopo validazione crittografica di una CSR firmata dalla Endorsement Key di un chip TPM fisico — garantendo l'inesportabilità della chiave privata.</p>
+    </div>
+  </div>
+  <div class="code-block animate-in-up" style="margin-top:20px;">
+    <span class="code-label">rules.rego — verifica OPA</span>
+default is_tpm := <span class="num">false</span>
+is_tpm := <span class="num">true</span> <span class="kw">if</span> {
+    cert_pem := urlquery.decode(input.attributes.source.certificate)
+    certs := crypto.x509.parse_certificates(cert_pem)
+    <span class="kw">some</span> ext <span class="kw">in</span> certs[0].Extensions
+    ext.Id == [<span class="num">1, 3, 6, 1, 4, 1, 9999, 1</span>]
+}
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s29">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.6.3</span><h2>Fingerprinting software JA3</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card"><h3>Come funziona</h3><p>Durante l'handshake TLS, <code>tls_inspector</code> calcola un hash deterministico dai parametri del ClientHello (versione TLS, cipher suite, estensioni, curve ellittiche). Distingue un browser autorizzato da un tool di attacco (curl, nmap).</p></div>
+    <div class="card"><h3>Limite strutturale</h3><p>Due dispositivi con stesso browser/OS producono lo stesso hash JA3: per gli operatori umani è crittograficamente indistinguibile — classificato come indicatore <b>debole</b> per accessi interattivi.</p></div>
+  </div>
+  <div class="card animate-in-up" style="margin-top:20px;"><h3>Fallback per traffico Machine-to-Machine</h3><p>Per sensori IoT e microservizi headless senza TPM, un JA3 censito e costante abilita l'accesso in modalità degradata: soglia di rischio abbassata a <code>≤26</code>, diritti verso endpoint sensibili/distruttivi inibiti a priori.</p></div>
+  <div class="card animate-in-up" style="margin-top:16px; border-left:4px solid var(--accent-copper);"><h3>⚠ Nota di sviluppo (§5.2)</h3><p>Nel PoC attuale il ramo di fallback JA3 per dispositivi no-TPM non è pienamente operativo: le label simboliche di addestramento non coincidono con gli hash JA3 reali a runtime. Documentato come sviluppo futuro.</p></div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide bg-log" id="s30">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 3.7</span>
+    <h2 style="margin-bottom: 5px;">Rilevamento delle intrusioni di rete: Snort NIDS</h2>
+    <hr class="slide-divider" style="margin-top: 10px; margin-bottom: 15px;">
+  </div>
+  
+  <p class="animate-in-up" style="font-size: 1.05rem; margin-bottom: 15px; line-height: 1.5;">
+    <strong style="color:var(--accent-sand);">Deploy (architettura sidecar):</strong> <code>network_mode: "service:envoy-pep"</code> — Snort condivide il network namespace di Envoy, agganciandosi alla sua interfaccia senza IP proprio e senza latenza aggiuntiva. Agisce a tutti gli effetti come una sonda TAP invisibile.
+  </p>
+  
+  <div class="grid-2 animate-in-up" style="gap: 20px; margin-bottom: 15px; align-items: stretch;">
+    
+    <div class="card" style="padding: 15px 20px; display: flex; flex-direction: column; justify-content: center;">
+      <h3 style="margin-bottom: 12px; font-size: 1.15rem;">Sintesi Firme NIDS</h3>
+      <style>
+        .compact-table th, .compact-table td { padding: 8px 10px !important; font-size: 0.85rem !important; }
+      </style>
+      <table class="data-table compact-table" style="width: 100%;">
+        <thead><tr><th>SID</th><th>Regola</th><th>Trigger</th></tr></thead>
+        <tbody>
+          <tr><td>1000001</td><td>Nmap SYN Scan</td><td>20 SYN / 10s</td></tr>
+          <tr><td>1000002</td><td>Audit MongoDB nativo</td><td>Qualsiasi pkt :27017</td></tr>
+          <tr><td>1000003</td><td>DoS volumetrico</td><td>100 SYN / 5s :8443</td></tr>
+          <tr><td>1000004</td><td>Downgrade / chiaro</td><td>"GET " nel payload</td></tr>
+          <tr><td>1000005</td><td>Brute-force mTLS</td><td>15 RST / 10s</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="diagram-container" style="background:rgba(20,19,20,0.6); border: 1px solid var(--border-strong); border-radius: 12px; padding: 8px; display: flex; justify-content: center; align-items: center; box-shadow: 0 8px 25px rgba(0,0,0,0.5);">
+      <svg viewBox="-15 10 510 230" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif" style="width:100%; height:100%; max-height:260px;">
+        <defs>
+          <filter id="shadow-s30" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.6"/>
+          </filter>
+          <marker id="arr-copper-s30" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-copper)"/></marker>
+          <marker id="arr-red-s30" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-red)"/></marker>
+          <marker id="arr-green-s30" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-green)"/></marker>
+        </defs>
+
+        <rect x="20" y="20" width="460" height="210" fill="rgba(255, 255, 255, 0.02)" stroke="var(--border-strong)" stroke-width="2" stroke-dasharray="6 4" rx="10"/>
+        <text x="35" y="42" fill="var(--text-muted)" font-size="10" font-weight="800" letter-spacing="1px">SHARED NETWORK NAMESPACE</text>
+        
+        <rect x="350" y="30" width="115" height="16" fill="rgba(230,186,146,0.1)" stroke="var(--accent-sand)" stroke-width="0.5" rx="3"/>
+        <text x="407" y="41" fill="var(--accent-sand)" font-size="8" font-weight="700" text-anchor="middle">IP: 10.0.1.X</text>
+
+        <g transform="translate(40, 90)" filter="url(#shadow-s30)">
+          <rect width="36" height="70" fill="var(--bg-white)" stroke="var(--accent-copper)" stroke-width="2" rx="4"/>
+          <text x="18" y="39" fill="var(--text-heading)" font-size="10" font-weight="800" text-anchor="middle" transform="rotate(-90 18 39)">eth0</text>
+        </g>
+
+        <path class="flow-line-data" d="M -10 125 L 35 125" fill="none" stroke="var(--accent-copper)" stroke-width="2" marker-end="url(#arr-copper-s30)"/>
+        <text x="15" y="118" fill="var(--accent-copper)" font-size="9" font-weight="700" text-anchor="middle">IN</text>
+
+        <path class="flow-line-data" d="M 80 125 L 110 125 L 110 75 L 145 75" fill="none" stroke="var(--status-green)" stroke-width="2" marker-end="url(#arr-green-s30)"/>
+        <path class="flow-line-telemetry" d="M 110 125 L 110 175 L 145 175" fill="none" stroke="var(--status-red)" stroke-width="2" marker-end="url(#arr-red-s30)"/>
+        <text x="110" y="155" fill="var(--status-red)" font-size="8" font-weight="700" transform="rotate(-90 110 155)">L2 TAP</text>
+
+        <g transform="translate(150, 50)" filter="url(#shadow-s30)">
+          <rect width="130" height="50" fill="var(--status-green)" stroke="none" rx="6"/>
+          <text x="65" y="24" fill="#FFF" font-size="12" font-weight="800" text-anchor="middle">Envoy Proxy</text>
+          <text x="65" y="38" fill="#FFF" font-size="9" opacity="0.9" text-anchor="middle">Ascolto porte TCP</text>
+        </g>
+
+        <g transform="translate(150, 150)" filter="url(#shadow-s30)">
+          <rect width="130" height="50" fill="var(--bg-white)" stroke="var(--status-red)" stroke-width="2" rx="6"/>
+          <text x="65" y="24" fill="var(--text-heading)" font-size="12" font-weight="800" text-anchor="middle">Snort NIDS</text>
+          <text x="65" y="38" fill="var(--text-muted)" font-size="9" text-anchor="middle">Sniffing promiscuo</text>
+        </g>
+
+        <path class="flow-line-data" d="M 285 75 L 430 75" fill="none" stroke="var(--status-green)" stroke-width="1.5" marker-end="url(#arr-green-s30)"/>
+        <text x="357" y="68" fill="var(--status-green)" font-size="9" font-weight="700" text-anchor="middle">Verso Backend L7</text>
+
+        <path class="flow-line-telemetry" d="M 285 175 L 430 175" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arr-copper-s30)"/>
+        <text x="357" y="168" fill="var(--text-muted)" font-size="9" font-weight="700" text-anchor="middle">Alert Log (Fluent-Bit)</text>
+      </svg>
+    </div>
+
+  </div>
+  
+  <div class="code-block animate-in-up" style="font-size: 0.8rem; line-height: 1.6; padding: 16px 24px; margin: 0; overflow-y: auto; max-height: 220px; scrollbar-width: thin; scrollbar-color: var(--accent-copper) var(--bg-white);">
+    <span class="code-label">local.rules</span>
+<span class="cm"># =======================================================
+# ZTA 2026 - REGOLE SNORT PER ENVOY/MONGODB
+# =======================================================
+
+# 1. Rileva una scansione Nmap (SYN Scan) verso Envoy o DB</span>
+<span class="kw">alert</span> tcp <span class="var">any any</span> -> <span class="var">any any</span> (msg:<span class="str">"ZTA ALERT: Rilevata Scansione (Nmap)"</span>; flags:S; threshold:type both, track by_src, count <span class="num">20</span>, seconds <span class="num">10</span>; sid:<span class="num">1000001</span>; rev:1;)
+
+<span class="cm"># 2. AUDIT: Accesso Client nativo MongoDB (Data Science/Scripting)</span>
+<span class="kw">alert</span> tcp <span class="var">any any</span> -> <span class="var">any</span> <span class="num">27017</span> (msg:<span class="str">"ZTA AUDIT: Connessione Client nativa a MongoDB"</span>; sid:<span class="num">1000002</span>; rev:2;)
+
+<span class="cm"># 3. Rileva attacco volumetrico (Possibile DoS / SYN Flood)</span>
+<span class="kw">alert</span> tcp <span class="var">any any</span> -> <span class="var">any</span> <span class="num">8443</span> (msg:<span class="str">"ZTA ALERT: Anomalia volumetrica (DoS verso il Proxy)"</span>; flags:S; threshold:type both, track by_src, count <span class="num">100</span>, seconds <span class="num">5</span>; sid:<span class="num">1000003</span>; rev:1;)
+
+<span class="cm"># 4. Rileva connessione in chiaro (Downgrade Attack HTTP)</span>
+<span class="kw">alert</span> tcp <span class="var">any any</span> -> <span class="var">any</span> <span class="num">8443</span> (msg:<span class="str">"ZTA ALERT: Tentativo traffico in chiaro su porta protetta"</span>; flow:established,to_server; content:<span class="str">"GET "</span>; depth:<span class="num">4</span>; sid:<span class="num">1000004</span>; rev:1;)
+
+<span class="cm"># 5. Rileva Brute-force su mTLS (Reset continui post-handshake)</span>
+<span class="kw">alert</span> tcp <span class="var">any any</span> -> <span class="var">any</span> <span class="num">8443</span> (msg:<span class="str">"ZTA ALERT: Possibile Brute-force mTLS"</span>; flags:R; threshold:type both, track by_src, count <span class="num">15</span>, seconds <span class="num">10</span>; sid:<span class="num">1000005</span>; rev:1;)
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide bg-log" id="s31">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 3.8</span>
+    <h2 style="margin-bottom: 5px;">Aggregazione centralizzata dei log: Fluent-Bit</h2>
+    <hr class="slide-divider" style="margin-top: 10px; margin-bottom: 15px;">
+  </div>
+  
+  <p class="animate-in-up" style="font-size: 1.05rem; margin-bottom: 20px; line-height: 1.5;">
+    Tutta la telemetria di sicurezza (accessi, decisioni, alert di rete) viene catturata in tempo reale dai rispettivi container tramite volumi Docker condivisi e normalizzata da <strong>Fluent-Bit</strong>, prima dell'ingestion asincrona verso il SIEM (Splunk via HTTP Event Collector).
+  </p>
+  
+  <div class="grid-2 animate-in-up" style="gap: 30px; align-items: center;">
+    
+    <div class="diagram-container" style="background:rgba(20,19,20,0.6); border: 1px solid var(--border-strong); border-radius: 12px; padding: 15px; display: flex; justify-content: center; align-items: center; box-shadow: 0 8px 25px rgba(0,0,0,0.5);">
+      <svg viewBox="-10 0 580 340" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif" style="width:100%; height:100%; max-height: 380px;">
+        <defs>
+          <filter id="shadow-s31" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.6"/>
+          </filter>
+          <marker id="arr-tel-s31" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--text-muted)"/></marker>
+          <marker id="arr-out-s31" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-copper)"/></marker>
+        </defs>
+
+        <g transform="translate(10, 20)" filter="url(#shadow-s31)" class="hover-node">
+          <rect width="130" height="46" fill="var(--bg-white)" stroke="var(--status-green)" stroke-width="2" rx="6"/>
+          <text x="65" y="22" fill="var(--text-heading)" font-size="11" font-weight="800" text-anchor="middle">Envoy PEP</text>
+          <text x="65" y="36" fill="var(--status-green)" font-size="9" text-anchor="middle">envoy.access</text>
+        </g>
+
+        <g transform="translate(10, 80)" filter="url(#shadow-s31)" class="hover-node">
+          <rect width="130" height="46" fill="var(--bg-white)" stroke="var(--status-green)" stroke-width="2" rx="6"/>
+          <text x="65" y="22" fill="var(--text-heading)" font-size="11" font-weight="800" text-anchor="middle">OPA PDP</text>
+          <text x="65" y="36" fill="var(--status-green)" font-size="9" text-anchor="middle">opa.decisions</text>
+        </g>
+
+        <g transform="translate(10, 140)" filter="url(#shadow-s31)" class="hover-node">
+          <rect width="130" height="46" fill="var(--bg-white)" stroke="var(--accent-sand)" stroke-width="2" rx="6"/>
+          <text x="65" y="22" fill="var(--text-heading)" font-size="11" font-weight="800" text-anchor="middle">MongoDB</text>
+          <text x="65" y="36" fill="var(--accent-sand)" font-size="9" text-anchor="middle">mongo.audit</text>
+        </g>
+
+        <g transform="translate(10, 200)" filter="url(#shadow-s31)" class="hover-node">
+          <rect width="130" height="46" fill="var(--bg-white)" stroke="var(--status-red)" stroke-width="2" rx="6"/>
+          <text x="65" y="22" fill="var(--text-heading)" font-size="11" font-weight="800" text-anchor="middle">Snort NIDS</text>
+          <text x="65" y="36" fill="var(--status-red)" font-size="9" text-anchor="middle">snort.alerts</text>
+        </g>
+
+        <g transform="translate(10, 260)" filter="url(#shadow-s31)" class="hover-node">
+          <rect width="130" height="46" fill="var(--bg-white)" stroke="var(--accent-copper)" stroke-width="2" rx="6"/>
+          <text x="65" y="22" fill="var(--text-heading)" font-size="11" font-weight="800" text-anchor="middle">nftables</text>
+          <text x="65" y="36" fill="var(--accent-copper)" font-size="9" text-anchor="middle">nftables.kernel</text>
+        </g>
+
+        <path class="flow-line-telemetry" d="M 140 43 C 190 43, 190 120, 240 120" fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arr-tel-s31)"/>
+        <path class="flow-line-telemetry" d="M 140 103 C 190 103, 190 140, 240 140" fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arr-tel-s31)"/>
+        <path class="flow-line-telemetry" d="M 140 163 L 240 163" fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arr-tel-s31)"/>
+        <path class="flow-line-telemetry" d="M 140 223 C 190 223, 190 186, 240 186" fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arr-tel-s31)"/>
+        <path class="flow-line-telemetry" d="M 140 283 C 190 283, 190 206, 240 206" fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arr-tel-s31)"/>
+
+        <g transform="translate(245, 100)" filter="url(#shadow-s31)" class="hover-node">
+          <rect width="120" height="126" fill="var(--accent-copper)" stroke="none" rx="8"/>
+          <text x="60" y="55" fill="#FFF" font-size="14" font-weight="900" text-anchor="middle">Fluent-Bit</text>
+          <text x="60" y="75" fill="#FFF" opacity="0.9" font-size="10" font-weight="600" text-anchor="middle">Log Aggregation</text>
+          <text x="60" y="90" fill="#FFF" opacity="0.9" font-size="10" font-weight="600" text-anchor="middle">&amp; Destructuration</text>
+        </g>
+
+        <path class="flow-line-data" d="M 365 163 L 435 163" fill="none" stroke="var(--accent-copper)" stroke-width="3" marker-end="url(#arr-out-s31)"/>
+        <text x="400" y="153" fill="var(--accent-copper)" font-size="9" font-weight="800" text-anchor="middle">JSON Stream</text>
+
+        <g transform="translate(440, 115)" filter="url(#shadow-s31)" class="hover-node">
+          <rect width="115" height="96" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="2" rx="8"/>
+          <text x="57.5" y="45" fill="var(--text-heading)" font-size="13" font-weight="800" text-anchor="middle">Splunk</text>
+          <text x="57.5" y="62" fill="var(--text-muted)" font-size="10" font-weight="700" text-anchor="middle">HEC Endpoint</text>
+          <text x="57.5" y="77" fill="var(--accent-sand)" font-size="9" font-weight="600" text-anchor="middle">SIEM / MLTK</text>
+        </g>
+      </svg>
+    </div>
+    
+    <div class="card" style="padding: 15px 20px;">
+      <h3 style="margin-bottom: 12px; font-size: 1.15rem;">Routing della telemetria</h3>
+      <style>
+        .compact-table-log th, .compact-table-log td { padding: 10px 12px !important; font-size: 0.85rem !important; }
+        .compact-table-log .tag-cell { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent-sand); }
+        .compact-table-log .path-cell { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-muted); }
+      </style>
+      <table class="data-table compact-table-log" style="width: 100%;">
+        <thead><tr><th>Sorgente</th><th>Tag</th><th>Percorso</th><th>Container</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Snort IDS</td>
+            <td class="tag-cell">snort.alerts</td>
+            <td class="path-cell">/var/log/snort/alert_json.txt</td>
+            <td>zta-snort</td>
+          </tr>
+          <tr>
+            <td>MongoDB</td>
+            <td class="tag-cell">mongo.audit</td>
+            <td class="path-cell">/var/log/mongodb/mongod.log</td>
+            <td>zta-mongodb</td>
+          </tr>
+          <tr>
+            <td>Envoy PEP</td>
+            <td class="tag-cell">envoy.access</td>
+            <td class="path-cell">/var/log/envoy/access.log</td>
+            <td>zta-envoy</td>
+          </tr>
+          <tr>
+            <td>OPA PDP</td>
+            <td class="tag-cell">opa.decisions</td>
+            <td class="path-cell">/var/log/opa/decision.log</td>
+            <td>zta-opa</td>
+          </tr>
+          <tr>
+            <td>nftables</td>
+            <td class="tag-cell">nftables.kernel</td>
+            <td class="path-cell">/var/log/nftables/firewall.log</td>
+            <td>zta-firewall</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s32">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 3.9.1</span>
+    <h2>Dall'approccio statico alla valutazione comportamentale continua</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <p class="animate-in-up" style="margin-bottom: 30px; font-size: 1.05rem; line-height: 1.5; color: var(--text-body);">
+    Alle 6 dimensioni identitarie ZTA (user, software, device, network, action, resource) si aggiungono <strong>6 feature comportamentali</strong>, iniettate dinamicamente dalla Web API, per abilitare la <span style="color: var(--accent-sand);">Continuous Authorization</span>.
+  </p>
+  
+  <style>
+    /* CSS specifico per le card avanzate della Slide 32 */
+    #s32 .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    #s32 .feature-card {
+      background: var(--bg-card2, rgba(46, 42, 43, 0.4));
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 20px;
+      position: relative;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    #s32 .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+      background: rgba(255,255,255,0.03);
+    }
+    #s32 .card-icon {
+      width: 28px;
+      height: 28px;
+      margin-bottom: 15px;
+    }
+    #s32 .feature-card h3 {
+      font-size: 1.05rem;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 0;
+      margin-bottom: 8px;
+      color: var(--text-heading);
+    }
+    #s32 .feature-card p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin: 0;
+    }
+  </style>
+
+  <div class="grid-3 animate-in-up">
+    
+    <div class="feature-card" style="border-top: 3px solid var(--status-red); transition-delay: 0.0s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--status-red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M15 9l-6 6M9 9l6 6"/>
+        </svg>
+      </div>
+      <h3>failed_logins</h3>
+      <p>Tentativi di accesso falliti nelle ultime 24h. Indicatore critico di brute-force.</p>
+    </div>
+    
+    <div class="feature-card" style="border-top: 3px solid var(--accent-sand); transition-delay: 0.05s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--accent-sand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+        </svg>
+      </div>
+      <h3>hour_of_day</h3>
+      <p>Fascia oraria e flag dedotto <code>is_night</code> per anomalie di accessi notturni (22:00–06:00).</p>
+    </div>
+    
+    <div class="feature-card" style="border-top: 3px solid var(--accent-copper); transition-delay: 0.1s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--accent-copper)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      </div>
+      <h3>session_freq</h3>
+      <p>Frequenza delle richieste nell'ultima ora (indicatore primario per traffico anti-bot).</p>
+    </div>
+    
+    <div class="feature-card" style="border-top: 3px solid var(--accent-terracotta); transition-delay: 0.15s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--accent-terracotta, #CD8770)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+          <polyline points="2 17 12 22 22 17"/>
+          <polyline points="2 12 12 17 22 12"/>
+        </svg>
+      </div>
+      <h3>sensitivity_level</h3>
+      <p>Grado di criticità della risorsa clinica richiesta (es. cartella pazienti vs menù mensa).</p>
+    </div>
+    
+    <div class="feature-card" style="border-top: 3px solid var(--text-muted); transition-delay: 0.2s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+      <h3>days_inactive</h3>
+      <p>Giorni trascorsi dall'ultimo login riuscito. Aiuta a rilevare account dormienti compromessi.</p>
+    </div>
+    
+    <div class="feature-card" style="border-top: 3px solid var(--status-green); transition-delay: 0.25s; background: linear-gradient(180deg, rgba(113, 160, 120, 0.05) 0%, rgba(46, 42, 43, 0) 100%);">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--status-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="16" x2="12" y2="12"/>
+          <line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+      </div>
+      <h3 style="color: var(--status-green);">Totale vettori ML</h3>
+      <p><b>12 Feature Complessive</b> (6 ZTA statiche + 6 comportamentali) passate al modello Gradient Boosting.</p>
+    </div>
+    
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s33">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.9.2</span><h2>Generazione del dataset e modello matematico</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Dataset sintetico</h3>
+      <p><b>50.000 record</b>, che mappano profili aziendali legittimi (alice, bob, charlie) e pattern di attacco di diversa intensità (hacker_x, script_kiddie, insider_threat, apt_agent, intruder_7).</p>
+    </div>
+    <div class="card">
+      <h3>Target predittivo</h3>
+      <p>Punteggio di rischio su scala continua 0–100, calcolato in addestramento con una funzione deterministica non lineare a tre livelli.</p>
+    </div>
+  </div>
+  <div class="formula-box animate-in-up" style="max-width:900px;">Rischio = Rischio<sub>Infra</sub> + (Rischio<sub>Comp</sub> × M<sub>Sens</sub>) + ε</div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s34">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.9.2 (1/3)</span><h2>Componente 1: Rischio Infrastrutturale</h2><div class="formula-box" style="max-width:800px;">Rischio<sub>Infra</sub> = ΔHW + ΔRete + ΔCombo</div><hr class="slide-divider"></div>
+  <div class="grid-3 animate-in-up">
+    <div class="card" style="text-align:center;"><h1 style="font-size:3rem; color:var(--status-red);">+30</h1><p>ΔHW — dispositivo privo di attestazione TPM (missing/unknown)</p></div>
+    <div class="card" style="text-align:center;"><h1 style="font-size:3rem; color:var(--status-amber);">+18</h1><p>ΔRete — connessione da rete esterna al perimetro ospedaliero</p></div>
+    <div class="card" style="text-align:center;"><h1 style="font-size:3rem; color:var(--accent-sand);">+7</h1><p>ΔCombo — correlazione critica: no-TPM <b>e</b> rete esterna simultaneamente</p></div>
+  </div>
+  <p class="animate-in-up" style="margin-top:20px; font-size:1.1rem; color:var(--text-muted);">Valuta la conformità del dispositivo e del canale <i>prima</i> dell'analisi delle azioni utente.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s35">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.9.2 (2/3)</span><h2>Componente 2: Rischio Comportamentale</h2><div class="formula-box" style="max-width:1000px;">Rischio<sub>Comp</sub> = B<sub>Logins</sub> + B<sub>Night</sub> + B<sub>Freq</sub> + B<sub>Inact</sub> + B<sub>Action</sub> + B<sub>Soft</sub></div><hr class="slide-divider"></div>
+  <table class="data-table animate-in-up">
+    <thead><tr><th>Componente</th><th>Formula / Regola</th><th>Cap Massimo</th></tr></thead>
+    <tbody>
+      <tr><td>B<sub>Logins</sub></td><td>min(failed×3.5 + log₂(failed+1)×2.5, 25)</td><td>25</td></tr>
+      <tr><td>B<sub>Night</sub></td><td>+5 se orario in [22:00, 06:00)</td><td>5</td></tr>
+      <tr><td>B<sub>Freq</sub></td><td>+7 (>30) / +4 (20-30) / +2 (10-20) richieste/h</td><td>7</td></tr>
+      <tr><td>B<sub>Inact</sub></td><td>min(⌊giorni/15⌋×2, 8)</td><td>8</td></tr>
+      <tr><td>B<sub>Action</sub></td><td>+8 se comando distruttivo (delete/drop)</td><td>8</td></tr>
+      <tr><td>B<sub>Soft</sub></td><td>+4 se tool di scansione (nmap, curl, metasploit...)</td><td>4</td></tr>
+    </tbody>
+  </table>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s36">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.9.2 (3/3)</span><h2>Moltiplicatore di Sensibilità e rumore stocastico</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="formula-box" style="max-width:100%;">M<sub>Sens</sub> = 1.0 + (livello−1) × 0.175</div>
+    <table class="data-table">
+      <tr><td>Livello 1</td><td>M = 1.00 — utenti</td></tr>
+      <tr><td>Livello 2</td><td>M = 1.175 — pazienti, system logs</td></tr>
+      <tr><td>Livello 3</td><td>M = 1.35 — cartelle cliniche, config_db</td></tr>
+    </table>
+  </div>
+  <div class="card animate-in-up" style="margin-top:24px;">
+    <h3>Rumore gaussiano e clamping</h3>
+    <p>ε ~ N(0,2) introduce fluttuazione stocastica; operatore di clamping rigido in [0,100]. Fondamentale per l'addestramento del <code>GradientBoostingRegressor</code>: previene overfitting su un dataset puramente geometrico, forzando la generalizzazione delle relazioni non lineari latenti.</p>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s37">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.9.3</span><h2>Selezione dell'algoritmo: Gradient Boosting vs Random Forest</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card"><h3>Random Forest (bagging)</h3><p>Alberi paralleli, predizione come media aritmetica. Riduce la varianza ma "smussa" le anomalie — difetto critico in sicurezza, dove un picco anomalo non va attenuato.</p></div>
+    <div class="card"><h3>Gradient Boosting (adottato)</h3><p>Apprendimento additivo sequenziale: ogni albero corregge i residui del precedente, minimizzando direttamente la Loss Function tramite il gradiente dell'errore.</p></div>
+  </div>
+  <div class="card animate-in-up" style="margin-top:20px;"><h3>Esempio discriminante</h3><p>Un utente che fallisce 5 login di giorno dall'ufficio ha rischio moderato; lo stesso utente che fallisce 5 login alle 3 di notte da IP esterno rappresenta una minaccia critica. Il Gradient Boosting, focalizzandosi sulla correzione degli errori sui casi limite, penalizza severamente questa combinazione atipica — cosa che un Random Forest tenderebbe a mediare via.</p></div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s38">
+  <div class="chapter-tag">Capitolo 3 · Implementazione Pratica</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 3.9.4</span><h2>Addestramento e regressione in tempo reale</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="code-block">
+      <span class="code-label">SPL — Addestramento</span>
+| inputlookup simulated_traffic.csv
+| <span class="fn">fit</span> GradientBoostingRegressor
+    <span class="str">"rischio"</span>
+    from user, software, device,
+    network, action, resource,
+    failed_logins, hour_of_day,
+    is_night, session_freq,
+    sensitivity_level, days_inactive
+| <span class="kw">into</span> trust_model
+    </div>
+    <div>
+      <h3>Regressione, non classificazione</h3>
+      <p>Il modello restituisce un punteggio numerico continuo (es. 18.4, 42.7), non un giudizio binario. Il modello, addestrato con permessi Globali, è interrogabile via API REST.</p>
+      <h3 style="margin-top:20px;">Applicazione delle soglie</h3>
+      <p>OPA ingerisce il valore per applicare politiche adattive: blocco per rischio &gt;38 su rete interna o &gt;26 su rete esterna, rendendo il perimetro fluido e proporzionale alla postura reale dell'utente.</p>
+    </div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s39">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">Introduzione</span><h2>14 scenari operativi, organizzati per livello di difesa</h2><hr class="slide-divider"></div>
+  <table class="data-table animate-in-up">
+    <thead><tr><th>#</th><th>Scenario</th><th>Layer</th><th>Esito</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Connessione senza certificato client</td><td>L5/6 TLS</td><td><span class="pill pill-red">Alert TLS</span></td></tr>
+      <tr><td>2</td><td>Certificato non firmato dalla CA</td><td>L5/6 TLS</td><td><span class="pill pill-red">Unknown CA</span></td></tr>
+      <tr><td>3</td><td>Bypass L4 diretto (curl :8000)</td><td>L3/4</td><td><span class="pill pill-red">DROP nftables</span></td></tr>
+      <tr><td>4</td><td>Accesso legittimo interno — Alice</td><td>L7</td><td><span class="pill pill-green">ALLOW (9.96)</span></td></tr>
+      <tr><td>5</td><td>Blocco login no-TPM — Bob</td><td>L7</td><td><span class="pill pill-red">DENY (100)</span></td></tr>
+      <tr><td>6</td><td>Accesso legittimo esterno — Charlie</td><td>L7</td><td><span class="pill pill-green">ALLOW (17.7)</span></td></tr>
+      <tr><td>7-8</td><td>Dati sensibili — Alice / Charlie</td><td>L7 DPI</td><td><span class="pill pill-amber">ALLOW / DENY</span></td></tr>
+      <tr><td>9</td><td>TCP diretto MongoDB — Alice / Bob</td><td>L4/7</td><td><span class="pill pill-amber">ALLOW / DENY</span></td></tr>
+      <tr><td>10</td><td>Payload DELETE su /api/patients</td><td>L7 DPI</td><td><span class="pill pill-red">403 Blocked</span></td></tr>
+      <tr><td>10.1</td><td>Insider Threat — Alice compromessa</td><td>ML</td><td><span class="pill pill-red">DENY (95.49)</span></td></tr>
+      <tr><td>11-14</td><td>Nmap, Audit, DoS, Downgrade</td><td>NIDS</td><td><span class="pill pill-blue">Detection</span></td></tr>
+    </tbody>
+  </table>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s40">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 4.1</span><h2>Scenario 1 — Tentativo di connessione senza certificato client</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="code-block">
+      <span class="code-label">curl_no_cert.sh</span>
+$ docker exec zta-client-charlie curl -k \
+    https://zta-firewall:8443/api/patients
+
+curl: (56) OpenSSL SSL_read:
+<span class="str">tlsv13 alert certificate required</span>
+    </div>
+    <div class="card"><p>Il proxy Envoy rileva l'assenza del certificato durante l'handshake TLS. La connessione è abortita a livello di trasporto: la richiesta HTTP non viene <b>mai</b> elaborata — né OPA, né Splunk, né il backend sono interpellati. Approccio fail-closed, overhead computazionale azzerato.</p></div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s41">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 4.2</span><h2>Scenario 2 — Certificato non firmato dalla CA</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="code-block">
+      <span class="code-label">curl_fake_cert.sh</span>
+$ openssl req -x509 -newkey rsa:2048 \
+    -keyout fake.key -out fake.crt \
+    -days 1 -nodes -subj '/CN=intruder'
+$ curl -k --cert fake.crt --key fake.key \
+    https://zta-firewall:8443/api/patients
+
+curl: (56) <span class="str">tlsv1 alert unknown ca</span>
+    </div>
+    <div class="card"><p>Envoy valida rigorosamente la Certificate Authority emittente. Il certificato self-signed non corrisponde alla Root CA interna: la connessione è interrotta immediatamente all'handshake, senza esporre alcuna risorsa interna.</p></div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s42">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 4.3 · Figura 5</span>
+    <h2>Scenario 3 — Tentativo di bypass L4 e rilevamento attivo</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <div class="diagram-container animate-in-up" style="background:rgba(20,19,20,0.6); border: 1px solid var(--border-strong); border-radius: 12px; padding: 8px; display: flex; justify-content: center; align-items: center; box-shadow: 0 8px 25px rgba(0,0,0,0.5); margin-top:20px;">
+    <svg viewBox="20 50 1040 620" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif" style="width:100%; height:100%; max-height:48vh;">
+      <defs>
+        <filter id="shadow-s42" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+        </filter>
+        <marker id="arr-red-s42" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-red)"/>
+        </marker>
+        <marker id="arr-amber-s42" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-amber)"/>
+        </marker>
+      </defs>
+
+      <rect x="30" y="70" width="180" height="120" fill="rgba(140, 71, 59, 0.04)" stroke="var(--status-red)" stroke-width="1.2" stroke-dasharray="4 4" rx="6"/>
+      <text x="40" y="90" fill="var(--status-red)" font-size="10" font-weight="800" letter-spacing="1px">RETE ESTERNA</text>
+
+      <rect x="30" y="210" width="180" height="210" fill="rgba(185, 106, 89, 0.02)" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="4 4" rx="6" opacity="0.3"/>
+      <text x="40" y="230" fill="var(--text-muted)" font-size="10" font-weight="800" letter-spacing="1px" opacity="0.4">RETE INTERNA (DMZ)</text>
+
+      <rect x="830" y="110" width="220" height="280" fill="rgba(217, 160, 126, 0.04)" stroke="var(--status-red)" stroke-width="1.2" stroke-dasharray="4 4" rx="6"/>
+      <text x="840" y="130" fill="var(--status-red)" font-size="10" font-weight="800" letter-spacing="1px">RISORSE PROTETTE</text>
+
+      <rect x="150" y="440" width="840" height="220" fill="rgba(128, 122, 118, 0.04)" stroke="var(--status-red)" stroke-width="1.2" stroke-dasharray="4 4" rx="6"/>
+      <text x="160" y="460" fill="var(--status-red)" font-size="10" font-weight="800" letter-spacing="1px">PIANO DI CONTROLLO</text>
+
+      <path class="flow-line-data" d="M 185,130 L 315,260" fill="none" stroke="var(--status-red)" stroke-width="2.5" marker-end="url(#arr-red-s42)"/>
+      
+      <path class="flow-line-data" d="M 445,260 L 875,320" fill="none" stroke="var(--status-red)" stroke-width="2.5" marker-end="url(#arr-red-s42)"/>
+
+      <path class="flow-line-data" d="M 380,290 L 380,390 L 245,390 L 245,470" fill="none" stroke="var(--status-red)" stroke-width="2" marker-end="url(#arr-red-s42)"/>
+
+      <path class="flow-line-telemetry" d="M 310,500 Q 420,490 530,570" fill="none" stroke="var(--status-amber)" stroke-width="2" marker-end="url(#arr-amber-s42)"/>
+
+      <path class="flow-line-telemetry" d="M 465,600 L 310,600" fill="none" stroke="var(--status-red)" stroke-width="2" marker-end="url(#arr-red-s42)"/>
+
+      <path d="M 185,260 L 315,260" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1"/>
+      <path d="M 185,360 L 315,260" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1"/>
+      <path d="M 570,260 L 710,260" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1"/>
+      <path d="M 710,260 L 875,180" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1"/>
+      <path d="M 940,210 L 940,290" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1"/>
+      <path d="M 640,295 L 640,390 L 820,390 L 820,570" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1"/>
+
+      <g font-size="9" font-weight="800" text-anchor="middle">
+        <rect x="200" y="170" width="70" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-red)" stroke-width="0.5"/>
+        <text x="235" y="181" fill="var(--status-red)">TCP 8000 Bypass</text>
+        
+        <rect x="490" y="270" width="55" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-red)" stroke-width="0.5"/>
+        <text x="517" y="281" fill="var(--status-red)">BLOCCATO</text>
+
+        <rect x="275" y="380" width="60" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-red)" stroke-width="0.5"/>
+        <text x="305" y="391" fill="var(--status-red)">[NFT-BLOCK]</text>
+
+        <rect x="360" y="505" width="50" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-amber)" stroke-width="0.5"/>
+        <text x="385" y="516" fill="var(--status-amber)">Snort Alert</text>
+
+        <rect x="355" y="592" width="65" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-red)" stroke-width="0.5"/>
+        <text x="387" y="603" fill="var(--status-red)">HEC Event</text>
+      </g>
+
+      <g font-size="10" font-weight="800" text-anchor="middle">
+        <text x="380" y="315" fill="var(--status-red)">DROP</text>
+        <text x="245" y="548" fill="var(--status-amber)">Alert Scansione L4</text>
+        <text x="245" y="648" fill="var(--status-red)">Log Centralizzato</text>
+        <text x="940" y="368" fill="var(--status-red)">Backend Protetto</text>
+      </g>
+
+      <g transform="translate(55, 100)" filter="url(#shadow-s42)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-red)" stroke-width="2" rx="4"/>
+        <text x="65" y="35" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Attaccante</text>
+      </g>
+
+      <g transform="translate(55, 230)" opacity="0.15">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="1" rx="4"/>
+        <text x="65" y="35" fill="var(--text-muted)" font-size="11" font-weight="700" text-anchor="middle">Alice</text>
+      </g>
+      <g transform="translate(55, 330)" opacity="0.15">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="1" rx="4"/>
+        <text x="65" y="35" fill="var(--text-muted)" font-size="11" font-weight="700" text-anchor="middle">Bob</text>
+      </g>
+
+      <g transform="translate(315, 230)" filter="url(#shadow-s42)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-red)" stroke-width="2.5" rx="4"/>
+        <text x="65" y="28" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">nftables</text>
+        <text x="65" y="44" fill="var(--status-red)" font-size="10" font-weight="700" text-anchor="middle">Firewall Kernel</text>
+      </g>
+
+      <g transform="translate(570, 225)" opacity="0.15">
+        <rect width="140" height="70" fill="var(--text-muted)" stroke="none" rx="6"/>
+        <text x="70" y="40" fill="#FFF" font-size="11" font-weight="800" text-anchor="middle">Envoy PEP</text>
+      </g>
+
+      <g transform="translate(875, 150)" opacity="0.15">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="1" rx="4"/>
+        <text x="65" y="35" fill="var(--text-muted)" font-size="11" font-weight="700" text-anchor="middle">Web API</text>
+      </g>
+      <g transform="translate(875, 290)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-red)" stroke-width="2" rx="4"/>
+        <text x="65" y="35" fill="var(--text-heading)" font-size="11" font-weight="700" text-anchor="middle">MongoDB</text>
+      </g>
+
+      <g transform="translate(180, 470)" filter="url(#shadow-s42)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-amber)" stroke-width="2" rx="4"/>
+        <text x="65" y="35" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Snort NIDS</text>
+      </g>
+
+      <g transform="translate(465, 570)" filter="url(#shadow-s42)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-amber)" stroke-width="1.5" rx="4"/>
+        <text x="65" y="35" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Fluent-Bit</text>
+      </g>
+
+      <g transform="translate(180, 570)" filter="url(#shadow-s42)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-red)" stroke-width="2" rx="4"/>
+        <text x="65" y="35" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Splunk</text>
+      </g>
+
+      <g transform="translate(755, 570)" opacity="0.15">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="1" rx="4"/>
+        <text x="65" y="35" fill="var(--text-muted)" font-size="11" font-weight="700" text-anchor="middle">OPA</text>
+      </g>
+    </svg>
+  </div>
+  
+  <div class="grid-2 animate-in-up" style="margin-top:20px; align-items: stretch;">
+    <div class="code-block" style="min-height:auto; font-size: 0.85rem; padding: 20px; display: flex; flex-direction: column; justify-content: center;">
+      <span class="code-label">Terminale Attaccante</span>
+<pre><span class="var">$</span> curl --connect-timeout 3 \
+  http://zta-firewall:8000/api/patients
+
+<span class="kw">curl</span>: (28) <span class="str">Connection timed out</span></pre>
+    </div>
+    <div class="card" style="display: flex; flex-direction: column; justify-content: center; padding: 20px;">
+      <p style="font-size: 0.95rem; line-height: 1.6; margin: 0;">
+        I pacchetti sono scartati (<code>DROP</code>) in kernel space da <strong>nftables</strong> <b>prima</b> di raggiungere Envoy. Nessuna chiamata gRPC a OPA né interrogazione al modello ML viene innescata, annullando il carico computazionale. L'unica traccia in Splunk proviene dai log diretti di nftables (<code>[NFT-BLOCK]</code>) e dagli alert della sonda Snort. La <i>Response</i> automatica attiva resta sviluppo futuro.
+      </p>
+    </div>
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s43">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 4.4 · Figura 8</span><h2>Scenario 4 — Accesso legittimo da rete interna: Alice</h2><hr class="slide-divider"></div>
+  <div class="grid-4 animate-in-up" style="align-items:center; margin-bottom:24px;">
+    <div class="flow-box" style="border-color:var(--status-green);">Alice<br><span style="font-weight:400; font-size:1rem;">mTLS+TPM</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">Firewall → Envoy → OPA ↔ Splunk</div>
+    <div class="flow-box" style="background:var(--status-green); color:#fff;">VERDETTO: ALLOW</div>
+  </div>
+  <div class="grid-2 animate-in-up">
+    <table class="data-table">
+      <tr><td>Decision</td><td><span class="pill pill-green">ALLOW</span></td></tr>
+      <tr><td>tpm_present</td><td>true</td></tr>
+      <tr><td>network_internal</td><td>true</td></tr>
+      <tr><td>risk_score</td><td>≈ 9.96 (soglia ≤ 38)</td></tr>
+      <tr><td>l7_dpi_block</td><td>false</td></tr>
+    </table>
+    <div class="card"><p>Envoy estrae il certificato, calcola JA3, trasmette a OPA. Splunk MLTK calcola un rischio minimo per assenza di anomalie comportamentali: la query è instradata al database in pochi millisecondi.</p></div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s44">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 4.5 · Figura 11</span><h2>Scenario 5 — Blocco al login per mancanza di TPM: Bob</h2><hr class="slide-divider"></div>
+  <div class="grid-4 animate-in-up" style="align-items:center; margin-bottom:24px;">
+    <div class="flow-box" style="border-color:var(--status-red);">Bob<br><span style="font-weight:400; font-size:1rem;">mTLS, no TPM</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">Firewall → Envoy → OPA</div>
+    <div class="flow-box" style="background:var(--status-red); color:#fff;">VERDETTO: DENY</div>
+  </div>
+  <div class="grid-2 animate-in-up">
+    <table class="data-table">
+      <tr><td>Decision</td><td><span class="pill pill-red">DENY</span></td></tr>
+      <tr><td>tpm_present</td><td>false</td></tr>
+      <tr><td>is_auth_blocked</td><td>true</td></tr>
+      <tr><td>risk_score</td><td>100 (short-circuit, assegnato)</td></tr>
+    </table>
+    <div class="card"><p>La negoziazione TLS/mTLS si completa (certificati validi), ma il diniego avviene a Livello 7: OPA rileva l'assenza TPM e blocca senza interpellare Splunk. nftables non interviene: l'IP di Bob è nel flusso interno consentito.</p></div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s45">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 4.6 · Figura 14</span><h2>Scenario 6 — Accesso legittimo da rete esterna: Charlie</h2><hr class="slide-divider"></div>
+  <div class="grid-4 animate-in-up" style="align-items:center; margin-bottom:24px;">
+    <div class="flow-box" style="border-color:var(--status-amber);">Charlie<br><span style="font-weight:400; font-size:1rem;">Remoto, TPM ok</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">Firewall → Envoy → OPA ↔ Splunk ML</div>
+    <div class="flow-box" style="background:var(--status-green); color:#fff;">VERDETTO: ALLOW</div>
+  </div>
+  <div class="grid-2 animate-in-up">
+    <table class="data-table">
+      <tr><td>network_internal</td><td>false</td></tr>
+      <tr><td>tpm_present</td><td>true</td></tr>
+      <tr><td>risk_score</td><td>17.7 (soglia ≤ 26)</td></tr>
+      <tr><td>Decision</td><td><span class="pill pill-green">ALLOW</span></td></tr>
+    </table>
+    <div class="card"><p>Nessun blocco preventivo: il sistema abilita un controllo adattivo. La penalità di rete esterna (+18) è compensata da un comportamento pulito, mantenendo il rischio sotto la soglia ristretta di 26.</p></div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s46">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 4.7-4.8</span><h2>Scenari 7 e 8 — Accesso ai dati sensibili</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card" style="border-top:4px solid var(--status-green);"><h3>Scenario 7 — Alice (interna)</h3><p>Workstation interna, TPM validato, nessuna anomalia: il PDP autorizza la lettura del Fascicolo Sanitario Elettronico completo di note riservate.</p><span class="pill pill-green" style="margin-top:10px;">ALLOW</span></div>
+    <div class="card" style="border-top:4px solid var(--status-red);"><h3>Scenario 8 — Charlie (remoto)</h3><p>Autenticazione già riuscita (Scenario 6), ma DPI L7 rileva <code>network_internal:false</code>: la Policy 3 svuota la cella della matrice per questo endpoint.</p><span class="pill pill-red" style="margin-top:10px;">DENY · l7_dpi_block: true</span></div>
+  </div>
+  <p class="animate-in-up" style="margin-top:20px; font-size:1.1rem;">Principio di Least Privilege: il diniego non dipende dai permessi generici dell'utente, ma dalla protezione intrinseca del dato — richiede sempre connessione dalla rete interna, indipendentemente dall'identità.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s47">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 4.9</span><h2>Scenario 9 — Protezione dell'accesso TCP diretto</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Alice — dispositivo conforme</h3>
+      <div class="code-block" style="margin-top:10px; font-size:0.95rem;">client = pymongo.MongoClient('zta-envoy',
+  27017, tls=True, ...)
+db.command('ping')
+→ <span class="str">{'ok': 1.0}</span></div>
+      <p style="margin-top:10px;">OPA rileva <code>tpm_present:true</code> e autorizza l'apertura del tunnel TCP bidirezionale.</p>
+    </div>
+    <div class="card">
+      <h3>Bob — dispositivo non conforme</h3>
+      <div class="code-block" style="margin-top:10px; font-size:0.95rem;">client = pymongo.MongoClient('zta-envoy',
+  27017, tls=True, ...)
+→ <span class="str">ServerSelectionTimeoutError:
+  connection closed</span></div>
+      <p style="margin-top:10px;">OPA nega alla radice per non conformità hardware; Envoy interrompe la negoziazione, impedendo la creazione del tunnel.</p>
+    </div>
+  </div>
+  <p class="animate-in-up" style="margin-top:20px; font-size:1.1rem; color:var(--text-muted);">Coerenza architetturale dimostrata: il database è protetto a Layer 4 in modo identico alle Web API a Layer 7.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s48">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 4.10</span><h2>Scenario 10 — Protezione dai payload dannosi a livello L7</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card"><h3>Attacco simulato</h3><p>Alice (dispositivo conforme, TPM valido) invia una richiesta HTTP <code>DELETE</code> verso <code>/api/patients</code> — cancellazione di dati clinici.</p></div>
+    <div class="card">
+      <h3>Log indicizzato in Splunk</h3>
+      <table class="data-table">
+        <tr><td>method</td><td>DELETE</td></tr>
+        <tr><td>path</td><td>/api/patients</td></tr>
+        <tr><td>response_code</td><td>403</td></tr>
+        <tr><td>user_identity</td><td>CN=employee-alice</td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="animate-in-up" style="margin-top:20px; font-size:1.1rem;">Anche un utente pienamente legittimo viene bloccato: il sistema agisce come WAF context-aware, applicando Least Privilege sui verbi HTTP indipendentemente dall'identità. Lo stesso principio si applica via <code>mongo_proxy</code> per comandi MongoDB nativi distruttivi, con Splunk MLTK che calcola il risk score prima dell'enforcement finale.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s49">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  
+  <div class="slide-header animate-in-up">
+    <h2>Scenario 10.1 — Furto del dispositivo di Alice: Insider Threat</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <div class="diagram-container animate-in-up" style="background:rgba(20,19,20,0.6); border: 1px solid var(--border-strong); border-radius: 12px; padding: 4px 10px; display: flex; justify-content: center; align-items: center; box-shadow: 0 8px 25px rgba(0,0,0,0.5); margin-bottom: 20px; width: 100%;">
+    <svg viewBox="25 65 990 610" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', sans-serif" style="width:100%; height:100%; max-height:52vh;">
+      <defs>
+        <filter id="shadow-s49" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+        </filter>
+        <marker id="arr-green-s49" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-green)"/>
+        </marker>
+        <marker id="arr-copper-s49" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--accent-copper)"/>
+        </marker>
+        <marker id="arr-red-s49" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 7 5 L 0 8.5 L 2 5 z" fill="var(--status-red)"/>
+        </marker>
+      </defs>
+
+      <rect x="30" y="70" width="180" height="120" fill="rgba(140, 71, 59, 0.02)" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="4 4" rx="6" opacity="0.3"/>
+      <text x="40" y="90" fill="var(--text-muted)" font-size="10" font-weight="800" letter-spacing="1px" opacity="0.4">RETE ESTERNA</text>
+
+      <rect x="30" y="210" width="180" height="210" fill="rgba(185, 106, 89, 0.04)" stroke="var(--status-red)" stroke-width="1.2" stroke-dasharray="4 4" rx="6"/>
+      <text x="40" y="230" fill="var(--status-red)" font-size="10" font-weight="800" letter-spacing="1px">RETE INTERNA (DMZ)</text>
+
+      <rect x="830" y="110" width="180" height="280" fill="rgba(217, 160, 126, 0.04)" stroke="var(--status-red)" stroke-width="1.2" stroke-dasharray="4 4" rx="6"/>
+      <text x="840" y="130" fill="var(--status-red)" font-size="10" font-weight="800" letter-spacing="1px">RISORSE PROTETTE</text>
+
+      <rect x="150" y="440" width="840" height="220" fill="rgba(128, 122, 118, 0.04)" stroke="var(--accent-copper)" stroke-width="1.2" stroke-dasharray="4 4" rx="6"/>
+      <text x="160" y="460" fill="var(--accent-copper)" font-size="10" font-weight="800" letter-spacing="1px">PIANO DI CONTROLLO</text>
+
+      <path class="flow-line-data" d="M 185,260 L 315,260" fill="none" stroke="var(--status-green)" stroke-width="2.5" marker-end="url(#arr-green-s49)"/>
+      
+      <path class="flow-line-data" d="M 445,260 L 570,260" fill="none" stroke="var(--status-green)" stroke-width="2.5" marker-end="url(#arr-green-s49)"/>
+
+      <path class="flow-line-data" d="M 640,295 L 640,390 L 820,390 L 820,570" fill="none" stroke="var(--accent-copper)" stroke-width="2" marker-end="url(#arr-copper-s49)"/>
+      
+      <path class="flow-line-data" d="M 820,630 L 820,660 L 245,660 L 245,630" fill="none" stroke="var(--accent-copper)" stroke-width="2" marker-end="url(#arr-copper-s49)"/>
+
+      <path class="flow-line-telemetry" d="M 820,570 Q 700,530 530,570" fill="none" stroke="var(--status-red)" stroke-width="1.5" marker-end="url(#arr-red-s49)"/>
+
+      <path class="flow-line-data" d="M 710,260 L 850,320" fill="none" stroke="var(--status-red)" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arr-red-s49)"/>
+
+      <path d="M 185,130 L 315,260" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1"/>
+      <path d="M 185,360 L 315,260" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1"/>
+      <path d="M 710,260 L 850,180" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1"/>
+      <path d="M 380,290 L 380,390 L 245,390 L 245,470" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.1"/>
+
+      <g font-size="9" font-weight="800" text-anchor="middle">
+        <rect x="200" y="243" width="85" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-green)" stroke-width="0.5"/>
+        <text x="242" y="254" fill="var(--status-green)">IP Rete Interna</text>
+        
+        <rect x="475" y="252" width="65" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-green)" stroke-width="0.5"/>
+        <text x="507" y="263" fill="var(--status-green)">mTLS+TPM OK</text>
+
+        <rect x="715" y="382" width="55" height="16" fill="var(--bg-page)" rx="3" stroke="var(--accent-copper)" stroke-width="0.5"/>
+        <text x="742" y="393" fill="var(--accent-copper)">gRPC Check</text>
+
+        <rect x="500" y="652" width="65" height="16" fill="var(--bg-page)" rx="3" stroke="var(--accent-copper)" stroke-width="0.5"/>
+        <text x="532" y="663" fill="var(--accent-copper)">Query MLTK</text>
+
+        <rect x="765" y="275" width="55" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-red)" stroke-width="0.5"/>
+        <text x="792" y="286" fill="var(--status-red)">BLOCCATO</text>
+        
+        <rect x="630" y="555" width="60" height="16" fill="var(--bg-page)" rx="3" stroke="var(--status-red)" stroke-width="0.5"/>
+        <text x="660" y="566" fill="var(--status-red)">Log DENY</text>
+      </g>
+
+      <g font-size="10" font-weight="800" text-anchor="middle">
+        <text x="640" y="215" fill="var(--status-red)">CONNESSIONE TRANCIATA</text>
+        <text x="920" y="368" fill="var(--status-red)">Non Raggiunto</text>
+        <text x="245" y="648" fill="var(--status-red)">Rischio: 95.49</text>
+        <text x="820" y="648" fill="var(--status-red)">DENY (> 38)</text>
+      </g>
+
+      <g transform="translate(55, 230)" filter="url(#shadow-s49)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-red)" stroke-width="2.5" rx="4"/>
+        <image href="relazione/capitolo2/img/alice.png" x="52" y="8" width="26" height="26"/>
+        <text x="65" y="49" fill="var(--text-heading)" font-size="10" font-weight="700" text-anchor="middle">Alice (Furto PC)</text>
+      </g>
+
+      <g transform="translate(55, 100)" opacity="0.15">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="1" rx="4"/>
+        <text x="65" y="35" fill="var(--text-muted)" font-size="11" font-weight="700" text-anchor="middle">Charlie</text>
+      </g>
+      <g transform="translate(55, 330)" opacity="0.15">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="1" rx="4"/>
+        <text x="65" y="35" fill="var(--text-muted)" font-size="11" font-weight="700" text-anchor="middle">Bob</text>
+      </g>
+
+      <g transform="translate(315, 230)" filter="url(#shadow-s49)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-green)" stroke-width="2" rx="4"/>
+        <text x="65" y="28" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">nftables</text>
+        <text x="65" y="44" fill="var(--status-green)" font-size="10" font-weight="700" text-anchor="middle">L3 OK</text>
+      </g>
+
+      <g transform="translate(570, 225)" filter="url(#shadow-s49)">
+        <rect width="140" height="70" fill="var(--accent-copper)" stroke="none" rx="6"/>
+        <text x="70" y="32" fill="#FFF" font-size="11" font-weight="800" text-anchor="middle">Envoy PEP</text>
+        <text x="70" y="48" fill="#FFF" font-size="9" opacity="0.9" text-anchor="middle">Handshake OK</text>
+        <text x="70" y="60" fill="#FFF" font-size="9" opacity="0.9" text-anchor="middle">Attesa Authz</text>
+      </g>
+
+      <g transform="translate(850, 150)" opacity="0.15">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="1" rx="4"/>
+        <text x="65" y="35" fill="var(--text-muted)" font-size="11" font-weight="700" text-anchor="middle">Web API</text>
+      </g>
+      
+      <g transform="translate(850, 290)" filter="url(#shadow-s49)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-red)" stroke-width="2" rx="4"/>
+        <text x="65" y="35" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">MongoDB</text>
+      </g>
+
+      <g transform="translate(755, 570)" filter="url(#shadow-s49)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-red)" stroke-width="2.5" rx="4"/>
+        <text x="65" y="28" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">OPA PDP</text>
+        <text x="65" y="44" fill="var(--status-red)" font-size="10" font-weight="700" text-anchor="middle">Valuta DENY</text>
+      </g>
+
+      <g transform="translate(180, 570)" filter="url(#shadow-s49)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--status-red)" stroke-width="2.5" rx="4"/>
+        <text x="65" y="28" fill="var(--text-heading)" font-size="12" font-weight="700" text-anchor="middle">Splunk MLTK</text>
+        <text x="65" y="44" fill="var(--status-red)" font-size="10" font-weight="700" text-anchor="middle">Anomalia Rilevata</text>
+      </g>
+      
+      <g transform="translate(465, 570)" filter="url(#shadow-s49)">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="1.5" rx="4"/>
+        <text x="65" y="35" fill="var(--text-heading)" font-size="11" font-weight="700" text-anchor="middle">Fluent-Bit</text>
+      </g>
+
+      <g transform="translate(180, 470)" opacity="0.15">
+        <rect width="130" height="60" fill="var(--bg-white)" stroke="var(--text-muted)" stroke-width="1" rx="4"/>
+        <text x="65" y="35" fill="var(--text-muted)" font-size="11" font-weight="700" text-anchor="middle">Snort NIDS</text>
+      </g>
+
+    </svg>
+  </div>
+  
+  <div class="grid-2 animate-in-up" style="gap: 20px;">
+    <div class="card" style="padding: 20px;">
+      <h3 style="margin-bottom: 10px; font-size: 1.15rem;">L'attacco</h3>
+      <p style="font-size: 0.95rem; line-height: 1.6; margin: 0;">
+        L'attaccante possiede fisicamente il dispositivo, il TPM è validato e i certificati mTLS sono quelli legittimi di Alice. Supera il firewall e bypassa le Web API tentando una connessione diretta alla porta di MongoDB via <code>pymongo</code>, sfruttando il file <code>alice_combined.pem</code> rubato.
+      </p>
+    </div>
+    <div class="card" style="padding: 20px;">
+      <h3 style="margin-bottom: 10px; font-size: 1.15rem;">Difesa: PIP comportamentale in-memory</h3>
+      <p style="font-size: 0.95rem; line-height: 1.6; margin: 0;">
+        Il Policy Information Point rileva l'azione e inietta a runtime metriche altamente degradate (<code>failed_logins=4</code>, <code>session_freq=30</code>, <code>days_inactive=60</code>, <code>is_night=1</code>). Il modello Gradient Boosting produce istantaneamente un risk score di <b style="color:var(--status-red);">95.49</b>. Essendo superiore alla soglia tollerata di 38, OPA emette un <span class="pill pill-red">DENY</span> tranciando la connessione.
+      </p>
+    </div>
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s50">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 4.11-4.12</span><h2>Scenari 11 e 12 — Ricognizione attiva e audit del canale nativo</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Scenario 11 — Scan Nmap</h3>
+      <div class="code-block" style="margin-top:10px; font-size:0.95rem;">docker exec zta-client-charlie \
+  nmap -sV zta-envoy</div>
+      <p style="margin-top:10px;">Snort correla il pattern SYN (sid:1000001) e genera un alert centralizzato in Splunk, correlando l'IP sorgente (192.168.100.3) al target.</p>
+    </div>
+    <div class="card">
+      <h3>Scenario 12 — Audit MongoDB nativo</h3>
+      <div class="code-block" style="margin-top:10px; font-size:0.95rem;">echo 'test' | nc zta-envoy 27017</div>
+      <p style="margin-top:10px;">Connessione TCP diretta rilevata (sid:1000002): non un blocco, ma un evento di audit — deviazione dal canale HTTPS autorizzato, comunque tracciata forensicamente.</p>
+    </div>
+  </div>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s51">
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  <div class="slide-header animate-in-up"><span class="eyebrow">§ 4.13-4.14</span><h2>Scenari 13 e 14 — DoS volumetrico e Downgrade Attack</h2><hr class="slide-divider"></div>
+  <div class="grid-2 animate-in-up">
+    <div class="card">
+      <h3>Scenario 13 — SYN Flood</h3>
+      <div class="code-block" style="margin-top:10px; font-size:0.95rem;">for i in {1..150}; do
+  nc -z -w1 zta-envoy 8443 &
+done</div>
+      <p style="margin-top:10px;">Soglia 100 tentativi/5s superata (sid:1000003): alert di priorità elevata verso il SIEM.</p>
+    </div>
+    <div class="card">
+      <h3>Scenario 14 — Traffico in chiaro</h3>
+      <div class="code-block" style="margin-top:10px; font-size:0.95rem;">echo -e 'GET / HTTP/1.1\r\n...' \
+  | nc zta-envoy 8443</div>
+      <p style="margin-top:10px;">Snort rileva la stringa "GET " in chiaro su porta TLS (sid:1000004): Envoy rifiuta comunque la connessione, Snort notifica il tentativo di manomissione.</p>
+    </div>
+  </div>
+  <p class="animate-in-up" style="margin-top:20px; font-size:1.1rem; color:var(--text-muted);">In produzione questi eventi innescherebbero rate-limiting selettivo o blacklist automatica (SOAR) — il PoC attuale valida solo la catena di Detection, non la Response automatizzata.</p>
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s52">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 4.15 · Dashboard 1/3</span>
+    <h2>ZTA - Security Executive</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <div class="animate-in-up" style="background:var(--bg-card2); border: 1px solid var(--border-strong); border-radius: 12px; padding: 10px; margin: 0 auto 25px auto; height: 42vh; display: flex; justify-content: center; align-items: center; width: fit-content; box-sizing: border-box;">
+    
+    <img src="dashboardSecurityExecutive.png" alt="ZTA - Security Executive Dashboard" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 6px;">
+    
+  </div>
+
+  <div class="grid-3 animate-in-up">
+    <div class="card">
+      <h3>Pannello A</h3>
+      <p>Ripartizione statistica Allow vs Deny — valida in tempo reale l'efficacia delle policy di microsegmentazione attive.</p>
+    </div>
+    <div class="card" style="transition-delay:0.1s;">
+      <h3>Pannello B</h3>
+      <p>Volume di traffico per singolo soggetto/dispositivo — identifica rapidamente i nodi più attivi della rete.</p>
+    </div>
+    <div class="card" style="transition-delay:0.2s;">
+      <h3>Pannello C</h3>
+      <p>Telemetria verso gli endpoint critici (<code>/api/auth</code>, <code>/api/patients</code>, <code>/api/patients/sensitive</code>) — evidenzia picchi anomali di carico che potrebbero indicare accesso massivo.</p>
+    </div>
+  </div>
+  
+  <span class="slide-number">52 / 58</span>
+</section>
+
+<section class="slide" id="s53">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 4.15 · Dashboard 2/3</span>
+    <h2>ZTA - Incident Response</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <div class="animate-in-up" style="background:var(--bg-card2); border: 1px solid var(--border-strong); border-radius: 12px; padding: 10px; margin: 0 auto 25px auto; height: 42vh; display: flex; justify-content: center; align-items: center; width: fit-content; box-sizing: border-box;">
+    
+    <img src="dashboardIncidentResponse.png" alt="ZTA - Incident Response Dashboard" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 6px;">
+    
+  </div>
+
+  <div class="grid-3 animate-in-up">
+    <div class="card">
+      <h3>Pannello A</h3>
+      <p>Evidenza forense delle violazioni L7: timestamp, identità (<code>user_identity</code>), IP, metodo HTTP, path, decisione BLOCKED applicata dal PDP.</p>
+    </div>
+    <div class="card" style="transition-delay:0.1s;">
+      <h3>Pannello B</h3>
+      <p>Conteggio aggregato delle richieste bloccate — KPI fondamentale per la valutazione del rischio residuo.</p>
+    </div>
+    <div class="card" style="transition-delay:0.2s;">
+      <h3>Pannello C</h3>
+      <p>Correlazione violazioni per indirizzo IP, evidenziando sorgenti (es. <code>10.0.1.4</code>, <code>192.168.100.3</code>) con comportamento malevolo ricorrente.</p>
+    </div>
+  </div>
+  
+  <span class="slide-number">53 / 58</span>
+</section>
+
+<section class="slide" id="s54">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 4 · Simulazione degli Scenari</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 4.15 · Dashboard 3/3</span>
+    <h2>ZTA - ML & Continuous Trust Analytics</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <div class="animate-in-up" style="background:var(--bg-card2); border: 1px solid var(--border-strong); border-radius: 12px; padding: 10px; margin: 0 auto 25px auto; height: 42vh; display: flex; justify-content: center; align-items: center; width: fit-content; box-sizing: border-box;">
+    
+    <img src="dashboardZTAML.png" alt="ZTA - ML & Continuous Trust Analytics Dashboard" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 6px;">
+    
+  </div>
+
+  <div class="grid-3 animate-in-up">
+    <div class="card">
+      <h3>Pannello A</h3>
+      <p>Andamento del Risk Score nel tempo per ciascun utente — osserva la dinamica della fiducia (es. oscillazioni per Charlie).</p>
+    </div>
+    <div class="card" style="transition-delay:0.1s;">
+      <h3>Pannello B</h3>
+      <p>Classifica utenti per rischio massimo raggiunto — supporto decisionale per le procedure di isolamento automatizzato.</p>
+    </div>
+    <div class="card" style="transition-delay:0.2s;">
+      <h3>Pannello C</h3>
+      <p>Radar dei parametri di contesto: frequenza sessioni, login falliti, flag notturno — chiudono il ciclo di feedback tra analisi e autorizzazione.</p>
+    </div>
+  </div>
+  
+  <span class="slide-number">54 / 58</span>
+</section>
+
+<section class="slide" id="s55">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 5 · Conclusioni e Sviluppi Futuri</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 5.1</span>
+    <h2>Obiettivi raggiunti: tre pilastri architetturali</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <style>
+    /* CSS specifico per le card avanzate della Slide 55 */
+    #s55 .feature-card {
+      background: var(--bg-card2, rgba(46, 42, 43, 0.4));
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 24px;
+      position: relative;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    #s55 .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+      background: rgba(255,255,255,0.03);
+    }
+    #s55 .card-icon {
+      width: 34px;
+      height: 34px;
+      margin-bottom: 20px;
+    }
+    #s55 .feature-card h3 {
+      font-size: 1.15rem;
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: var(--text-heading);
+      line-height: 1.4;
+    }
+    #s55 .feature-card p {
+      font-size: 0.95rem;
+      color: var(--text-body);
+      line-height: 1.6;
+      margin: 0;
+    }
+  </style>
+
+  <div class="grid-3 animate-in-up" style="align-items: stretch; margin-top: 20px;">
+    
+    <div class="feature-card" style="border-top: 4px solid var(--accent-copper); transition-delay: 0.0s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--accent-copper)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <h3>PEP — Segregazione e Sicurezza Infrastrutturale</h3>
+      <p>Microsegmentazione L3/L4 via nftables, mTLS obbligatorio, fingerprinting JA3, attestazione hardware TPM. Nessun bypass possibile del choke-point Envoy.</p>
+    </div>
+    
+    <div class="feature-card" style="border-top: 4px solid var(--accent-sand); transition-delay: 0.1s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--accent-sand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <line x1="4" y1="21" x2="4" y2="14"></line>
+          <line x1="4" y1="10" x2="4" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12" y2="3"></line>
+          <line x1="20" y1="21" x2="20" y2="16"></line>
+          <line x1="20" y1="12" x2="20" y2="3"></line>
+          <line x1="1" y1="14" x2="7" y2="14"></line>
+          <line x1="9" y1="8" x2="15" y2="8"></line>
+          <line x1="17" y1="16" x2="23" y2="16"></line>
+        </svg>
+      </div>
+      <h3>PDP — Autorizzazione Continua e Difesa in Profondità</h3>
+      <p>OPA valuta dinamicamente le 6 dimensioni ZTA con short-circuiting per ottimizzare la latenza. Due livelli L7 DPI: filtro Lua + ispezione nativa BSON.</p>
+    </div>
+    
+    <div class="feature-card" style="border-top: 4px solid var(--status-green); transition-delay: 0.2s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--status-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+      </div>
+      <h3>SIEM — Intelligenza Predittiva e Auditing</h3>
+      <p>Splunk MLTK con Gradient Boosting su 12 feature contestuali/comportamentali. Continuous Authorization capace di smascherare Insider Threat anche con credenziali valide, con monitoraggio Snort continuo.</p>
+    </div>
+    
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s56">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 5 · Conclusioni e Sviluppi Futuri</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 5.2 (1/2)</span>
+    <h2>Sviluppi futuri — Identità e dispositivi legacy</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <style>
+    /* CSS specifico per le card avanzate della Slide 56 */
+    #s56 .feature-card {
+      background: var(--bg-card2, rgba(46, 42, 43, 0.4));
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 24px;
+      position: relative;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    #s56 .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+      background: rgba(255,255,255,0.03);
+    }
+    #s56 .card-icon {
+      width: 36px;
+      height: 36px;
+      margin-bottom: 20px;
+    }
+    #s56 .feature-card h3 {
+      font-size: 1.15rem;
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: var(--text-heading);
+      line-height: 1.4;
+    }
+    #s56 .feature-card p {
+      font-size: 0.95rem;
+      color: var(--text-body);
+      line-height: 1.6;
+      margin: 0;
+    }
+  </style>
+
+  <div class="grid-2 animate-in-up" style="align-items: stretch; margin-top: 20px;">
+    
+    <div class="feature-card" style="border-top: 4px solid var(--accent-sand); transition-delay: 0.0s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--accent-sand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="8.5" cy="7" r="4"></circle>
+          <polyline points="17 11 19 13 23 9"></polyline>
+        </svg>
+      </div>
+      <h3>1 · Gestione dinamica delle identità (SPIFFE/SPIRE)</h3>
+      <p>La generazione statica dei certificati x509 potrebbe essere sostituita dallo standard SPIFFE/SPIRE: certificati short-lived basati su attestazione continua del workload, eliminando la complessità delle Certificate Revocation List (CRL).</p>
+    </div>
+    
+    <div class="feature-card" style="border-top: 4px solid var(--accent-copper); transition-delay: 0.1s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--accent-copper)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+          <rect x="9" y="9" width="6" height="6"></rect>
+          <line x1="9" y1="1" x2="9" y2="4"></line>
+          <line x1="15" y1="1" x2="15" y2="4"></line>
+          <line x1="9" y1="20" x2="9" y2="23"></line>
+          <line x1="15" y1="20" x2="15" y2="23"></line>
+          <line x1="20" y1="9" x2="23" y2="9"></line>
+          <line x1="20" y1="14" x2="23" y2="14"></line>
+          <line x1="1" y1="9" x2="4" y2="9"></line>
+          <line x1="1" y1="14" x2="4" y2="14"></line>
+        </svg>
+      </div>
+      <h3>2 · Integrazione dispositivi Legacy e M2M</h3>
+      <p>Estensione sicura a dispositivi privi di TPM (kiosk informativi, comunicazioni Machine-to-Machine via API), con modelli ML dedicati che abbassino le soglie di tolleranza e monitorino con maggior severità l'ancoraggio JA3.</p>
+    </div>
+    
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide" id="s57">
+  <div class="top-logo">ZTA · 2026</div>
+  <div class="chapter-tag">Capitolo 5 · Conclusioni e Sviluppi Futuri</div>
+  
+  <div class="slide-header animate-in-up">
+    <span class="eyebrow">§ 5.2 (2/2)</span>
+    <h2>Sviluppi futuri — Intelligenza, automazione, scalabilità</h2>
+    <hr class="slide-divider">
+  </div>
+  
+  <style>
+    /* CSS specifico per le card avanzate della Slide 57 */
+    #s57 .feature-card {
+      background: var(--bg-card2, rgba(46, 42, 43, 0.4));
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 24px;
+      position: relative;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    #s57 .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+      background: rgba(255,255,255,0.03);
+    }
+    #s57 .card-icon {
+      width: 36px;
+      height: 36px;
+      margin-bottom: 20px;
+    }
+    #s57 .feature-card h3 {
+      font-size: 1.15rem;
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: var(--text-heading);
+      line-height: 1.4;
+    }
+    #s57 .feature-card p {
+      font-size: 0.95rem;
+      color: var(--text-body);
+      line-height: 1.6;
+      margin: 0;
+    }
+  </style>
+
+  <div class="grid-3 animate-in-up" style="align-items: stretch; margin-top: 20px;">
+    
+    <div class="feature-card" style="border-top: 4px solid var(--accent-terracotta); transition-delay: 0.0s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--accent-terracotta)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+      </div>
+      <h3>3 · Sensor Fusion (L3/L4 → ML)</h3>
+      <p>Ingestione degli alert Snort e dei drop nftables come feature di addestramento aggiuntive, per correlare anomalie applicative con movimenti laterali di rete e aumentare la precisione contro le APT.</p>
+    </div>
+    
+    <div class="feature-card" style="border-top: 4px solid var(--accent-copper); transition-delay: 0.1s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--accent-copper)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+        </svg>
+      </div>
+      <h3>4 · Orchestrazione SOAR</h3>
+      <p>L'API REST FastAPI per l'inserimento dinamico in denylist è già predisposta: evoluzione verso una pipeline SOAR completa con webhook automatici da Splunk verso il firewall, isolamento istantaneo senza intervento umano.</p>
+    </div>
+
+    <div class="feature-card" style="border-top: 4px solid var(--status-green); transition-delay: 0.2s;">
+      <div class="card-icon">
+        <svg fill="none" stroke="var(--status-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+      </div>
+      <h3>5 · Federated Machine Learning</h3>
+      <p>In scenari multi-ospedale, addestramento del modello Gradient Boosting condividendo solo gradienti/pesi algoritmici tra i SIEM, senza mai scambiare log grezzi — rispetto nativo dei vincoli GDPR.</p>
+    </div>
+    
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<section class="slide bg-cover" id="s58">
+  <div class="top-logo">ZTA · 2026</div>
+  
+  <div class="animate-in-up" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding-bottom: 40px;">
+    
+    <span class="eyebrow" style="margin-bottom: 15px; font-size: 1.1rem; letter-spacing: 3px; color: var(--accent-sand);">Zero Trust Architecture 2026</span>
+    
+    <h1 style="font-size: clamp(3.5rem, 6vw, 5.5rem); margin-bottom: 20px; text-shadow: 0 10px 30px rgba(0,0,0,0.8); color: var(--text-heading);">Grazie per l'attenzione.</h1>
+    
+    <p class="subtitle" style="max-width: 700px; font-size: 1.25rem; color: var(--text-body); margin-bottom: 40px; font-weight: 300;">
+      Applicazione del paradigma <i>"Never trust, always verify"</i> per la protezione dei dati in ambito clinico e ospedaliero.
+    </p>
+
+    <hr class="slide-divider" style="width: 80px; margin: 0 auto 40px auto; border-top: 2px solid var(--accent-copper); background: transparent;">
+    
+    <div style="display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; opacity: 0.9;">
+      <span class="icon-badge" style="background: rgba(34,31,32,0.8); backdrop-filter: blur(4px);">Envoy PEP</span>
+      <span class="icon-badge" style="background: rgba(34,31,32,0.8); backdrop-filter: blur(4px);">OPA PDP</span>
+      <span class="icon-badge" style="background: rgba(34,31,32,0.8); backdrop-filter: blur(4px);">Splunk MLTK</span>
+      <span class="icon-badge" style="background: rgba(34,31,32,0.8); backdrop-filter: blur(4px);">nftables</span>
+      <span class="icon-badge" style="background: rgba(34,31,32,0.8); backdrop-filter: blur(4px);">Snort NIDS</span>
+      <span class="icon-badge" style="background: rgba(34,31,32,0.8); backdrop-filter: blur(4px);">MongoDB</span>
+    </div>
+    
+  </div>
+  
+  <span class="slide-number"></span>
+</section>
+
+<script>
+// Auto-numbering delle slide (in formato 00 / 58)
+const totalSlides = document.querySelectorAll('.slide').length - 1; // escludo la copertina
+document.querySelectorAll('.slide').forEach((slide, index) => {
+  const span = slide.querySelector('.slide-number');
+  if (span) {
+    span.textContent = `${String(index).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}`;
+  }
+});
+
+// Progress bar
+window.addEventListener('scroll', () => {
+  const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+  const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  document.getElementById('progress-bar').style.width = (scrollTop/scrollHeight*100) + '%';
+});
+
+// Animazioni in entrata
+const fadeObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
+}, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+document.querySelectorAll('.animate-in-up').forEach(el => fadeObserver.observe(el));
+
+// Bar chart filler
+const barObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) { const w = entry.target.getAttribute('data-width'); if (w) entry.target.style.width = w; }
+  });
+}, { threshold: 0.2 });
+document.querySelectorAll('.bar-fill').forEach(el => barObserver.observe(el));
+
+// Sincronizzazione pallini di navigazione
+const sections = document.querySelectorAll('.slide');
+const dots = document.querySelectorAll('.dots-nav .dot');
+const navObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.getAttribute('id');
+      dots.forEach(dot => { dot.classList.remove('active'); if (dot.getAttribute('href') === `#${id}`) dot.classList.add('active'); });
+    }
+  });
+}, { threshold: 0.5 });
+sections.forEach(section => navObserver.observe(section));
+
+// Navigazione da tastiera
+document.addEventListener('keydown', (e) => {
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const currentSlide = slides.find(s => { const rect = s.getBoundingClientRect(); return rect.top >= -100 && rect.top <= window.innerHeight/2; });
+  const currentIndex = slides.indexOf(currentSlide);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+    e.preventDefault();
+    const next = slides[Math.min(currentIndex+1, slides.length-1)];
+    if (next) next.scrollIntoView({behavior:'smooth'});
+  } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const prev = slides[Math.max(currentIndex-1, 0)];
+    if (prev) prev.scrollIntoView({behavior:'smooth'});
+  }
+});
+</script>
+</body>
+</html>
