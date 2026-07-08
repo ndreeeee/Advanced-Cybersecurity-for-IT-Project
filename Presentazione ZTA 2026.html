@@ -1804,17 +1804,15 @@ is_tpm := <span class="num">true</span> <span class="kw">if</span> {
       <p>Giorni trascorsi dall'ultimo login riuscito. Aiuta a rilevare account dormienti compromessi.</p>
     </div>
     
-    <div class="feature-card" style="border-top: 3px solid var(--status-green); transition-delay: 0.25s; background: linear-gradient(180deg, rgba(113, 160, 120, 0.05) 0%, rgba(46, 42, 43, 0) 100%);">
-      <div class="card-icon">
-        <svg fill="none" stroke="var(--status-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="16" x2="12" y2="12"/>
-          <line x1="12" y1="8" x2="12.01" y2="8"/>
+    <div class="feature-card" style="border-top: 3px solid var(--text-muted); transition-delay: 0.3s;">
+    <div class="card-icon">
+        <svg fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
-      </div>
-      <h3 style="color: var(--status-green);">Totale vettori ML</h3>
-      <p><b>12 Feature Complessive</b> (6 ZTA statiche + 6 comportamentali) passate al modello Gradient Boosting.</p>
     </div>
+    <h3>is_night</h3>
+    <p>Flag booleano che indica se la richiesta avviene in orario notturno, al di fuori delle fasce lavorative standard.</p>
+</div>
     
   </div>
   
