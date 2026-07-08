@@ -1448,7 +1448,6 @@ is_tpm := <span class="num">true</span> <span class="kw">if</span> {
     <div class="card"><h3>Limite strutturale</h3><p>Due dispositivi con stesso browser/OS producono lo stesso hash JA3: per gli operatori umani è crittograficamente indistinguibile — classificato come indicatore <b>debole</b> per accessi interattivi.</p></div>
   </div>
   <div class="card animate-in-up" style="margin-top:20px;"><h3>Fallback per traffico Machine-to-Machine</h3><p>Per sensori IoT e microservizi headless senza TPM, un JA3 censito e costante abilita l'accesso in modalità degradata: soglia di rischio abbassata a <code>≤26</code>, diritti verso endpoint sensibili/distruttivi inibiti a priori.</p></div>
-  <div class="card animate-in-up" style="margin-top:16px; border-left:4px solid var(--accent-copper);"><h3>⚠ Nota di sviluppo (§5.2)</h3><p>Nel PoC attuale il ramo di fallback JA3 per dispositivi no-TPM non è pienamente operativo: le label simboliche di addestramento non coincidono con gli hash JA3 reali a runtime. Documentato come sviluppo futuro.</p></div>
   <span class="slide-number"></span>
 </section>
 
